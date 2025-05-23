@@ -29,6 +29,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
     "@modelcontextprotocol/sdk": "^0.4.0",
+    "openai": "^4.63.0",
     "zod": "^3.22.0",
     "zod-to-json-schema": "^3.22.0"
   },
