@@ -1,0 +1,2 @@
+- Test via npm run test:run
+- Typecheck via npm run typecheck (includes src and test files, no errors)

@@ -1,0 +1,23 @@
+{
+  "name": "lemmy-monorepo",
+  "version": "0.1.0",
+  "description": "TypeScript API wrapper for multiple LLM providers",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/lemmy",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "dev": "npm run dev --workspaces",
+    "clean": "npm run clean --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
