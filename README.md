@@ -1,17 +1,16 @@
 # Lemmy
 
-A TypeScript API wrapper for multiple LLM providers (Anthropic, OpenAI, Google, Ollama) designed to make creating agentic workflows extremely simple.
+TypeScript API wrapper for LLM providers (Anthropic, OpenAI, Google, Ollama) designed for building agentic workflows.
 
 ## Features
 
-- **Unified Interface**: Common API across all LLM providers
-- **Provider-Agnostic Context**: Maintain conversations across different models
-- **Tool System**: Zod-based tool definitions with automatic type inference
-- **MCP Integration**: Support for Model Context Protocol servers
-- **Cost Tracking**: Automatic token and cost tracking across providers
-- **Type Safety**: Full TypeScript support with strict mode
-- **Streaming**: Built-in streaming support with optional callbacks
-- **Error Handling**: Structured error types with retry logic
+- **Unified Interface**: Common API across all providers
+- **Provider-Agnostic Context**: Switch models mid-conversation
+- **Zod-Based Tools**: Type-safe tool definitions with automatic validation
+- **MCP Integration**: Built-in Model Context Protocol support
+- **Cost Tracking**: Automatic token/cost tracking across all providers
+- **Streaming**: Real-time responses with thinking/reasoning support
+- **Extended Thinking**: Support for Claude's thinking and OpenAI's reasoning models
 
 ## Installation
 
@@ -22,64 +21,110 @@ npm install lemmy
 ## Quick Start
 
 ```typescript
-import { lemmy, Context } from 'lemmy'
+import { lemmy, Context, defineTool } from 'lemmy'
+import { z } from 'zod'
 
-// Create provider clients
+// Create clients
 const claude = lemmy.anthropic({ 
-  apiKey: 'your-api-key',
+  apiKey: 'sk-...',
   model: 'claude-3-5-sonnet-20241022'
 })
 
-const gpt4 = lemmy.openai({
-  apiKey: 'your-api-key', 
-  model: 'gpt-4o'
-})
-
-// Use shared context across providers
+// Shared context across providers
 const context = new Context()
 
-await claude.ask("Hello!", { context })
-await gpt4.ask("Continue the conversation", { context }) // Same context
+// Define tools with Zod
+const weatherTool = defineTool({
+  name: "get_weather",
+  description: "Get current weather",
+  schema: z.object({
+    location: z.string()
+  }),
+  execute: async ({ location }) => {
+    return { temp: 72, condition: "sunny" }
+  }
+})
 
-console.log(context.getTotalCost()) // Total cost across all providers
+context.addTool(weatherTool)
+
+// Use tools
+const result = await claude.ask("What's the weather in NYC?", { context })
+
+if (result.type === 'tool_call') {
+  const toolResults = await context.executeTools(result.toolCalls)
+  await claude.sendToolResults(toolResults.map(r => ({
+    toolCallId: r.toolCallId,
+    content: r.success ? JSON.stringify(r.result) : `Error: ${r.error?.message}`
+  })), { context })
+}
+
+console.log(`Total cost: $${context.getTotalCost()}`)
+```
+
+## Tools & MCP
+
+```typescript
+// Add MCP servers
+context.addMCPServer("filesystem", {
+  transport: "stdio",
+  command: "mcp-fs"
+})
+
+// Zero-argument tools
+const pingTool = defineTool({
+  name: "ping",
+  description: "Ping server",
+  schema: z.object({}),
+  execute: async () => "pong"
+})
+```
+
+## Extended Thinking
+
+```typescript
+// Enable Claude's thinking
+const claude = lemmy.anthropic({
+  apiKey: 'sk-...',
+  model: 'claude-3-5-sonnet-20241022',
+  thinking: { enabled: true }
+})
+
+// OpenAI reasoning models
+const openai = lemmy.openai({
+  apiKey: 'sk-...',
+  model: 'o1-mini',
+  reasoningEffort: 'medium'
+})
+
+// Stream thinking in real-time
+await claude.ask("Solve this complex problem", {
+  context,
+  onChunk: (content) => console.log("Response:", content),
+  onThinkingChunk: (thinking) => console.log("Thinking:", thinking)
+})
 ```
 
 ## Development
 
-This is a monorepo using npm workspaces:
-
 ```bash
-# Install dependencies
-npm install
+npm install                # Install dependencies
+npm run test:run          # Run tests
+npm run typecheck         # Type checking
 
-# Build the package
-cd packages/lemmy
-npm run build
-
-# Run tests
-npm test
-
-# Run example
+# Examples
 cd examples/cli-chat
 npm run dev
 ```
 
-## Project Structure
+## Architecture
 
-```
-lemmy/
-├── packages/lemmy/          # Main package
-│   ├── src/                 # Source code
-│   ├── test/               # Tests
-│   └── dist/               # Built output
-├── examples/               # Example applications
-│   └── cli-chat/          # CLI chat example
-└── scripts/               # Build and maintenance scripts
-```
+- **packages/lemmy/**: Main library with provider clients
+- **examples/**: Usage examples and demos
+- **scripts/**: Model data generation from ruby_llm
 
 ## Status
 
-🚧 **Under Development** - This project is currently being built. The initial project structure and build tooling are complete.
+🚧 Under active development
 
 ## License
 

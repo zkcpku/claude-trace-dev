@@ -231,6 +231,8 @@ export interface DefineToolParams<T = Record<string, unknown>, R = unknown> {
  * Result of tool execution
  */
 export interface ToolExecutionResult<R = unknown> {
+  /** The ID of the tool call this result corresponds to */
+  toolCallId: string
   /** Whether the tool executed successfully */
   success: boolean
   /** Result from tool execution (type preserved) */
