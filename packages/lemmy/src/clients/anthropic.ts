@@ -27,8 +27,29 @@ export class AnthropicClient implements ChatClient {
     })
   }
 
+  getModel(): string {
+    return this.config.model
+  }
+
+  getProvider(): string {
+    return 'anthropic'
+  }
+
   async ask(prompt: string, options?: AskOptions): Promise<AskResult> {
     try {
+      // Add user message to context first
+      if (options?.context) {
+        const userMessage: Message = {
+          role: 'user',
+          content: prompt,
+          tokens: { input: 0, output: 0, total: 0 }, // Will be updated with actual usage
+          provider: 'user',
+          model: 'none',
+          timestamp: new Date()
+        }
+        options.context.addMessage(userMessage)
+      }
+
       // Convert context messages to Anthropic format
       const messages = this.convertMessages(prompt, options?.context?.getMessages() || [])
       const tools = options?.context?.listTools() || []
@@ -37,10 +58,12 @@ export class AnthropicClient implements ChatClient {
       const anthropicTools = tools.map((tool: any) => zodToAnthropic(tool))
 
       // Calculate appropriate token limits
+      const modelData = findModelData(this.config.model)
+      const defaultMaxTokens = this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096
       const thinkingBudget = this.config.thinking?.budgetTokens || 3000
       const maxTokens = this.config.thinking?.enabled 
-        ? Math.max(4096, thinkingBudget + 1000) // Ensure max_tokens > budget_tokens
-        : 4096
+        ? Math.max(defaultMaxTokens, thinkingBudget + 1000) // Ensure max_tokens > budget_tokens
+        : defaultMaxTokens
         
       // Build request parameters
       const requestParams = {
@@ -70,18 +93,27 @@ export class AnthropicClient implements ChatClient {
 
   async sendToolResults(toolResults: ToolResult[], options?: AskOptions): Promise<AskResult> {
     try {
-      // Convert context messages to Anthropic format without adding a new user message
-      const messages = this.convertMessagesForToolResults(options?.context?.getMessages() || [], toolResults)
+      // Add tool result messages to context first
+      if (options?.context && toolResults.length > 0) {
+        for (const result of toolResults) {
+          options.context.addToolResult(result.toolCallId, result.content)
+        }
+      }
+
+      // Convert context messages to Anthropic format (toolResults are already in context)
+      const messages = this.convertMessagesForToolResults(options?.context?.getMessages() || [], [])
       const tools = options?.context?.listTools() || []
 
       // Convert tools to Anthropic format
       const anthropicTools = tools.map((tool: any) => zodToAnthropic(tool))
 
       // Calculate appropriate token limits
+      const modelData = findModelData(this.config.model)
+      const defaultMaxTokens = this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096
       const thinkingBudget = this.config.thinking?.budgetTokens || 3000
       const maxTokens = this.config.thinking?.enabled 
-        ? Math.max(4096, thinkingBudget + 1000) // Ensure max_tokens > budget_tokens
-        : 4096
+        ? Math.max(defaultMaxTokens, thinkingBudget + 1000) // Ensure max_tokens > budget_tokens
+        : defaultMaxTokens
         
       // Build request parameters
       const requestParams = {
@@ -349,19 +381,6 @@ export class AnthropicClient implements ChatClient {
 
       const cost = this.calculateCost(tokens)
 
-      // Add message to context if provided
-      if (options?.context && content) {
-        const message: Message = {
-          role: 'assistant',
-          content,
-          tokens,
-          provider: 'anthropic',
-          model: this.config.model,
-          timestamp: new Date()
-        }
-        options.context.addMessage(message)
-      }
-
       // Check if there were tool calls
       if (toolCalls.length > 0) {
         // Add the assistant message with tool calls to context for proper conversation flow
@@ -379,6 +398,19 @@ export class AnthropicClient implements ChatClient {
         }
         
         return { type: 'tool_call', toolCalls }
+      }
+
+      // Add message to context if provided (only for non-tool-call responses)
+      if (options?.context) {
+        const message: Message = {
+          role: 'assistant',
+          content,
+          tokens,
+          provider: 'anthropic',
+          model: this.config.model,
+          timestamp: new Date()
+        }
+        options.context.addMessage(message)
       }
 
       // Handle automatic continuation for max_tokens

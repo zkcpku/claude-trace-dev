@@ -28,8 +28,29 @@ export class OpenAIClient implements ChatClient {
     })
   }
 
+  getModel(): string {
+    return this.config.model
+  }
+
+  getProvider(): string {
+    return 'openai'
+  }
+
   async ask(prompt: string, options?: AskOptions): Promise<AskResult> {
     try {
+      // Add user message to context first
+      if (options?.context) {
+        const userMessage: Message = {
+          role: 'user',
+          content: prompt,
+          tokens: { input: 0, output: 0, total: 0 }, // Will be updated with actual usage
+          provider: 'user',
+          model: 'none',
+          timestamp: new Date()
+        }
+        options.context.addMessage(userMessage)
+      }
+
       // Convert context messages to OpenAI format
       const messages = this.convertMessages(prompt, options?.context?.getMessages() || [])
       const tools = options?.context?.listTools() || []
@@ -37,23 +58,30 @@ export class OpenAIClient implements ChatClient {
       // Convert tools to OpenAI format
       const openaiTools = tools.map((tool: any) => zodToOpenAI(tool))
 
+      // Calculate appropriate token limits
+      const modelData = findModelData(this.config.model)
+      const maxCompletionTokens = this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096
+
       // Build request parameters
       const requestParams: OpenAI.Chat.ChatCompletionCreateParams = {
         model: this.config.model,
-        max_tokens: 4096,
+        max_completion_tokens: maxCompletionTokens,
         messages,
         stream: true,
         stream_options: { include_usage: true },
-        ...(openaiTools.length > 0 && { 
+        ...(openaiTools.length > 0 && {
           tools: openaiTools,
           tool_choice: 'auto' as const
+        }),
+        ...(this.config.reasoningEffort && {
+          reasoning_effort: this.config.reasoningEffort
         })
       }
 
       // Execute streaming request
       const stream = await this.openai.chat.completions.create(requestParams)
 
-      return await this.processStream(stream, options)
+      return await this.processStream(stream as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>, options)
     } catch (error) {
       return this.handleError(error)
     }
@@ -61,30 +89,44 @@ export class OpenAIClient implements ChatClient {
 
   async sendToolResults(toolResults: ToolResult[], options?: AskOptions): Promise<AskResult> {
     try {
-      // Convert context messages to OpenAI format without adding a new user message
-      const messages = this.convertMessagesForToolResults(options?.context?.getMessages() || [], toolResults)
+      // Add tool result messages to context first
+      if (options?.context && toolResults.length > 0) {
+        for (const result of toolResults) {
+          options.context.addToolResult(result.toolCallId, result.content)
+        }
+      }
+
+      // Convert context messages to OpenAI format
+      const messages = this.convertMessagesForToolResults(options?.context?.getMessages() || [], [])
       const tools = options?.context?.listTools() || []
 
       // Convert tools to OpenAI format
       const openaiTools = tools.map((tool: any) => zodToOpenAI(tool))
 
+      // Calculate appropriate token limits
+      const modelData = findModelData(this.config.model)
+      const maxCompletionTokens = this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096
+
       // Build request parameters
       const requestParams: OpenAI.Chat.ChatCompletionCreateParams = {
         model: this.config.model,
-        max_tokens: 4096,
+        max_completion_tokens: maxCompletionTokens,
         messages,
         stream: true,
         stream_options: { include_usage: true },
-        ...(openaiTools.length > 0 && { 
+        ...(openaiTools.length > 0 && {
           tools: openaiTools,
           tool_choice: 'auto' as const
+        }),
+        ...(this.config.reasoningEffort && {
+          reasoning_effort: this.config.reasoningEffort
         })
       }
 
       // Execute streaming request
       const stream = await this.openai.chat.completions.create(requestParams)
 
-      return await this.processStream(stream, options)
+      return await this.processStream(stream as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>, options)
     } catch (error) {
       return this.handleError(error)
     }
@@ -110,9 +152,9 @@ export class OpenAIClient implements ChatClient {
               arguments: JSON.stringify(toolCall.arguments)
             }
           }))
-          
-          messages.push({ 
-            role: 'assistant', 
+
+          messages.push({
+            role: 'assistant',
             content: msg.content || null,
             tool_calls: toolCalls
           })
@@ -122,7 +164,7 @@ export class OpenAIClient implements ChatClient {
         }
       } else if (msg.role === 'tool_result') {
         // Handle tool results - in OpenAI these are tool messages
-        messages.push({ 
+        messages.push({
           role: 'tool',
           tool_call_id: msg.tool_call_id,
           content: msg.content
@@ -159,9 +201,9 @@ export class OpenAIClient implements ChatClient {
               arguments: JSON.stringify(toolCall.arguments)
             }
           }))
-          
-          messages.push({ 
-            role: 'assistant', 
+
+          messages.push({
+            role: 'assistant',
             content: msg.content || null,
             tool_calls: toolCalls
           })
@@ -171,7 +213,7 @@ export class OpenAIClient implements ChatClient {
         }
       } else if (msg.role === 'tool_result') {
         // Handle tool results - in OpenAI these are tool messages
-        messages.push({ 
+        messages.push({
           role: 'tool',
           tool_call_id: msg.tool_call_id,
           content: msg.content
@@ -184,7 +226,7 @@ export class OpenAIClient implements ChatClient {
 
     // Add the new tool results as tool messages
     for (const result of toolResults) {
-      messages.push({ 
+      messages.push({
         role: 'tool',
         tool_call_id: result.toolCallId,
         content: result.content
@@ -199,6 +241,7 @@ export class OpenAIClient implements ChatClient {
     options?: AskOptions
   ): Promise<AskResult> {
     let content = ''
+    let thinkingContent = ''
     let inputTokens = 0
     let outputTokens = 0
     let stopReason: string | undefined
@@ -213,6 +256,15 @@ export class OpenAIClient implements ChatClient {
           outputTokens = chunk.usage.completion_tokens || 0
         }
 
+        // Handle reasoning events (for o1-mini and similar reasoning models)
+        // Check for reasoning_summary_part or other reasoning events
+        if ((chunk as any).type === 'reasoning_summary_part') {
+          const reasoningChunk = (chunk as any).reasoning || (chunk as any).content || ''
+          thinkingContent += reasoningChunk
+          options?.onThinkingChunk?.(reasoningChunk)
+          continue
+        }
+
         const choice = chunk.choices?.[0]
         if (!choice) continue
 
@@ -223,26 +275,33 @@ export class OpenAIClient implements ChatClient {
           options?.onChunk?.(contentChunk)
         }
 
+        // Handle reasoning deltas (for o1-mini and similar reasoning models)
+        if ((choice as any).delta?.reasoning) {
+          const reasoningChunk = (choice as any).delta.reasoning
+          thinkingContent += reasoningChunk
+          options?.onThinkingChunk?.(reasoningChunk)
+        }
+
         // Handle tool call deltas
         if (choice.delta?.tool_calls) {
           for (const toolCallDelta of choice.delta.tool_calls) {
             const index = toolCallDelta.index!
-            
+
             if (!currentToolCalls.has(index)) {
               currentToolCalls.set(index, {})
             }
-            
+
             const currentToolCall = currentToolCalls.get(index)!
-            
+
             if (toolCallDelta.id) {
               currentToolCall.id = toolCallDelta.id
             }
-            
+
             if (toolCallDelta.function) {
               if (toolCallDelta.function.name) {
                 currentToolCall.name = toolCallDelta.function.name
               }
-              
+
               if (toolCallDelta.function.arguments) {
                 currentToolCall.arguments = (currentToolCall.arguments || '') + toolCallDelta.function.arguments
               }
@@ -309,7 +368,7 @@ export class OpenAIClient implements ChatClient {
           }
           options.context.addMessage(assistantMessage)
         }
-        
+
         return { type: 'tool_call', toolCalls }
       }
 
@@ -332,6 +391,7 @@ export class OpenAIClient implements ChatClient {
       // Return successful response
       const response: ChatResponse = {
         content,
+        ...(thinkingContent && { thinking: thinkingContent }),
         tokens,
         cost,
         stopReason: this.mapStopReason(stopReason) || 'complete',

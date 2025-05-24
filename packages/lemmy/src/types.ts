@@ -6,6 +6,11 @@
 export interface ChatClient {
   /**
    * Send a prompt to the LLM and get a response
+   * 
+   * Context Management:
+   * - Adds a USER message with the prompt content to context (if provided)
+   * - Adds an ASSISTANT message with the response to context (if successful)
+   * 
    * @param prompt - The input prompt/message
    * @param options - Optional configuration including context and streaming callback
    * @returns Promise resolving to the result (success, tool call, or error)
@@ -13,12 +18,31 @@ export interface ChatClient {
   ask(prompt: string, options?: AskOptions): Promise<AskResult>
   
   /**
-   * Send tool results to the LLM without adding a user message
+   * Send tool results to the LLM and get a response
+   * 
+   * Context Management:
+   * - Adds a USER message containing tool result blocks to context (if provided)
+   * - Adds an ASSISTANT message with the response to context (if successful)
+   * 
    * @param toolResults - Array of tool call IDs and their results
    * @param options - Optional configuration including context and streaming callback
    * @returns Promise resolving to the result (success, tool call, or error)
    */
   sendToolResults(toolResults: ToolResult[], options?: AskOptions): Promise<AskResult>
+
+  /**
+   * Get the model name/identifier used by this client
+   * 
+   * @returns The model name (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4o', 'o1-mini')
+   */
+  getModel(): string
+
+  /**
+   * Get the provider name for this client
+   * 
+   * @returns The provider name (e.g., 'anthropic', 'openai')
+   */
+  getProvider(): string
 }
 
 /**
@@ -229,6 +253,8 @@ export interface AnthropicConfig {
   baseURL?: string
   /** Maximum number of retries for failed requests */
   maxRetries?: number
+  /** Maximum number of output tokens to generate (default: 4096) */
+  maxOutputTokens?: number
   /** Optional extended thinking configuration */
   thinking?: {
     /** Whether to enable extended thinking */
@@ -252,6 +278,10 @@ export interface OpenAIConfig {
   baseURL?: string
   /** Maximum number of retries for failed requests */
   maxRetries?: number
+  /** Maximum number of output tokens to generate (default: 4096) */
+  maxOutputTokens?: number
+  /** Reasoning effort level - only supported by reasoning models (o1-mini, o1-preview) */
+  reasoningEffort?: 'low' | 'medium' | 'high'
 }
 
 /**

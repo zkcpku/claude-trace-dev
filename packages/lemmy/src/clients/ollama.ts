@@ -4,6 +4,14 @@ import type { ChatClient, AskOptions, AskResult, OllamaConfig, ToolResult } from
 export class OllamaClient implements ChatClient {
   constructor(private _config: OllamaConfig) {}
 
+  getModel(): string {
+    return this._config.model
+  }
+
+  getProvider(): string {
+    return 'ollama'
+  }
+
   async ask(_prompt: string, _options?: AskOptions): Promise<AskResult> {
     // Implementation will be added
     throw new Error('Not implemented yet')

@@ -12,16 +12,21 @@ Lemmy is a TypeScript API wrapper for common LLM SDKs (Anthropic, OpenAI, Google
 interface ChatClient {
   ask(prompt: string, options: AskOptions): Promise<AskResult>;
   sendToolResults(toolResults: ToolResult[], options: AskOptions): Promise<AskResult>;
+  getModel(): string; // Returns the model name/identifier
+  getProvider(): string; // Returns the provider name (e.g., 'anthropic', 'openai')
 }
 
 // Provider-specific clients instantiated with model-specific config
 const claude = lemmy.anthropic({
   apiKey: '...',
-  model: 'claude-3-5-sonnet-20241022'
+  model: 'claude-3-5-sonnet-20241022',
+  maxOutputTokens: 8192 // Optional: override model default
 });
 const openai = lemmy.openai({
   apiKey: '...',
-  model: 'gpt-4o'
+  model: 'o1-mini',
+  maxOutputTokens: 4096, // Optional: override model default
+  reasoningEffort: 'medium' // Optional: for reasoning models (o1-mini, o1-preview)
 });
 const google = lemmy.google({
   apiKey: '...',
@@ -191,10 +196,23 @@ class Context {
 // Clients attach model/provider info and tokens to messages
 class AnthropicClient implements ChatClient {
   async ask(prompt: string, options: AskOptions): Promise<AskResult> {
+    // Add user message to context first
+    if (options.context) {
+      const userMessage: Message = {
+        role: 'user',
+        content: prompt,
+        tokens: { input: 0, output: 0, total: 0 }, // Will be updated with actual usage
+        provider: 'user',
+        model: 'none',
+        timestamp: new Date()
+      };
+      options.context.addMessage(userMessage);
+    }
+
     // ... make API call ...
 
-    // Create message with model/provider info for cost tracking
-    const message: Message = {
+    // Create assistant message with model/provider info for cost tracking
+    const assistantMessage: Message = {
       role: 'assistant',
       content: response.content,
       tokens: response.tokens,
@@ -203,8 +221,32 @@ class AnthropicClient implements ChatClient {
       timestamp: new Date()
     };
 
-    // Add to context if provided - Context calculates cost on-the-fly
-    options.context?.addMessage(message);
+    // Add assistant message to context - Context calculates cost on-the-fly
+    options.context?.addMessage(assistantMessage);
+  }
+
+  async sendToolResults(toolResults: ToolResult[], options: AskOptions): Promise<AskResult> {
+    // Add tool result messages to context first (one per tool result)
+    if (options.context) {
+      for (const result of toolResults) {
+        options.context.addToolResult(result.toolCallId, result.content);
+      }
+    }
+
+    // ... make API call ...
+
+    // Create assistant message with model/provider info for cost tracking
+    const assistantMessage: Message = {
+      role: 'assistant',
+      content: response.content,
+      tokens: response.tokens,
+      provider: 'anthropic',
+      model: this.model,
+      timestamp: new Date()
+    };
+
+    // Add assistant message to context
+    options.context?.addMessage(assistantMessage);
   }
 }
 ```
