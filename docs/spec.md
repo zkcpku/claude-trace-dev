@@ -132,17 +132,17 @@ if (result.type === 'tool_call') {
   const allResults = await context.executeTools(result.toolCalls);
   
   // Process results and add successful ones to context
-  const toolResults = allResults.map((result, index) => ({
-    toolCallId: result.toolCalls[index].id,
+  const toolResults = allResults.map(result => ({
+    toolCallId: result.toolCallId,
     content: result.success ? resultToString(result.result) : `Error: ${result.error.message}`
   }));
   
   // Option 1: Add tool results to context and continue with a user message
-  allResults.forEach((result, index) => {
+  allResults.forEach(result => {
     if (result.success) {
-      context.addToolResult(result.toolCalls[index].id, result.result);
+      context.addToolResult(result.toolCallId, result.result);
     } else {
-      context.addToolResult(result.toolCalls[index].id, `Error: ${result.error.message}`);
+      context.addToolResult(result.toolCallId, `Error: ${result.error.message}`);
     }
   });
   const finalResult = await claude.ask("continue", { context });
@@ -604,43 +604,48 @@ interface ToolError {
 ```
 lemmy/
 ├── package.json (workspace root)
+├── docs/
+│   ├── spec.md
+│   ├── plan.md
+│   └── chats/
 ├── packages/
 │   └── lemmy/
 │       ├── package.json
 │       ├── src/
 │       │   ├── index.ts
 │       │   ├── models.ts (generated)
+│       │   ├── types.ts
+│       │   ├── context.ts
 │       │   ├── clients/
 │       │   │   ├── anthropic.ts
 │       │   │   ├── openai.ts
 │       │   │   ├── google.ts
 │       │   │   └── ollama.ts
-│       │   ├── context.ts
-│       │   ├── tools/
-│       │   │   ├── index.ts
-│       │   │   ├── zod-converter.ts
-│       │   │   └── mcp.ts
-│       │   └── types.ts
+│       │   └── tools/
+│       │       ├── index.ts
+│       │       └── zod-converter.ts
 │       ├── test/
 │       │   ├── clients/
+│       │   │   ├── shared-client-tests.ts
 │       │   │   ├── anthropic.test.ts
-│       │   │   ├── openai.test.ts
-│       │   │   ├── google.test.ts
-│       │   │   └── ollama.test.ts
+│       │   │   └── openai.test.ts
 │       │   ├── context.test.ts
-│       │   ├── tools/
-│       │   │   ├── zod-converter.test.ts
-│       │   │   └── mcp.test.ts
-│       │   ├── factory.test.ts
-│       │   └── integration.test.ts
-│       └── dist/
+│       │   ├── context-tools.test.ts
+│       │   ├── models.test.ts
+│       │   ├── types.test.ts
+│       │   └── tools/
+│       │       ├── index.test.ts
+│       │       └── converters.test.ts
+│       ├── dist/
+│       ├── tsconfig.json
+│       ├── tsup.config.ts
+│       └── vitest.config.ts
 ├── examples/
-│   ├── cli-chat/
-│   │   ├── package.json (private: true)
-│   │   └── src/
-│   └── web-agent/
+│   └── cli-chat/
 │       ├── package.json (private: true)
-│       └── src/
+│       ├── src/
+│       │   └── index.ts
+│       └── tsconfig.json
 └── scripts/
     └── update-models.js
 ```
