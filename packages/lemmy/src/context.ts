@@ -153,14 +153,14 @@ export class Context {
         message: `Tool not found: ${toolCall.name}`,
         toolName: toolCall.name
       }
-      return { success: false, error }
+      return { success: false, error, toolCallId: toolCall.id }
     }
 
     try {
       // Validate arguments using the tool's Zod schema
       const validatedArgs = tool.schema.parse(toolCall.arguments)
       const result = await tool.execute(validatedArgs)
-      return { success: true, result }
+      return { success: true, result, toolCallId: toolCall.id }
     } catch (error) {
       // Handle Zod validation errors
       if (error && typeof error === 'object' && 'issues' in error) {
@@ -169,7 +169,7 @@ export class Context {
           message: `Invalid arguments for tool '${toolCall.name}': ${(error as any).message}`,
           toolName: toolCall.name
         }
-        return { success: false, error: toolError }
+        return { success: false, error: toolError, toolCallId: toolCall.id }
       }
       
       // Handle execution errors
@@ -178,7 +178,7 @@ export class Context {
         message: error instanceof Error ? error.message : 'Unknown error during tool execution',
         toolName: toolCall.name
       }
-      return { success: false, error: toolError }
+      return { success: false, error: toolError, toolCallId: toolCall.id }
     }
   }
 

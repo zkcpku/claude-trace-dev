@@ -39,7 +39,8 @@ export async function validateAndExecute<T extends Record<string, unknown>, R>(
     
     return {
       success: true,
-      result
+      result,
+      toolCallId: toolCall.id
     }
   } catch (error) {
     // Handle Zod validation errors
@@ -51,7 +52,8 @@ export async function validateAndExecute<T extends Record<string, unknown>, R>(
       }
       return {
         success: false,
-        error: toolError
+        error: toolError,
+        toolCallId: toolCall.id
       }
     }
     
@@ -63,7 +65,8 @@ export async function validateAndExecute<T extends Record<string, unknown>, R>(
     }
     return {
       success: false,
-      error: toolError
+      error: toolError,
+      toolCallId: toolCall.id
     }
   }
 }
