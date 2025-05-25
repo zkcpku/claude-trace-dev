@@ -231,7 +231,7 @@ async function main() {
     });*/
     const client = lemmy.openai({
       apiKey: process.env["OPENAI_API_KEY"]!,
-      model: "o4-mini",
+      model: "gpt-4o",
     });
     await testRedTeamBlackmail(client);
   } catch (error) {

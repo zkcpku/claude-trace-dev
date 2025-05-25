@@ -16,6 +16,10 @@ import type {
 import { zodToOpenAI } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
 
+export interface OpenAIAskOptions extends AskOptions {
+  reasoningEffort?: "low" | "medium" | "high";
+}
+
 export class OpenAIClient implements ChatClient {
   private openai: OpenAI;
   private config: OpenAIConfig;
@@ -40,7 +44,7 @@ export class OpenAIClient implements ChatClient {
 
   async ask(
     input: string | UserInput,
-    options?: AskOptions
+    options?: OpenAIAskOptions
   ): Promise<AskResult> {
     try {
       // Convert input to UserInput format
@@ -78,7 +82,10 @@ export class OpenAIClient implements ChatClient {
       // Calculate appropriate token limits
       const modelData = findModelData(this.config.model);
       const maxCompletionTokens =
-        this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
+        options?.maxOutputTokens ||
+        this.config.maxOutputTokens ||
+        modelData?.maxOutputTokens ||
+        4096;
 
       // Build request parameters
       const requestParams: OpenAI.Chat.ChatCompletionCreateParams = {
@@ -91,8 +98,8 @@ export class OpenAIClient implements ChatClient {
           tools: openaiTools,
           tool_choice: "auto" as const,
         }),
-        ...(this.config.reasoningEffort && {
-          reasoning_effort: this.config.reasoningEffort,
+        ...((options?.reasoningEffort || this.config.reasoningEffort) && {
+          reasoning_effort: options?.reasoningEffort || this.config.reasoningEffort,
         }),
       };
 
