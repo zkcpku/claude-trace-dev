@@ -16,6 +16,10 @@ import type {
 import { zodToAnthropic } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
 
+export interface AnthropicAskOptions extends AskOptions {
+  thinkingBudget?: number;
+}
+
 export class AnthropicClient implements ChatClient {
   private anthropic: Anthropic;
   private config: AnthropicConfig;
@@ -39,7 +43,7 @@ export class AnthropicClient implements ChatClient {
 
   async ask(
     input: string | UserInput,
-    options?: AskOptions
+    options?: AnthropicAskOptions
   ): Promise<AskResult> {
     try {
       // Convert input to UserInput format
@@ -77,7 +81,7 @@ export class AnthropicClient implements ChatClient {
       // Calculate appropriate token limits
       const modelData = findModelData(this.config.model);
       const defaultMaxTokens =
-        this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
+        options?.maxOutputTokens || this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
       const thinkingBudget = this.config.thinking?.budgetTokens || 3000;
       const maxTokens = this.config.thinking?.enabled
         ? Math.max(defaultMaxTokens, thinkingBudget + 1000) // Ensure max_tokens > budget_tokens
@@ -92,7 +96,7 @@ export class AnthropicClient implements ChatClient {
         ...(this.config.thinking?.enabled && {
           thinking: {
             type: "enabled" as const,
-            budget_tokens: thinkingBudget,
+            budget_tokens: options?.thinkingBudget || thinkingBudget,
           },
         }),
       };

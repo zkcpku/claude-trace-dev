@@ -41,6 +41,8 @@ export interface ChatClient {
 export interface AskOptions {
   /** Optional context to maintain conversation state */
   context?: Context;
+  /** Optional maximum number of tokens to generate */
+  maxOutputTokens?: number;
   /** Optional callback for streaming content chunks */
   onChunk?: (content: string) => void;
   /** Optional callback for streaming thinking chunks (if supported by provider) */
