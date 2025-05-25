@@ -271,8 +271,6 @@ describe('Context Tool Execution', () => {
     const userMessage: UserMessage = {
       role: 'user',
       toolResults,
-      provider: 'test',
-      model: 'test',
       timestamp: new Date()
     }
 
@@ -316,8 +314,6 @@ describe('Context Tool Execution', () => {
     const userMessage: UserMessage = {
       role: 'user',
       toolResults,
-      provider: 'test',
-      model: 'test',
       timestamp: new Date()
     }
 

@@ -14,21 +14,21 @@ describe('AnthropicClient', () => {
   const createClient = (withThinking = false, apiKey?: string, withImageInput = false) => {
     let model = testConfig.model;
     let config: AnthropicConfig = { ...testConfig };
-    
+
     if (withThinking || withImageInput) {
       // claude-sonnet-4-20250514 supports both thinking and image input
       model = "claude-sonnet-4-20250514";
       config.model = model;
     }
-    
+
     if (withThinking) {
       config.thinking = { enabled: true, budgetTokens: 3000 };
     }
-    
+
     if (apiKey) {
       config.apiKey = apiKey;
     }
-    
+
     return new AnthropicClient(config);
   }
 
@@ -63,8 +63,8 @@ describe('AnthropicClient', () => {
       )
 
       // Should get a model error indicating thinking is not supported
-      expect(result.type).toBe('model_error')
-      if (result.type === 'model_error') {
+      expect(result.type).toBe('error')
+      if (result.type === 'error') {
         expect(result.error.type).toBe('invalid_request')
         expect(result.error.message).toContain('does not support thinking')
         console.log('✓ Correctly rejected thinking request for non-thinking model')

@@ -58,8 +58,6 @@ export class OpenAIClient implements ChatClient {
         ...(userInput.attachments !== undefined && {
           attachments: userInput.attachments,
         }),
-        provider: this.getProvider(),
-        model: this.getModel(),
         timestamp: new Date(),
       };
 
@@ -366,7 +364,7 @@ export class OpenAIClient implements ChatClient {
           retryAfter: this.getRetryAfter(apiError)!,
         }),
       };
-      return { type: "model_error", error: modelError };
+      return { type: "error", error: modelError };
     }
 
     // Handle other error types
@@ -375,7 +373,7 @@ export class OpenAIClient implements ChatClient {
       message: error instanceof Error ? error.message : "Unknown error",
       retryable: false,
     };
-    return { type: "model_error", error: modelError };
+    return { type: "error", error: modelError };
   }
 
   private getErrorType(status?: number): ModelError["type"] {

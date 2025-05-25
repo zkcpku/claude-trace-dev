@@ -222,8 +222,8 @@ export function sharedClientTests(
 
       const result = await invalidClient.ask("Hello", { context });
 
-      expect(result.type).toBe("model_error");
-      if (result.type === "model_error") {
+      expect(result.type).toBe("error");
+      if (result.type === "error") {
         expect(result.error.type).toBe("auth");
         expect(result.error.retryable).toBe(false);
       }
@@ -634,8 +634,6 @@ export function sharedClientTests(
       const userMessage: UserMessage = {
         role: "user",
         content: "My name is Alice",
-        provider: "user",
-        model: "none",
         timestamp: new Date(),
       };
       context.addMessage(userMessage);

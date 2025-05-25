@@ -15,8 +15,6 @@ describe('Context', () => {
     const message: Message = {
       role: 'user',
       content: 'Hello',
-      provider: 'anthropic',
-      model: 'claude-3-5-sonnet-20241022',
       timestamp: new Date()
     }
 
@@ -34,18 +32,16 @@ describe('Context', () => {
     const message1: Message = {
       role: 'user',
       content: 'First message',
-      provider: 'anthropic',
-      model: 'claude-3-5-sonnet-20241022',
       timestamp: new Date()
     }
 
     const message2: Message = {
       role: 'assistant',
       content: 'Second message',
-      provider: 'anthropic',
-      model: 'claude-3-5-sonnet-20241022',
       timestamp: new Date(),
       usage: { input: 0, output: 0 },
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet-20241022',
     }
 
     context.addMessage(message1)
@@ -60,8 +56,6 @@ describe('Context', () => {
     const message: Message = {
       role: 'user',
       content: 'Hello',
-      provider: 'anthropic',
-      model: 'claude-3-5-sonnet-20241022',
       timestamp: new Date()
     }
 
@@ -82,8 +76,6 @@ describe('Context', () => {
     const message: Message = {
       role: 'user',
       content: 'Hello',
-      provider: 'anthropic',
-      model: 'claude-3-5-sonnet-20241022',
       timestamp: new Date()
     }
 
@@ -103,8 +95,6 @@ describe('Context', () => {
       const message1: Message = {
         role: 'user',
         content: 'Hello',
-        provider: 'anthropic',
-        model: 'claude-3-5-sonnet-20241022',
         timestamp: new Date()
       }
 

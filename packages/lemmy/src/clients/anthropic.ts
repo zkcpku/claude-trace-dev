@@ -57,8 +57,6 @@ export class AnthropicClient implements ChatClient {
         ...(userInput.attachments !== undefined && {
           attachments: userInput.attachments,
         }),
-        provider: this.getProvider(),
-        model: this.getModel(),
         timestamp: new Date(),
       };
 
@@ -448,7 +446,7 @@ export class AnthropicClient implements ChatClient {
           retryAfter: this.getRetryAfter(apiError)!,
         }),
       };
-      return { type: "model_error", error: modelError };
+      return { type: "error", error: modelError };
     }
 
     // Handle other error types
@@ -457,7 +455,7 @@ export class AnthropicClient implements ChatClient {
       message: error instanceof Error ? error.message : "Unknown error",
       retryable: false,
     };
-    return { type: "model_error", error: modelError };
+    return { type: "error", error: modelError };
   }
 
   private getErrorType(status?: number): ModelError["type"] {
