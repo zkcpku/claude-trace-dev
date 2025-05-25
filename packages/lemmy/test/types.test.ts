@@ -7,19 +7,17 @@ describe('types', () => {
     const options: AskOptions = {}
     const result: AskResult = {
       type: 'success',
-      response: {
-        stopReason: 'complete',
-        message: {
-          role: 'assistant',
-          content: 'test',
-          provider: 'test',
-          model: 'test',
+      stopReason: 'complete',
+      message: {
+        role: 'assistant',
+        content: 'test',
+        provider: 'test',
+        model: 'test',
           timestamp: new Date(),
           usage: { input: 10, output: 20 },
-        },
-        tokens: { input: 10, output: 20 },
-        cost: 0.01,
-      }
+      },
+      tokens: { input: 10, output: 20 },
+      cost: 0.01,
     }
 
     expect(options).toBeDefined()

@@ -13,22 +13,22 @@ describe('OpenAIClient', () => {
   const createClient = (withThinking = false, apiKey?: string, withImageInput = false) => {
     let model = testConfig.model;
     let config: OpenAIConfig = { ...testConfig };
-    
+
     if (withThinking) {
       // o4-mini supports reasoning (thinking)
       model = 'o4-mini';
       config.model = model;
       config.reasoningEffort = 'medium' as const;
     } else if (withImageInput) {
-      // o4-mini supports image input 
+      // o4-mini supports image input
       model = 'o4-mini';
       config.model = model;
     }
-    
+
     if (apiKey) {
       config.apiKey = apiKey;
     }
-    
+
     return new OpenAIClient(config);
   }
 
@@ -52,8 +52,8 @@ describe('OpenAIClient', () => {
       expect(chunks.length).toBeGreaterThan(0)
 
       if (result.type === 'success') {
-        expect(result.response.message.thinking).toBeUndefined()
-        expect(chunks.join('')).toBe(result.response.message.content)
+        expect(result.message.thinking).toBeUndefined()
+        expect(chunks.join('')).toBe(result.message.content)
       }
     }, 10000)
   })

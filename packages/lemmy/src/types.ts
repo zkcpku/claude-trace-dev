@@ -46,26 +46,18 @@ export interface AskOptions {
 }
 
 /**
+ * The reason the generation stopped
+ */
+export type StopReason = 'max_tokens' | 'stop_sequence' | 'tool_call' | 'complete'
+
+/**
  * Discriminated union of all possible ask method results
  */
 export type AskResult =
-  | { type: 'success'; response: ChatResponse }
+  | { type: 'success'; stopReason: StopReason; message: AssistantMessage; tokens: TokenUsage; cost: number }
   | { type: 'model_error'; error: ModelError }
   | { type: 'tool_error'; error: ToolError; toolCall: ToolCall }
 
-/**
- * Successful response from an LLM
- */
-export interface ChatResponse {
-    /** Reason the generation stopped */
-  stopReason: 'max_tokens' | 'stop_sequence' | 'tool_call' | 'complete'
-  /** The assistant message containing all response data */
-  message: AssistantMessage
-  /** Token usage information */
-  tokens: TokenUsage
-  /** Cost in USD for this request */
-  cost: number
-}
 
 /**
  * Token usage statistics

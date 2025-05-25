@@ -8,10 +8,10 @@ import type {
   UserMessage,
   AssistantMessage,
   UserInput,
-  ChatResponse,
   TokenUsage,
   ModelError,
   ToolCall,
+  StopReason,
 } from "../types.js";
 import { zodToOpenAI } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
@@ -324,14 +324,15 @@ export class OpenAIClient implements ChatClient {
       }
 
       // Return successful response with the message
-      const response: ChatResponse = {
+      const response: AskResult = {
+        type: "success",
         stopReason: this.mapStopReason(stopReason) || "complete",
         message: assistantMessage,
         tokens,
         cost,
       };
 
-      return { type: "success", response };
+      return response;
     } catch (error) {
       return this.handleError(error);
     }
@@ -339,7 +340,7 @@ export class OpenAIClient implements ChatClient {
 
   private mapStopReason(
     reason: string | undefined
-  ): ChatResponse["stopReason"] | undefined {
+  ): StopReason | undefined {
     switch (reason) {
       case "stop":
         return "complete";

@@ -30,16 +30,16 @@ export function sharedClientTests(
 
       expect(result.type).toBe("success");
       if (result.type === "success") {
-        expect(result.response.message.content).toContain("Hello world");
-        expect(result.response.tokens.input).toBeGreaterThan(0);
-        expect(result.response.tokens.output).toBeGreaterThan(0);
+        expect(result.message.content).toContain("Hello world");
+        expect(result.tokens.input).toBeGreaterThan(0);
+        expect(result.tokens.output).toBeGreaterThan(0);
         // Total tokens calculation (input + output)
-        expect(result.response.stopReason).toBe("complete");
-        expect(result.response.cost).toBeGreaterThan(0);
+        expect(result.stopReason).toBe("complete");
+        expect(result.cost).toBeGreaterThan(0);
         // Response contains expected content
 
         // Verify cost calculation uses model registry data
-        const { tokens } = result.response;
+        const { tokens } = result;
         const modelData = findModelData(client.getModel());
         expect(modelData).toBeDefined();
         expect(modelData?.pricing).toBeDefined();
@@ -48,7 +48,7 @@ export function sharedClientTests(
           const expectedCost =
             (tokens.input * modelData.pricing.inputPerMillion) / 1_000_000 +
             (tokens.output * modelData.pricing.outputPerMillion) / 1_000_000;
-          expect(result.response.cost).toBeCloseTo(expectedCost, 6);
+          expect(result.cost).toBeCloseTo(expectedCost, 6);
         }
 
         // Verify context was updated properly (user + assistant messages)
@@ -56,7 +56,7 @@ export function sharedClientTests(
         const assistantMessage =
           context.getMessages()[context.getMessages().length - 1];
         expect(assistantMessage?.role).toBe("assistant");
-        expect(assistantMessage?.content).toBe(result.response.message.content);
+        expect(assistantMessage?.content).toBe(result.message.content);
         if (assistantMessage?.role === "assistant") {
           expect(assistantMessage.provider).toBe(client.getProvider());
           expect(assistantMessage.model).toBe(client.getModel());
@@ -102,20 +102,20 @@ export function sharedClientTests(
       expect(result.type).toBe("success");
       if (result.type === "success") {
         // Should make tool calls when explicitly requested
-        expect(result.response.message.toolCalls).toBeDefined();
-        expect(result.response.message.toolCalls!.length).toEqual(1);
-        expect(result.response.tokens.input).toBeGreaterThan(0);
-        expect(result.response.tokens.output).toBeGreaterThan(0);
-        expect(result.response.cost).toBeGreaterThan(0);
+        expect(result.message.toolCalls).toBeDefined();
+        expect(result.message.toolCalls!.length).toEqual(1);
+        expect(result.tokens.input).toBeGreaterThan(0);
+        expect(result.tokens.output).toBeGreaterThan(0);
+        expect(result.cost).toBeGreaterThan(0);
 
         // Verify tool calls are correctly structured
-        expect(result.response.message.toolCalls![0]?.name).toBe("calculator");
-        expect(result.response.message.toolCalls![0]?.arguments).toMatchObject({
+        expect(result.message.toolCalls![0]?.name).toBe("calculator");
+        expect(result.message.toolCalls![0]?.arguments).toMatchObject({
           operation: "add",
           a: 15,
           b: 27,
         });
-        expect(result.response.stopReason).toBe("tool_call");
+        expect(result.stopReason).toBe("tool_call");
 
         // Verify context was updated properly
         expect(context.getMessages().length).toBe(2);
@@ -128,14 +128,14 @@ export function sharedClientTests(
         }
 
         const toolResult = await context.executeTool(
-          result.response.message.toolCalls![0]!
+          result.message.toolCalls![0]!
         );
         expect(toolResult.success).toBe(true);
         expect(toolResult.result).toBe(42);
         const result2 = await client.ask(toUserInput(toolResult), { context });
         expect(result2.type).toBe("success");
         if (result2.type === "success") {
-          expect(result2.response.message.content).toContain("42");
+          expect(result2.message.content).toContain("42");
         }
       }
     }, 15000);
@@ -156,7 +156,7 @@ export function sharedClientTests(
       expect(result.type).toBe("success");
       expect(chunks.length).toBeGreaterThan(0);
       expect(chunks.join("")).toBe(
-        result.type === "success" ? result.response.message.content : ""
+        result.type === "success" ? result.message.content : ""
       );
 
       // Verify context was updated properly even with streaming (user + assistant messages)
@@ -169,7 +169,7 @@ export function sharedClientTests(
         expect(assistantMessage.model).toBe(client.getModel());
         if (result.type === "success") {
           expect(assistantMessage.content).toBe(
-            result.response.message.content
+            result.message.content
           );
         }
       }
@@ -206,7 +206,7 @@ export function sharedClientTests(
       expect(result2.type).toBe("success");
 
       if (result2.type === "success") {
-        expect(result2.response.message.content).toContain("42");
+        expect(result2.message.content).toContain("42");
       }
 
       // Should have 2 assistant messages now
@@ -238,10 +238,10 @@ export function sharedClientTests(
       expect(result.type).toBe("success");
       if (result.type === "success") {
         // Cost should be calculated based on token usage and model pricing
-        expect(result.response.cost).toBeGreaterThan(0);
+        expect(result.cost).toBeGreaterThan(0);
 
         // Verify cost calculation uses model registry data
-        const { tokens } = result.response;
+        const { tokens } = result;
         const modelData = findModelData(client.getModel());
         expect(modelData).toBeDefined();
         expect(modelData?.pricing).toBeDefined();
@@ -250,13 +250,13 @@ export function sharedClientTests(
           const expectedCost =
             (tokens.input * modelData.pricing.inputPerMillion) / 1_000_000 +
             (tokens.output * modelData.pricing.outputPerMillion) / 1_000_000;
-          expect(result.response.cost).toBeCloseTo(expectedCost, 6);
+          expect(result.cost).toBeCloseTo(expectedCost, 6);
         }
 
         // Verify context was updated and cost tracking works (user + assistant messages)
         expect(context.getMessages().length).toBe(initialMessageCount + 2);
         expect(context.getTotalCost()).toBeCloseTo(
-          initialCost + result.response.cost,
+          initialCost + result.cost,
           6
         );
       }
@@ -281,13 +281,13 @@ export function sharedClientTests(
       expect(result.type).toBe("success");
       if (result.type === "success") {
         // Should make tool calls when explicitly requested
-        expect(result.response.message.toolCalls).toBeDefined();
-        expect(result.response.message.toolCalls!.length).toBeGreaterThan(0);
+        expect(result.message.toolCalls).toBeDefined();
+        expect(result.message.toolCalls!.length).toBeGreaterThan(0);
 
         // Verify tool calls are correctly structured
-        expect(result.response.message.toolCalls![0]?.name).toBe("ping");
-        expect(result.response.message.toolCalls![0]?.arguments).toEqual({});
-        expect(result.response.stopReason).toBe("tool_call");
+        expect(result.message.toolCalls![0]?.name).toBe("ping");
+        expect(result.message.toolCalls![0]?.arguments).toEqual({});
+        expect(result.stopReason).toBe("tool_call");
       }
     }, 10000);
 
@@ -350,10 +350,10 @@ export function sharedClientTests(
 
       expect(result.type).toBe("success");
       if (result.type === "success") {
-        expect(result.response.message.toolCalls).toBeDefined();
-        expect(result.response.message.toolCalls!.length).toBeGreaterThan(0);
+        expect(result.message.toolCalls).toBeDefined();
+        expect(result.message.toolCalls!.length).toBeGreaterThan(0);
 
-        let toolCalls = result.response.message.toolCalls!;
+        let toolCalls = result.message.toolCalls!;
         let iterationCount = 0;
         const maxIterations = 5; // Prevent infinite loops
 
@@ -389,8 +389,8 @@ export function sharedClientTests(
           expect(result2.type).toBe("success");
 
           if (result2.type === "success") {
-            if (result2.response.stopReason === "tool_call") {
-              toolCalls = result2.response.message.toolCalls!;
+            if (result2.stopReason === "tool_call") {
+              toolCalls = result2.message.toolCalls!;
             } else {
               break; // No more tool calls
             }
@@ -462,10 +462,10 @@ export function sharedClientTests(
 
       expect(result.type).toBe("success");
       if (result.type === "success") {
-        expect(result.response.message.toolCalls).toBeDefined();
-        expect(result.response.message.toolCalls!.length).toBeGreaterThan(0);
+        expect(result.message.toolCalls).toBeDefined();
+        expect(result.message.toolCalls!.length).toBeGreaterThan(0);
 
-        let toolCalls = result.response.message.toolCalls!;
+        let toolCalls = result.message.toolCalls!;
         let iterationCount = 0;
         const maxIterations = 5;
 
@@ -497,11 +497,11 @@ export function sharedClientTests(
           expect(result2.type).toBe("success");
 
           if (result2.type === "success") {
-            if (result2.response.stopReason === "tool_call") {
-              toolCalls = result2.response.message.toolCalls!;
+            if (result2.stopReason === "tool_call") {
+              toolCalls = result2.message.toolCalls!;
             } else {
               // Workflow complete, verify final response
-              expect(result2.response.message.content).toBeDefined();
+              expect(result2.message.content).toBeDefined();
               break;
             }
           }
@@ -567,11 +567,11 @@ export function sharedClientTests(
       expect(result1.type).toBe("success");
       if (
         result1.type === "success" &&
-        result1.response.message.toolCalls &&
-        result1.response.message.toolCalls.length > 0
+        result1.message.toolCalls &&
+        result1.message.toolCalls.length > 0
       ) {
         // We got tool calls - let's execute them and continue
-        const toolCall = result1.response.message.toolCalls[0]!;
+        const toolCall = result1.message.toolCalls[0]!;
         expect(toolCall.name).toBe("calculator");
         expect(toolCall.arguments).toMatchObject({
           operation: "add",
@@ -599,10 +599,10 @@ export function sharedClientTests(
         expect(result2.type).toBe("success");
         if (result2.type === "success") {
           // Should acknowledge the tool results
-          expect(result2.response.message.content).toBeDefined();
-          expect(result2.response.tokens.input).toBeGreaterThan(0);
-          expect(result2.response.tokens.output).toBeGreaterThan(0);
-          expect(result2.response.cost).toBeGreaterThan(0);
+          expect(result2.message.content).toBeDefined();
+          expect(result2.tokens.input).toBeGreaterThan(0);
+          expect(result2.tokens.output).toBeGreaterThan(0);
+          expect(result2.cost).toBeGreaterThan(0);
 
           // Verify complete message sequence was added to context
           const messages = context.getMessages();
@@ -647,7 +647,7 @@ export function sharedClientTests(
 
       expect(result.type).toBe("success");
       if (result.type === "success") {
-        expect(result.response.message.content?.toLowerCase()).toContain(
+        expect(result.message.content?.toLowerCase()).toContain(
           "alice"
         );
       }
@@ -674,15 +674,15 @@ export function sharedClientTests(
       expect(result.type).toBe("success");
       if (result.type === "success") {
         // Should have regular content
-        expect(result.response.message.content?.length).toBeGreaterThan(0);
+        expect(result.message.content?.length).toBeGreaterThan(0);
 
         // o-models by OpenAI don't return thinking content :(
         if (client.getProvider() !== "openai") {
           // Should have thinking content when thinking is enabled
-          expect(result.response.message.thinking).toBeDefined();
-          expect(result.response.message.thinking!.length).toBeGreaterThan(0);
+          expect(result.message.thinking).toBeDefined();
+          expect(result.message.thinking!.length).toBeGreaterThan(0);
           // Thinking should contain reasoning steps
-          expect(result.response.message.thinking!.toLowerCase()).toMatch(
+          expect(result.message.thinking!.toLowerCase()).toMatch(
             /step|think|reason|calculate|multiply/i
           );
         }
@@ -692,13 +692,13 @@ export function sharedClientTests(
         if (client.getProvider() !== "openai") {
           expect(thinkingChunks.length).toBeGreaterThan(0);
           expect(thinkingChunks.join("")).toBe(
-            result.response.message.thinking
+            result.message.thinking
           );
         }
 
         // Token counts should be valid
-        expect(result.response.tokens.output).toBeGreaterThan(0);
-        expect(result.response.cost).toBeGreaterThan(0);
+        expect(result.tokens.output).toBeGreaterThan(0);
+        expect(result.cost).toBeGreaterThan(0);
 
         // Verify context was updated (user + assistant messages)
         expect(context.getMessages().length).toBe(initialMessageCount + 2);
@@ -709,7 +709,7 @@ export function sharedClientTests(
           expect(assistantMessage.provider).toBe(client.getProvider());
           expect(assistantMessage.model).toBe(client.getModel());
           expect(assistantMessage.content).toBe(
-            result.response.message.content
+            result.message.content
           );
         }
       }
@@ -784,10 +784,10 @@ export function sharedClientTests(
       // With the new unified API, tool calls are handled automatically
       expect(result.type).toBe("success");
       if (result.type === "success") {
-        expect(result.response.message.toolCalls).toBeDefined();
-        expect(result.response.message.toolCalls!.length).toBeGreaterThan(0);
+        expect(result.message.toolCalls).toBeDefined();
+        expect(result.message.toolCalls!.length).toBeGreaterThan(0);
 
-        let toolCalls = result.response.message.toolCalls!;
+        let toolCalls = result.message.toolCalls!;
         do {
           const toolResults = await context.executeTools(toolCalls);
           const result2 = await client.ask(toUserInput(toolResults), {
@@ -796,8 +796,8 @@ export function sharedClientTests(
           });
           expect(result2.type).toBe("success");
           if (result2.type === "success") {
-            if (result2.response.stopReason === "tool_call") {
-              toolCalls = result2.response.message.toolCalls!;
+            if (result2.stopReason === "tool_call") {
+              toolCalls = result2.message.toolCalls!;
             } else {
               break;
             }
@@ -806,7 +806,7 @@ export function sharedClientTests(
 
         // Should have thinking content when thinking is enabled
         if (client.getProvider() !== "openai") {
-          expect(result.response.message.thinking).toBeDefined();
+          expect(result.message.thinking).toBeDefined();
           expect(thinkingChunks.length).toBeGreaterThan(0);
           const fullThinking = thinkingChunks.join("");
           expect(fullThinking.toLowerCase()).toMatch(
@@ -846,11 +846,11 @@ export function sharedClientTests(
 
       expect(result.type).toBe("success");
       if (result.type === "success") {
-        expect(result.response.message.content).toBeDefined();
-        expect(result.response.message.content!.toLowerCase()).toContain("yes");
-        expect(result.response.tokens.input).toBeGreaterThan(0);
-        expect(result.response.tokens.output).toBeGreaterThan(0);
-        expect(result.response.cost).toBeGreaterThan(0);
+        expect(result.message.content).toBeDefined();
+        expect(result.message.content!.toLowerCase()).toContain("yes");
+        expect(result.tokens.input).toBeGreaterThan(0);
+        expect(result.tokens.output).toBeGreaterThan(0);
+        expect(result.cost).toBeGreaterThan(0);
       }
     }, 15000);
 
@@ -883,11 +883,11 @@ export function sharedClientTests(
 
       expect(result.type).toBe("success");
       if (result.type === "success") {
-        expect(result.response.message.content).toBeDefined();
-        expect(result.response.message.content!).toMatch(/4|four/i);
-        expect(result.response.tokens.input).toBeGreaterThan(0);
-        expect(result.response.tokens.output).toBeGreaterThan(0);
-        expect(result.response.cost).toBeGreaterThan(0);
+        expect(result.message.content).toBeDefined();
+        expect(result.message.content!).toMatch(/4|four/i);
+        expect(result.tokens.input).toBeGreaterThan(0);
+        expect(result.tokens.output).toBeGreaterThan(0);
+        expect(result.cost).toBeGreaterThan(0);
       }
     }, 15000);
   });

@@ -266,9 +266,9 @@ class AnthropicClient implements ChatClient {
     // Create assistant message with model/provider info for cost tracking
     const assistantMessage: AssistantMessage = {
       role: 'assistant',
-      content: response.content,
-      ...(response.toolCalls && { toolCalls: response.toolCalls }),
-      tokenCount: response.tokens.input + response.tokens.output, // Total tokens used
+      content: response.message.content,
+      ...(response.message.toolCalls && { toolCalls: response.message.toolCalls }),
+      usage: response.tokens
       provider: this.getProvider(),
       model: this.getModel(),
       timestamp: new Date()
@@ -414,7 +414,7 @@ Lemmy automatically converts Zod schemas to provider-specific formats:
 A script `scripts/update-models.js` generates TypeScript types and runtime data:
 
 ```typescript
-// Generated in src/model-registry.ts
+// Generated in src/models.ts
 
 // Types
 export type AnthropicModels = 'claude-3-5-sonnet-20241022' | 'claude-3-5-haiku-20241022';
@@ -545,12 +545,12 @@ const result = await claude.ask("Solve this complex problem step by step", {
 });
 
 if (result.type === 'success') {
-  console.log("Final response:", result.response.content);
-  if (result.response.thinking) {
-    console.log("Internal reasoning:", result.response.thinking);
+  console.log("Final response:", result.message.content);
+  if (result.message.thinking) {
+    console.log("Internal reasoning:", result.message.thinking);
   }
   // Token costs include thinking tokens automatically
-  console.log("Total cost:", result.response.cost);
+  console.log("Total cost:", result.cost);
 }
 ```
 
@@ -574,7 +574,7 @@ const response = await claude.ask("Solve this step by step: What is 15 * 23?", {
   onThinkingChunk: (thinking: string) => showThinking(thinking) // Optional streaming for internal reasoning
 });
 // ask() still returns complete final response with aggregated tokens/cost
-// response.thinking contains full internal reasoning (if supported by provider and enabled)
+// response.message.thinking contains full internal reasoning (if supported by provider and enabled)
 ```
 
 ## Error Handling
@@ -588,8 +588,8 @@ const result = await claude.ask("Hello", { context });
 
 switch (result.type) {
   case 'success':
-    console.log(result.response);
-    console.log(`Cost: $${result.response.cost}`);
+    console.log(result.message);
+    console.log(`Cost: $${result.cost}`);
     break;
   case 'model_error':
     // Handle API failures, rate limits, etc.
@@ -752,7 +752,7 @@ describe('weather tool', () => {
 
     // Mock response with known token counts
     const result = await claude.ask("Hello", { context });
-    expect(result.response.cost).toBeGreaterThan(0);
+    expect(result.cost).toBeGreaterThan(0);
   });
 });
 ```
