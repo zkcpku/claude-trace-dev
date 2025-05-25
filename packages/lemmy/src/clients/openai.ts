@@ -47,29 +47,30 @@ export class OpenAIClient implements ChatClient {
       const userInput: UserInput =
         typeof input === "string" ? { content: input } : input;
 
-      // Add user message to context first
+      const userMessage: UserMessage = {
+        role: "user",
+        ...(userInput.content !== undefined && {
+          content: userInput.content,
+        }),
+        ...(userInput.toolResults !== undefined && {
+          toolResults: userInput.toolResults,
+        }),
+        ...(userInput.attachments !== undefined && {
+          attachments: userInput.attachments,
+        }),
+        provider: this.getProvider(),
+        model: this.getModel(),
+        timestamp: new Date(),
+      };
+
+      // Add user message to context
       if (options?.context) {
-        const userMessage: UserMessage = {
-          role: "user",
-          ...(userInput.content !== undefined && {
-            content: userInput.content,
-          }),
-          ...(userInput.toolResults !== undefined && {
-            toolResults: userInput.toolResults,
-          }),
-          ...(userInput.attachments !== undefined && {
-            attachments: userInput.attachments,
-          }),
-          provider: this.getProvider(),
-          model: this.getModel(),
-          timestamp: new Date(),
-        };
         options.context.addMessage(userMessage);
       }
 
       // Convert context messages to OpenAI format
       const messages = this.convertMessages(
-        options?.context?.getMessages() || []
+        options?.context?.getMessages() || [userMessage]
       );
       const tools = options?.context?.listTools() || [];
 
@@ -338,9 +339,7 @@ export class OpenAIClient implements ChatClient {
     }
   }
 
-  private mapStopReason(
-    reason: string | undefined
-  ): StopReason | undefined {
+  private mapStopReason(reason: string | undefined): StopReason | undefined {
     switch (reason) {
       case "stop":
         return "complete";
