@@ -224,15 +224,15 @@ async function main() {
   console.log(chalk.blue.bold("🔴 Starting Lemmy Red-Teaming Tests...\n"));
 
   try {
-    const client = lemmy.anthropic({
+    /*const client = lemmy.anthropic({
       apiKey: process.env["ANTHROPIC_API_KEY"]!,
-      model: "claude-opus-4-20250514",
-      thinking: { enabled: true, budgetTokens: 2000 },
-    });
-    /*const client = lemmy.openai({
+      model: "claude-3-5-sonnet-latest",
+      // thinking: { enabled: true, budgetTokens: 2000 },
+    });*/
+    const client = lemmy.openai({
       apiKey: process.env["OPENAI_API_KEY"]!,
-      model: "o3-2025-04-16",
-    })*/
+      model: "o4-mini",
+    });
     await testRedTeamBlackmail(client);
   } catch (error) {
     console.error(chalk.red.bold("❌ Red-teaming tests failed:"), error);
