@@ -3,6 +3,7 @@ import { AnthropicClient } from '../../src/clients/anthropic.js'
 import { Context } from '../../src/context.js'
 import type { AnthropicConfig } from '../../src/types.js'
 import { sharedClientTests } from './shared-client-tests.js'
+import { AllModels } from '../../src/models.js'
 
 describe('AnthropicClient', () => {
   const testConfig: AnthropicConfig = {
@@ -10,16 +11,25 @@ describe('AnthropicClient', () => {
     model: 'claude-3-5-sonnet-20241022'
   }
 
-  const createClient = (withThinking = false, apiKey?: string) => {
-    const config = withThinking ? {
-      ...testConfig,
-      thinking: { enabled: true, budgetTokens: 3000 },
-      ...(apiKey && { apiKey })
-    } : {
-      ...testConfig,
-      ...(apiKey && { apiKey })
+  const createClient = (withThinking = false, apiKey?: string, withImageInput = false) => {
+    let model = testConfig.model;
+    let config: AnthropicConfig = { ...testConfig };
+    
+    if (withThinking || withImageInput) {
+      // claude-sonnet-4-20250514 supports both thinking and image input
+      model = "claude-sonnet-4-20250514";
+      config.model = model;
     }
-    return new AnthropicClient(config)
+    
+    if (withThinking) {
+      config.thinking = { enabled: true, budgetTokens: 3000 };
+    }
+    
+    if (apiKey) {
+      config.apiKey = apiKey;
+    }
+    
+    return new AnthropicClient(config);
   }
 
   // Run shared tests

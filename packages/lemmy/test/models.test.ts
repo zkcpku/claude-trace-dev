@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { 
-  AnthropicModels, 
-  OpenAIModels, 
-  GoogleModels, 
+import {
+  AnthropicModels,
+  OpenAIModels,
+  GoogleModels,
   OllamaModels,
   AllModels,
   AnthropicModelData,
@@ -11,7 +11,7 @@ import {
   ModelToProvider,
   findModelData,
   type ModelData
-} from '../src/models.js'
+} from '../src/model-registry.js'
 
 describe('Model Registry', () => {
   describe('Type definitions', () => {
@@ -21,7 +21,7 @@ describe('Model Registry', () => {
       const openaiModel: OpenAIModels = 'gpt-4o'
       const googleModel: GoogleModels = 'gemini-1.5-pro'
       const ollamaModel: OllamaModels = 'llama2'
-      
+
       expect(anthropicModel).toBeDefined()
       expect(openaiModel).toBeDefined()
       expect(googleModel).toBeDefined()
@@ -32,11 +32,11 @@ describe('Model Registry', () => {
       // Test that AllModels union includes all provider types
       const models: AllModels[] = [
         'claude-3-5-sonnet-20241022',
-        'gpt-4o', 
+        'gpt-4o',
         'gemini-1.5-pro',
         'custom-local-model'
       ]
-      
+
       expect(models).toHaveLength(4)
     })
   })
@@ -48,19 +48,18 @@ describe('Model Registry', () => {
         contextWindow: expect.any(Number),
         maxOutputTokens: expect.any(Number),
         supportsTools: true,
-        supportsContinuation: true,
         pricing: {
           inputPerMillion: expect.any(Number),
           outputPerMillion: expect.any(Number)
         }
       })
 
-      // Test OpenAI models  
+      // Test OpenAI models
       expect(OpenAIModelData['gpt-4o']).toMatchObject({
         contextWindow: expect.any(Number),
         maxOutputTokens: expect.any(Number),
         supportsTools: true,
-        supportsContinuation: true,
+        supportsImageInput: true,
         pricing: expect.any(Object)
       })
 
@@ -69,7 +68,6 @@ describe('Model Registry', () => {
         contextWindow: expect.any(Number),
         maxOutputTokens: expect.any(Number),
         supportsTools: true,
-        supportsContinuation: true,
         pricing: expect.any(Object)
       })
     })
@@ -102,15 +100,15 @@ describe('Model Registry', () => {
       const anthropicModels = Object.keys(AnthropicModelData)
       const openaiModels = Object.keys(OpenAIModelData)
       const googleModels = Object.keys(GoogleModelData)
-      
+
       for (const model of anthropicModels) {
         expect(ModelToProvider[model as keyof typeof ModelToProvider]).toBe('anthropic')
       }
-      
+
       for (const model of openaiModels) {
         expect(ModelToProvider[model as keyof typeof ModelToProvider]).toBe('openai')
       }
-      
+
       for (const model of googleModels) {
         expect(ModelToProvider[model as keyof typeof ModelToProvider]).toBe('google')
       }
@@ -122,11 +120,11 @@ describe('Model Registry', () => {
       const claudeData = findModelData('claude-3-5-sonnet-20241022')
       expect(claudeData).toBeDefined()
       expect(claudeData?.supportsTools).toBe(true)
-      
+
       const gptData = findModelData('gpt-4o')
       expect(gptData).toBeDefined()
       expect(gptData?.contextWindow).toBeGreaterThan(0)
-      
+
       const geminiData = findModelData('gemini-1.5-pro')
       expect(geminiData).toBeDefined()
       expect(geminiData?.maxOutputTokens).toBeGreaterThan(0)
@@ -144,7 +142,6 @@ describe('Model Registry', () => {
         expect(typeof data.contextWindow).toBe('number')
         expect(typeof data.maxOutputTokens).toBe('number')
         expect(typeof data.supportsTools).toBe('boolean')
-        expect(typeof data.supportsContinuation).toBe('boolean')
         expect(data.pricing).toBeDefined()
       }
     })
@@ -153,7 +150,7 @@ describe('Model Registry', () => {
   describe('Model registry completeness', () => {
     it('should have at least some models for each provider', () => {
       expect(Object.keys(AnthropicModelData).length).toBeGreaterThan(5)
-      expect(Object.keys(OpenAIModelData).length).toBeGreaterThan(10) 
+      expect(Object.keys(OpenAIModelData).length).toBeGreaterThan(10)
       expect(Object.keys(GoogleModelData).length).toBeGreaterThan(10)
     })
 

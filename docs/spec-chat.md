@@ -1175,7 +1175,7 @@ Trying out this workflow: https://harper.blog/2025/02/16/my-llm-codegen-workflow
   What should the structure of the generated file look like? Should it be organized like
   this:
 
-  // Generated file: src/models.ts
+  // Generated file: src/model.ts
 
   // Types
   export type AnthropicModels = 'claude-3-5-sonnet-20241022' |

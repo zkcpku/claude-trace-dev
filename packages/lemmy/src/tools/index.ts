@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { DefineToolParams, ToolDefinition, ToolExecutionResult, ToolError, ToolCall } from '../types.js'
+import type { DefineToolParams, ToolDefinition, ToolExecutionResult, ToolError, ToolCall, ToolResult, UserInput } from '../types.js'
 
 // Tool system exports
 export * from './zod-converter.js'
@@ -29,14 +29,14 @@ export function defineTool<T extends Record<string, unknown>, R>(
 export async function validateAndExecute<T extends Record<string, unknown>, R>(
   tool: ToolDefinition<T, R>,
   toolCall: ToolCall
-): Promise<ToolExecutionResult<R>> {
+): Promise<ToolExecutionResult> {
   try {
     // Validate the arguments using the Zod schema
     const validatedArgs = tool.schema.parse(toolCall.arguments)
-    
+
     // Execute the tool with validated arguments - preserve original return type
     const result = await tool.execute(validatedArgs)
-    
+
     return {
       success: true,
       result,
@@ -56,7 +56,7 @@ export async function validateAndExecute<T extends Record<string, unknown>, R>(
         toolCallId: toolCall.id
       }
     }
-    
+
     // Handle execution errors
     const toolError: ToolError = {
       type: 'execution_failed',
@@ -96,9 +96,38 @@ export function resultToString(result: unknown): string {
   if (result === null || result === undefined) {
     return String(result)
   }
-  if (typeof result === 'object') {
+  if (typeof result === 'object' || Array.isArray(result)) {
     // JSON stringify both arrays and objects
     return JSON.stringify(result, null, 2)
   }
   return String(result)
+}
+
+/**
+ * Convert a tool execution result to a ToolResult for LLM consumption
+ */
+export function toToolResult(executionResult: ToolExecutionResult): ToolResult {
+  const content = executionResult.success
+    ? resultToString(executionResult.result)
+    : `Error: ${executionResult.error!.message}`
+
+  return {
+    toolCallId: executionResult.toolCallId,
+    content
+  }
+}
+
+/**
+ * Convert an array of tool execution results to an array of ToolResults for LLM consumption
+ */
+export function toToolResults(executionResults: ToolExecutionResult[]): ToolResult[] {
+  return executionResults.map(toToolResult)
+}
+
+/**
+ * Convert ToolExecutionResult(s) to UserInput
+ */
+export function toUserInput(input: ToolExecutionResult | ToolExecutionResult[]): UserInput {
+  const results = Array.isArray(input) ? input : [input]
+  return { toolResults: toToolResults(results) }
 }

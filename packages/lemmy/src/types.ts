@@ -5,41 +5,29 @@
  */
 export interface ChatClient {
   /**
-   * Send a prompt to the LLM and get a response
-   * 
+   * Send input to the LLM and get a response
+   * Supports text, tool results, and multimodal attachments
+   *
    * Context Management:
-   * - Adds a USER message with the prompt content to context (if provided)
+   * - Adds a USER message with the input content to context (if provided)
    * - Adds an ASSISTANT message with the response to context (if successful)
-   * 
-   * @param prompt - The input prompt/message
+   *
+   * @param input - The input (string for text-only, UserInput for complex content)
    * @param options - Optional configuration including context and streaming callback
    * @returns Promise resolving to the result (success, tool call, or error)
    */
-  ask(prompt: string, options?: AskOptions): Promise<AskResult>
-  
-  /**
-   * Send tool results to the LLM and get a response
-   * 
-   * Context Management:
-   * - Adds a USER message containing tool result blocks to context (if provided)
-   * - Adds an ASSISTANT message with the response to context (if successful)
-   * 
-   * @param toolResults - Array of tool call IDs and their results
-   * @param options - Optional configuration including context and streaming callback
-   * @returns Promise resolving to the result (success, tool call, or error)
-   */
-  sendToolResults(toolResults: ToolResult[], options?: AskOptions): Promise<AskResult>
+  ask(input: string | UserInput, options?: AskOptions): Promise<AskResult>
 
   /**
    * Get the model name/identifier used by this client
-   * 
+   *
    * @returns The model name (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4o', 'o1-mini')
    */
   getModel(): string
 
   /**
    * Get the provider name for this client
-   * 
+   *
    * @returns The provider name (e.g., 'anthropic', 'openai')
    */
   getProvider(): string
@@ -60,9 +48,8 @@ export interface AskOptions {
 /**
  * Discriminated union of all possible ask method results
  */
-export type AskResult = 
+export type AskResult =
   | { type: 'success'; response: ChatResponse }
-  | { type: 'tool_call'; toolCalls: ToolCall[] }
   | { type: 'model_error'; error: ModelError }
   | { type: 'tool_error'; error: ToolError; toolCall: ToolCall }
 
@@ -70,18 +57,14 @@ export type AskResult =
  * Successful response from an LLM
  */
 export interface ChatResponse {
-  /** The generated text content */
-  content: string
-  /** Internal reasoning/thinking content (if available from provider) */
-  thinking?: string
+    /** Reason the generation stopped */
+  stopReason: 'max_tokens' | 'stop_sequence' | 'tool_call' | 'complete'
+  /** The assistant message containing all response data */
+  message: AssistantMessage
   /** Token usage information */
   tokens: TokenUsage
   /** Cost in USD for this request */
   cost: number
-  /** Reason the generation stopped */
-  stopReason?: 'max_tokens' | 'stop_sequence' | 'tool_call' | 'complete'
-  /** True if response was truncated due to max tokens (for providers without continuation) */
-  truncated?: boolean
 }
 
 /**
@@ -92,18 +75,12 @@ export interface TokenUsage {
   input: number
   /** Number of output tokens */
   output: number
-  /** Total tokens (may include thinking tokens) */
-  total: number
 }
 
 /**
  * Base message structure for user, assistant, and system messages
  */
 export interface BaseMessage {
-  /** The message content */
-  content: string
-  /** Token usage for this message */
-  tokens: TokenUsage
   /** Which provider generated this message */
   provider: string
   /** Which model generated this message (used for cost calculation) */
@@ -113,10 +90,38 @@ export interface BaseMessage {
 }
 
 /**
- * User message
+ * Attachment for multimodal models (images, files, etc.)
+ */
+export interface Attachment {
+  type: 'image' | 'file'
+  data: string | Buffer  // base64 string or buffer
+  mimeType: string
+  name?: string
+}
+
+/**
+ * User input that can contain text, tool results, and/or attachments
+ */
+export interface UserInput {
+  /** Optional text content */
+  content?: string
+  /** Optional tool results from previous tool calls */
+  toolResults?: ToolResult[]
+  /** Optional attachments for multimodal models */
+  attachments?: Attachment[]
+}
+
+/**
+ * User message - can contain text, tool results, and/or attachments
  */
 export interface UserMessage extends BaseMessage {
   role: 'user'
+  /** Optional text content */
+  content?: string
+  /** Optional tool results */
+  toolResults?: ToolResult[]
+  /** Optional attachments */
+  attachments?: Attachment[]
 }
 
 /**
@@ -124,8 +129,16 @@ export interface UserMessage extends BaseMessage {
  */
 export interface AssistantMessage extends BaseMessage {
   role: 'assistant'
+  /** Optional message content */
+  content?: string
   /** Tool calls made by the assistant (if any) */
   toolCalls?: ToolCall[]
+  /** Internal reasoning/thinking content (if available from provider) */
+  thinking?: string
+  /** Thinking signature (for Anthropic thinking blocks) */
+  thinkingSignature?: string
+  /** Cumulative token usage up to and including this message */
+  usage: TokenUsage
 }
 
 /**
@@ -133,23 +146,14 @@ export interface AssistantMessage extends BaseMessage {
  */
 export interface SystemMessage extends BaseMessage {
   role: 'system'
-}
-
-/**
- * Tool result message - contains only the tool call ID and result
- */
-export interface ToolResultMessage {
-  role: 'tool_result'
-  /** The ID of the tool call this result responds to */
-  tool_call_id: string
-  /** The result content from tool execution */
+  /** The message content */
   content: string
 }
 
 /**
  * A message in the conversation history - discriminated union
  */
-export type Message = UserMessage | AssistantMessage | SystemMessage | ToolResultMessage
+export type Message = UserMessage | AssistantMessage | SystemMessage
 
 /**
  * Error from the LLM provider
@@ -230,13 +234,13 @@ export interface DefineToolParams<T = Record<string, unknown>, R = unknown> {
 /**
  * Result of tool execution
  */
-export interface ToolExecutionResult<R = unknown> {
+export interface ToolExecutionResult {
   /** The ID of the tool call this result corresponds to */
   toolCallId: string
   /** Whether the tool executed successfully */
   success: boolean
   /** Result from tool execution (type preserved) */
-  result?: R
+  result?: any
   /** Error information if failed */
   error?: ToolError
 }
@@ -343,8 +347,4 @@ export interface Context {
   executeTool(toolCall: ToolCall): Promise<ToolExecutionResult>
   /** Execute multiple tools in parallel */
   executeTools(toolCalls: ToolCall[]): Promise<ToolExecutionResult[]>
-  /** Create a tool result message and add it to the conversation */
-  addToolResult(toolCallId: string, result: unknown): void
-  /** Add multiple tool results to the conversation */
-  addToolResults(results: Array<{ toolCallId: string; result: unknown }>): void
 }

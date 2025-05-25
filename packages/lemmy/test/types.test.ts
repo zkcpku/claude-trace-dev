@@ -8,12 +8,20 @@ describe('types', () => {
     const result: AskResult = {
       type: 'success',
       response: {
-        content: 'test',
-        tokens: { input: 10, output: 20, total: 30 },
-        cost: 0.01
+        stopReason: 'complete',
+        message: {
+          role: 'assistant',
+          content: 'test',
+          provider: 'test',
+          model: 'test',
+          timestamp: new Date(),
+          usage: { input: 10, output: 20 },
+        },
+        tokens: { input: 10, output: 20 },
+        cost: 0.01,
       }
     }
-    
+
     expect(options).toBeDefined()
     expect(result.type).toBe('success')
   })

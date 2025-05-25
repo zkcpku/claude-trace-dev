@@ -10,8 +10,7 @@ Lemmy is a TypeScript API wrapper for common LLM SDKs (Anthropic, OpenAI, Google
 
 ```typescript
 interface ChatClient {
-  ask(prompt: string, options: AskOptions): Promise<AskResult>;
-  sendToolResults(toolResults: ToolResult[], options: AskOptions): Promise<AskResult>;
+  ask(input: string | UserInput, options: AskOptions): Promise<AskResult>;
   getModel(): string; // Returns the model name/identifier
   getProvider(): string; // Returns the provider name (e.g., 'anthropic', 'openai')
 }
@@ -65,6 +64,19 @@ console.log(context.getTokenUsage()); // Aggregated token counts
 ### Ask Method
 
 ```typescript
+interface UserInput {
+  content?: string; // Optional text content
+  toolResults?: ToolResult[]; // Optional tool results from previous tool calls
+  attachments?: Attachment[]; // Optional attachments for multimodal models
+}
+
+interface Attachment {
+  type: 'image' | 'file';
+  data: string | Buffer; // base64 string or buffer
+  mimeType: string;
+  name?: string;
+}
+
 interface AskOptions {
   context?: Context;
   onChunk?: (content: string) => void; // Streaming callback for user-facing content
@@ -89,7 +101,6 @@ interface ChatResponse {
 interface TokenUsage {
   input: number;
   output: number;
-  total: number; // May include thinking tokens
 }
 ```
 
@@ -127,28 +138,33 @@ if (result.type === 'tool_call') {
     // Handle tool execution error
     console.error('Tool failed:', weatherResult.error);
   }
-  
+
   // Execute in parallel if needed - returns array of ToolExecutionResult
   const allResults = await context.executeTools(result.toolCalls);
-  
-  // Process results and add successful ones to context
-  const toolResults = allResults.map(result => ({
-    toolCallId: result.toolCallId,
-    content: result.success ? resultToString(result.result) : `Error: ${result.error.message}`
-  }));
-  
-  // Option 1: Add tool results to context and continue with a user message
-  allResults.forEach(result => {
-    if (result.success) {
-      context.addToolResult(result.toolCallId, result.result);
-    } else {
-      context.addToolResult(result.toolCallId, `Error: ${result.error.message}`);
-    }
-  });
-  const finalResult = await claude.ask("continue", { context });
-  
-  // Option 2: Send tool results directly without adding a user message (IMPROVED!)
-  const finalResult = await claude.sendToolResults(toolResults, { context });
+
+  // Convert execution results to tool results for the LLM
+  import { toToolResult } from 'lemmy';
+  const toolResults = allResults.map(toToolResult);
+
+  // Option 1: Send tool results with additional user message
+  const finalResult = await claude.ask({
+    content: "Based on these results, please continue.",
+    toolResults
+  }, { context });
+
+  // Option 2: Send tool results only (no additional text)
+  const finalResult = await claude.ask({ toolResults }, { context });
+
+  // Option 3: Send tool results with multimodal content
+  const finalResult = await claude.ask({
+    content: "What's in this image and based on the tool results?",
+    toolResults,
+    attachments: [{
+      type: 'image',
+      data: base64ImageData,
+      mimeType: 'image/jpeg'
+    }]
+  }, { context });
 }
 ```
 
@@ -157,14 +173,37 @@ if (result.type === 'tool_call') {
 ### Message-Level Tracking
 
 ```typescript
-interface Message {
-  role: 'user' | 'assistant' | 'system' | 'tool_result';
-  content: string;
-  tokens: TokenUsage;
-  provider: string; // Which provider generated this message
-  model: string; // Which model generated this message (used to look up pricing)
+interface UserMessage {
+  role: 'user';
+  content?: string; // Optional text content
+  toolResults?: ToolResult[]; // Optional tool results
+  attachments?: Attachment[]; // Optional attachments
+  tokenCount: number; // Total tokens for this message
+  provider: string; // Which provider/model was used for this request
+  model: string; // Which model was used (for cost calculation)
   timestamp: Date;
 }
+
+interface AssistantMessage {
+  role: 'assistant';
+  content?: string; // Optional text content
+  toolCalls?: ToolCall[]; // Optional tool calls made by assistant
+  tokenCount: number; // Total tokens for this message
+  provider: string; // Which provider generated this message
+  model: string; // Which model generated this message
+  timestamp: Date;
+}
+
+interface SystemMessage {
+  role: 'system';
+  content: string; // System messages always have content
+  tokenCount: number; // Total tokens for this message
+  provider: string; // Which provider/model was used
+  model: string; // Which model was used
+  timestamp: Date;
+}
+
+type Message = UserMessage | AssistantMessage | SystemMessage;
 ```
 
 ### Context-Level Aggregation
@@ -184,8 +223,14 @@ class Context {
     const modelData = this.findModelData(message.model);
     if (!modelData?.pricing) return 0;
 
-    return (message.tokens.input * modelData.pricing.inputPerMillion / 1_000_000) +
-           (message.tokens.output * modelData.pricing.outputPerMillion / 1_000_000);
+    // System and user messages are input tokens, assistant messages are output tokens
+    if (message.role === 'system' || message.role === 'user') {
+      return (message.tokenCount * modelData.pricing.inputPerMillion) / 1_000_000;
+    } else if (message.role === 'assistant') {
+      return (message.tokenCount * modelData.pricing.outputPerMillion) / 1_000_000;
+    }
+
+    return 0;
   }
 }
 ```
@@ -193,17 +238,24 @@ class Context {
 ### Client Message Creation
 
 ```typescript
-// Clients attach model/provider info and tokens to messages
+// Clients attach model/provider info and token counts to messages
 class AnthropicClient implements ChatClient {
-  async ask(prompt: string, options: AskOptions): Promise<AskResult> {
+  async ask(input: string | UserInput, options: AskOptions): Promise<AskResult> {
+    // Convert input to UserInput format
+    const userInput: UserInput = typeof input === 'string'
+      ? { content: input }
+      : input;
+
     // Add user message to context first
     if (options.context) {
-      const userMessage: Message = {
+      const userMessage: UserMessage = {
         role: 'user',
-        content: prompt,
-        tokens: { input: 0, output: 0, total: 0 }, // Will be updated with actual usage
-        provider: 'user',
-        model: 'none',
+        ...(userInput.content !== undefined && { content: userInput.content }),
+        ...(userInput.toolResults !== undefined && { toolResults: userInput.toolResults }),
+        ...(userInput.attachments !== undefined && { attachments: userInput.attachments }),
+        tokenCount: 0, // Will be updated with actual usage
+        provider: this.getProvider(),
+        model: this.getModel(),
         timestamp: new Date()
       };
       options.context.addMessage(userMessage);
@@ -212,40 +264,17 @@ class AnthropicClient implements ChatClient {
     // ... make API call ...
 
     // Create assistant message with model/provider info for cost tracking
-    const assistantMessage: Message = {
+    const assistantMessage: AssistantMessage = {
       role: 'assistant',
       content: response.content,
-      tokens: response.tokens,
-      provider: 'anthropic',
-      model: this.model, // Used by Context to look up pricing
+      ...(response.toolCalls && { toolCalls: response.toolCalls }),
+      tokenCount: response.tokens.input + response.tokens.output, // Total tokens used
+      provider: this.getProvider(),
+      model: this.getModel(),
       timestamp: new Date()
     };
 
     // Add assistant message to context - Context calculates cost on-the-fly
-    options.context?.addMessage(assistantMessage);
-  }
-
-  async sendToolResults(toolResults: ToolResult[], options: AskOptions): Promise<AskResult> {
-    // Add tool result messages to context first (one per tool result)
-    if (options.context) {
-      for (const result of toolResults) {
-        options.context.addToolResult(result.toolCallId, result.content);
-      }
-    }
-
-    // ... make API call ...
-
-    // Create assistant message with model/provider info for cost tracking
-    const assistantMessage: Message = {
-      role: 'assistant',
-      content: response.content,
-      tokens: response.tokens,
-      provider: 'anthropic',
-      model: this.model,
-      timestamp: new Date()
-    };
-
-    // Add assistant message to context
     options.context?.addMessage(assistantMessage);
   }
 }
@@ -303,7 +332,7 @@ const calculatorTool = defineTool({
 });
 
 const userTool = defineTool({
-  name: "get_user", 
+  name: "get_user",
   description: "Get user information",
   schema: z.object({ id: z.string() }),
   execute: async (args) => {
@@ -385,7 +414,7 @@ Lemmy automatically converts Zod schemas to provider-specific formats:
 A script `scripts/update-models.js` generates TypeScript types and runtime data:
 
 ```typescript
-// Generated in src/models.ts
+// Generated in src/model-registry.ts
 
 // Types
 export type AnthropicModels = 'claude-3-5-sonnet-20241022' | 'claude-3-5-haiku-20241022';
@@ -843,11 +872,12 @@ export function createClientForModel<T extends AllModels>(
   }
 }
 
-// Core classes
-export { Context, defineTool };
+// Core classes and utilities
+export { Context, defineTool, toToolResult };
 
 // Types
 export type { ChatClient, AskResult, AskOptions, TokenUsage, ChatResponse };
+export type { UserInput, Attachment, Message, UserMessage, AssistantMessage, SystemMessage };
 export type { AllModels, AnthropicModels, OpenAIModels, GoogleModels };
 export type { AnthropicConfig, OpenAIConfig, GoogleConfig, OllamaConfig };
 ```

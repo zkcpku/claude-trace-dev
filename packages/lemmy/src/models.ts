@@ -9,7 +9,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -19,7 +19,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -29,7 +29,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.8,
       outputPerMillion: 4
@@ -39,7 +39,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.8,
       outputPerMillion: 4
@@ -49,7 +49,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -59,7 +59,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -69,7 +69,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -79,7 +79,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 64000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -89,7 +89,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 64000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -99,7 +99,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.25,
       outputPerMillion: 1.25
@@ -109,7 +109,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 75
@@ -119,7 +119,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 75
@@ -129,7 +129,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -139,7 +139,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 32000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 75
@@ -149,7 +149,7 @@ export const AnthropicModelData = {
     contextWindow: 200000,
     maxOutputTokens: 64000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 15
@@ -163,7 +163,7 @@ export const OpenAIModelData = {
     contextWindow: 0,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.4,
       outputPerMillion: 0.4
@@ -173,7 +173,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 5,
       outputPerMillion: 15
@@ -183,7 +183,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.5,
       outputPerMillion: 6
@@ -193,7 +193,7 @@ export const OpenAIModelData = {
     contextWindow: 8192,
     maxOutputTokens: 1024,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 12
@@ -203,7 +203,7 @@ export const OpenAIModelData = {
     contextWindow: 8192,
     maxOutputTokens: 1024,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 3,
       outputPerMillion: 12
@@ -213,7 +213,7 @@ export const OpenAIModelData = {
     contextWindow: 0,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 2,
       outputPerMillion: 2
@@ -223,7 +223,7 @@ export const OpenAIModelData = {
     contextWindow: 16385,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: false,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -233,7 +233,7 @@ export const OpenAIModelData = {
     contextWindow: 16385,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: false,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -243,7 +243,7 @@ export const OpenAIModelData = {
     contextWindow: 16385,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: false,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -253,7 +253,7 @@ export const OpenAIModelData = {
     contextWindow: 16385,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: false,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -263,7 +263,7 @@ export const OpenAIModelData = {
     contextWindow: 16385,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: false,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -273,7 +273,7 @@ export const OpenAIModelData = {
     contextWindow: 16385,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: false,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -283,7 +283,7 @@ export const OpenAIModelData = {
     contextWindow: 8192,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 30,
       outputPerMillion: 60
@@ -293,7 +293,7 @@ export const OpenAIModelData = {
     contextWindow: 4096,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -303,7 +303,7 @@ export const OpenAIModelData = {
     contextWindow: 8192,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 30,
       outputPerMillion: 60
@@ -313,7 +313,7 @@ export const OpenAIModelData = {
     contextWindow: 4096,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 1.5
@@ -323,7 +323,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: false,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 10,
       outputPerMillion: 30
@@ -333,7 +333,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: false,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 10,
       outputPerMillion: 30
@@ -343,7 +343,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: false,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 10,
       outputPerMillion: 30
@@ -353,7 +353,7 @@ export const OpenAIModelData = {
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 2,
       outputPerMillion: 8
@@ -363,7 +363,7 @@ export const OpenAIModelData = {
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 2,
       outputPerMillion: 8
@@ -373,7 +373,7 @@ export const OpenAIModelData = {
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.4,
       outputPerMillion: 1.6
@@ -383,7 +383,7 @@ export const OpenAIModelData = {
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.4,
       outputPerMillion: 1.6
@@ -393,7 +393,7 @@ export const OpenAIModelData = {
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -403,7 +403,7 @@ export const OpenAIModelData = {
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -413,7 +413,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 10,
       outputPerMillion: 30
@@ -423,7 +423,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 10,
       outputPerMillion: 30
@@ -433,7 +433,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -443,7 +443,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -453,7 +453,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -463,7 +463,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -473,7 +473,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -483,7 +483,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -493,7 +493,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -503,7 +503,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.15,
       outputPerMillion: 0.6
@@ -513,7 +513,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.15,
       outputPerMillion: 0.6
@@ -523,7 +523,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.15,
       outputPerMillion: 0.6
@@ -533,7 +533,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.15,
       outputPerMillion: 0.6
@@ -543,7 +543,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.6,
       outputPerMillion: 2.4
@@ -553,7 +553,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.6,
       outputPerMillion: 2.4
@@ -563,7 +563,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.15,
       outputPerMillion: 0.6
@@ -573,7 +573,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.15,
       outputPerMillion: 0.6
@@ -583,7 +583,7 @@ export const OpenAIModelData = {
     contextWindow: 16000,
     maxOutputTokens: 2000,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 1.25,
       outputPerMillion: 5
@@ -593,7 +593,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 5,
       outputPerMillion: 20
@@ -603,7 +603,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 5,
       outputPerMillion: 20
@@ -613,7 +613,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 4096,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 5,
       outputPerMillion: 20
@@ -623,7 +623,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -633,7 +633,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 16384,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -643,7 +643,7 @@ export const OpenAIModelData = {
     contextWindow: 16000,
     maxOutputTokens: 2000,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 2.5,
       outputPerMillion: 10
@@ -653,7 +653,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 60
@@ -663,7 +663,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 60
@@ -673,7 +673,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 65536,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 1.1,
       outputPerMillion: 4.4
@@ -683,7 +683,7 @@ export const OpenAIModelData = {
     contextWindow: 128000,
     maxOutputTokens: 65536,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 1.1,
       outputPerMillion: 4.4
@@ -693,7 +693,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 60
@@ -703,7 +703,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 60
@@ -713,7 +713,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 150,
       outputPerMillion: 600
@@ -723,7 +723,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 150,
       outputPerMillion: 600
@@ -733,7 +733,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 10,
       outputPerMillion: 40
@@ -743,7 +743,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 10,
       outputPerMillion: 40
@@ -753,7 +753,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 1.1,
       outputPerMillion: 4.4
@@ -763,7 +763,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 1.1,
       outputPerMillion: 4.4
@@ -773,7 +773,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.1,
       outputPerMillion: 4.4
@@ -783,7 +783,7 @@ export const OpenAIModelData = {
     contextWindow: 200000,
     maxOutputTokens: 100000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.1,
       outputPerMillion: 4.4
@@ -793,21 +793,21 @@ export const OpenAIModelData = {
     contextWindow: 0,
     maxOutputTokens: 0,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: null
   },
   'omni-moderation-latest': {
     contextWindow: 0,
     maxOutputTokens: 0,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: null
   },
   'text-embedding-3-large': {
     contextWindow: 0,
     maxOutputTokens: 0,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.13,
       outputPerMillion: 0
@@ -817,7 +817,7 @@ export const OpenAIModelData = {
     contextWindow: 0,
     maxOutputTokens: 0,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.02,
       outputPerMillion: 0
@@ -827,7 +827,7 @@ export const OpenAIModelData = {
     contextWindow: 0,
     maxOutputTokens: 0,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0
@@ -837,14 +837,14 @@ export const OpenAIModelData = {
     contextWindow: 0,
     maxOutputTokens: 32768,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: null
   },
   'tts-1-1106': {
     contextWindow: 0,
     maxOutputTokens: 0,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 15,
       outputPerMillion: 15
@@ -854,7 +854,7 @@ export const OpenAIModelData = {
     contextWindow: 0,
     maxOutputTokens: 0,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 30,
       outputPerMillion: 30
@@ -868,21 +868,21 @@ export const GoogleModelData = {
     contextWindow: 7168,
     maxOutputTokens: 1024,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: null
   },
   'embedding-gecko-001': {
     contextWindow: 1024,
     maxOutputTokens: 1,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: null
   },
   'gemini-1.0-pro-vision-latest': {
     contextWindow: 12288,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -892,7 +892,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -902,7 +902,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -912,7 +912,7 @@ export const GoogleModelData = {
     contextWindow: 16384,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -922,7 +922,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -932,7 +932,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -942,7 +942,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -952,7 +952,7 @@ export const GoogleModelData = {
     contextWindow: 1000000,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.0375,
       outputPerMillion: 0.15
@@ -962,7 +962,7 @@ export const GoogleModelData = {
     contextWindow: 1000000,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.0375,
       outputPerMillion: 0.15
@@ -972,7 +972,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -982,7 +982,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -992,7 +992,7 @@ export const GoogleModelData = {
     contextWindow: 2097152,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.25,
       outputPerMillion: 5
@@ -1002,7 +1002,7 @@ export const GoogleModelData = {
     contextWindow: 2097152,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.25,
       outputPerMillion: 5
@@ -1012,7 +1012,7 @@ export const GoogleModelData = {
     contextWindow: 2097152,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.25,
       outputPerMillion: 5
@@ -1022,7 +1022,7 @@ export const GoogleModelData = {
     contextWindow: 2097152,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.25,
       outputPerMillion: 5
@@ -1032,7 +1032,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1042,7 +1042,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1052,7 +1052,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1062,7 +1062,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1072,7 +1072,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1082,7 +1082,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1092,7 +1092,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1102,7 +1102,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1112,7 +1112,7 @@ export const GoogleModelData = {
     contextWindow: 32000,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1122,7 +1122,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1132,7 +1132,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1142,7 +1142,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.1,
       outputPerMillion: 0.4
@@ -1152,7 +1152,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1162,7 +1162,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1172,7 +1172,7 @@ export const GoogleModelData = {
     contextWindow: 128000,
     maxOutputTokens: 8000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 2
@@ -1182,7 +1182,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1192,7 +1192,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1202,7 +1202,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.15,
       outputPerMillion: 0.6
@@ -1212,7 +1212,7 @@ export const GoogleModelData = {
     contextWindow: 128000,
     maxOutputTokens: 8000,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.5,
       outputPerMillion: 2
@@ -1222,7 +1222,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.12,
       outputPerMillion: 0.5
@@ -1232,7 +1232,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1242,7 +1242,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 1.25,
       outputPerMillion: 10
@@ -1252,7 +1252,7 @@ export const GoogleModelData = {
     contextWindow: 8192,
     maxOutputTokens: 1,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.002,
       outputPerMillion: 0.004
@@ -1262,7 +1262,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1272,7 +1272,7 @@ export const GoogleModelData = {
     contextWindow: 12288,
     maxOutputTokens: 4096,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1282,7 +1282,7 @@ export const GoogleModelData = {
     contextWindow: 32768,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1292,7 +1292,7 @@ export const GoogleModelData = {
     contextWindow: 32768,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1302,7 +1302,7 @@ export const GoogleModelData = {
     contextWindow: 131072,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1312,7 +1312,7 @@ export const GoogleModelData = {
     contextWindow: 32768,
     maxOutputTokens: 8192,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1322,7 +1322,7 @@ export const GoogleModelData = {
     contextWindow: 8192,
     maxOutputTokens: 2048,
     supportsTools: false,
-    supportsContinuation: true,
+    supportsImageInput: false,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1332,7 +1332,7 @@ export const GoogleModelData = {
     contextWindow: 1048576,
     maxOutputTokens: 32768,
     supportsTools: true,
-    supportsContinuation: true,
+    supportsImageInput: true,
     pricing: {
       inputPerMillion: 0.075,
       outputPerMillion: 0.3
@@ -1480,28 +1480,3 @@ export const ModelToProvider = {
   'gemma-3n-e4b-it': 'google',
   'learnlm-2.0-flash-experimental': 'google',
 } as const
-
-// Helper functions for model lookup
-export function findModelData(model: string): ModelData | undefined {
-  if (AnthropicModelData[model as keyof typeof AnthropicModelData]) {
-    return AnthropicModelData[model as keyof typeof AnthropicModelData] as ModelData
-  }
-  if (OpenAIModelData[model as keyof typeof OpenAIModelData]) {
-    return OpenAIModelData[model as keyof typeof OpenAIModelData] as ModelData
-  }
-  if (GoogleModelData[model as keyof typeof GoogleModelData]) {
-    return GoogleModelData[model as keyof typeof GoogleModelData] as ModelData
-  }
-  return undefined
-}
-
-export interface ModelData {
-  contextWindow: number
-  maxOutputTokens: number
-  supportsTools: boolean
-  supportsContinuation: boolean
-  pricing: {
-    inputPerMillion: number
-    outputPerMillion: number
-  } | null
-}

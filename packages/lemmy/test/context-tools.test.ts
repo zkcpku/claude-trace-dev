@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 import { Context } from '../src/context.js'
 import { defineTool } from '../src/tools/index.js'
-import type { ToolCall } from '../src/types.js'
+import type { ToolCall, UserMessage } from '../src/types.js'
 
 describe('Context Tool Execution', () => {
   it('should execute a simple tool successfully', async () => {
     const context = new Context()
-    
+
     // Define a simple calculator tool
     const calculatorTool = defineTool({
       name: 'calculator',
@@ -27,17 +27,17 @@ describe('Context Tool Execution', () => {
         }
       }
     })
-    
+
     context.addTool(calculatorTool)
-    
+
     const toolCall: ToolCall = {
       id: 'calc_1',
       name: 'calculator',
       arguments: { operation: 'add', a: 5, b: 3 }
     }
-    
+
     const result = await context.executeTool(toolCall)
-    
+
     expect(result.success).toBe(true)
     expect(result.result).toBe(8)
     expect(result.error).toBeUndefined()
@@ -45,7 +45,7 @@ describe('Context Tool Execution', () => {
 
   it('should handle tool validation errors gracefully', async () => {
     const context = new Context()
-    
+
     const weatherTool = defineTool({
       name: 'weather',
       description: 'Get weather information',
@@ -57,17 +57,17 @@ describe('Context Tool Execution', () => {
         return { temperature: 22, location: args.location, units: args.units || 'celsius' }
       }
     })
-    
+
     context.addTool(weatherTool)
-    
+
     const toolCall: ToolCall = {
       id: 'weather_1',
       name: 'weather',
       arguments: { location: 123, units: 'kelvin' } // Invalid: location should be string, units invalid enum
     }
-    
+
     const result = await context.executeTool(toolCall)
-    
+
     expect(result.success).toBe(false)
     expect(result.error).toBeDefined()
     expect(result.error!.type).toBe('invalid_args')
@@ -77,15 +77,15 @@ describe('Context Tool Execution', () => {
 
   it('should handle tool not found error', async () => {
     const context = new Context()
-    
+
     const toolCall: ToolCall = {
       id: 'missing_1',
       name: 'non_existent_tool',
       arguments: {}
     }
-    
+
     const result = await context.executeTool(toolCall)
-    
+
     expect(result.success).toBe(false)
     expect(result.error).toBeDefined()
     expect(result.error!.type).toBe('execution_failed')
@@ -95,7 +95,7 @@ describe('Context Tool Execution', () => {
 
   it('should handle tool execution errors gracefully', async () => {
     const context = new Context()
-    
+
     const faultyTool = defineTool({
       name: 'faulty',
       description: 'A tool that always fails',
@@ -106,17 +106,17 @@ describe('Context Tool Execution', () => {
         throw new Error('Tool execution failed for some reason')
       }
     })
-    
+
     context.addTool(faultyTool)
-    
+
     const toolCall: ToolCall = {
       id: 'faulty_1',
       name: 'faulty',
       arguments: { input: 'test' }
     }
-    
+
     const result = await context.executeTool(toolCall)
-    
+
     expect(result.success).toBe(false)
     expect(result.error).toBeDefined()
     expect(result.error!.type).toBe('execution_failed')
@@ -126,7 +126,7 @@ describe('Context Tool Execution', () => {
 
   it('should execute multiple tools in parallel', async () => {
     const context = new Context()
-    
+
     // Add multiple tools
     const mathTool = defineTool({
       name: 'math',
@@ -140,7 +140,7 @@ describe('Context Tool Execution', () => {
         return args.operation === 'square' ? args.value * args.value : args.value * 2
       }
     })
-    
+
     const stringTool = defineTool({
       name: 'string',
       description: 'String operations',
@@ -153,33 +153,33 @@ describe('Context Tool Execution', () => {
         return args.operation === 'uppercase' ? args.text.toUpperCase() : args.text.split('').reverse().join('')
       }
     })
-    
+
     context.addTool(mathTool)
     context.addTool(stringTool)
-    
+
     const toolCalls: ToolCall[] = [
       { id: 'math_1', name: 'math', arguments: { operation: 'square', value: 4 } },
       { id: 'string_1', name: 'string', arguments: { operation: 'uppercase', text: 'hello' } },
       { id: 'math_2', name: 'math', arguments: { operation: 'double', value: 7 } }
     ]
-    
+
     const startTime = Date.now()
     const results = await context.executeTools(toolCalls)
     const endTime = Date.now()
-    
+
     // Should complete in parallel (much faster than serial execution)
     expect(endTime - startTime).toBeLessThan(50) // Should be ~10ms, not 30ms
-    
+
     expect(results).toHaveLength(3)
-    
+
     // Check first result
     expect(results[0]?.success).toBe(true)
     expect(results[0]?.result).toBe(16) // 4 squared
-    
+
     // Check second result
     expect(results[1]?.success).toBe(true)
     expect(results[1]?.result).toBe('HELLO')
-    
+
     // Check third result
     expect(results[2]?.success).toBe(true)
     expect(results[2]?.result).toBe(14) // 7 doubled
@@ -187,14 +187,14 @@ describe('Context Tool Execution', () => {
 
   it('should handle mixed success and failure in parallel execution', async () => {
     const context = new Context()
-    
+
     const reliableTool = defineTool({
       name: 'reliable',
       description: 'Always works',
       schema: z.object({ value: z.number() }),
       execute: async (args) => args.value * 10
     })
-    
+
     const unreliableTool = defineTool({
       name: 'unreliable',
       description: 'Sometimes fails',
@@ -206,134 +206,156 @@ describe('Context Tool Execution', () => {
         return 'success'
       }
     })
-    
+
     context.addTool(reliableTool)
     context.addTool(unreliableTool)
-    
+
     const toolCalls: ToolCall[] = [
       { id: 'reliable_1', name: 'reliable', arguments: { value: 5 } },
       { id: 'unreliable_1', name: 'unreliable', arguments: { shouldFail: true } },
       { id: 'reliable_2', name: 'reliable', arguments: { value: 3 } },
       { id: 'unreliable_2', name: 'unreliable', arguments: { shouldFail: false } }
     ]
-    
+
     const results = await context.executeTools(toolCalls)
-    
+
     expect(results).toHaveLength(4)
-    
+
     // First tool: success
     expect(results[0]?.success).toBe(true)
     expect(results[0]?.result).toBe(50)
-    
+
     // Second tool: failure
     expect(results[1]?.success).toBe(false)
     expect(results[1]?.error?.type).toBe('execution_failed')
     expect(results[1]?.error?.message).toContain('Intentional failure')
-    
+
     // Third tool: success
     expect(results[2]?.success).toBe(true)
     expect(results[2]?.result).toBe(30)
-    
+
     // Fourth tool: success
     expect(results[3]?.success).toBe(true)
     expect(results[3]?.result).toBe('success')
   })
 
-  it('should add tool results to conversation history', async () => {
+  it('should add tool results to conversation history via UserInput', async () => {
     const context = new Context()
-    
+
     const testTool = defineTool({
       name: 'test',
       description: 'Test tool',
       schema: z.object({ value: z.string() }),
       execute: async (args) => ({ processed: args.value.toUpperCase() })
     })
-    
+
     context.addTool(testTool)
-    
-    // Execute tool and add result to context
+
+    // Execute tool and convert result to ToolResult format
     const toolCall: ToolCall = {
       id: 'test_1',
       name: 'test',
       arguments: { value: 'hello' }
     }
-    
+
     const result = await context.executeTool(toolCall)
     expect(result.success).toBe(true)
-    
-    // Add the result to conversation history
-    context.addToolResult('test_1', result.result)
-    
+
+    // Convert execution result to ToolResult and add via UserMessage
+    const toolResults = [{
+      toolCallId: 'test_1',
+      content: JSON.stringify(result.result)
+    }]
+
+    // Add user message with tool results
+    const userMessage: UserMessage = {
+      role: 'user',
+      toolResults,
+      provider: 'test',
+      model: 'test',
+      timestamp: new Date()
+    }
+
+    context.addMessage(userMessage)
+
     const messages = context.getMessages()
     expect(messages).toHaveLength(1)
-    expect(messages[0]?.role).toBe('tool_result')
-    
-    const toolResultMessage = messages[0] as any // Tool result message
-    expect(toolResultMessage?.tool_call_id).toBe('test_1')
-    expect(JSON.parse(messages[0]?.content || '')).toEqual({ processed: 'HELLO' })
+    expect(messages[0]?.role).toBe('user')
+    const userMsg = messages[0] as UserMessage
+    expect(userMsg.toolResults).toHaveLength(1)
+    expect(userMsg.toolResults?.[0]?.toolCallId).toBe('test_1')
+    expect(JSON.parse(userMsg.toolResults?.[0]?.content || '')).toEqual({ processed: 'HELLO' })
   })
 
-  it('should add multiple tool results at once', async () => {
+  it('should add multiple tool results at once via UserInput', async () => {
     const context = new Context()
-    
+
     const numberTool = defineTool({
       name: 'number',
       description: 'Process numbers',
       schema: z.object({ value: z.number() }),
       execute: async (args) => args.value * 2
     })
-    
+
     context.addTool(numberTool)
-    
+
     const toolCalls: ToolCall[] = [
       { id: 'num_1', name: 'number', arguments: { value: 5 } },
       { id: 'num_2', name: 'number', arguments: { value: 10 } }
     ]
-    
+
     const results = await context.executeTools(toolCalls)
-    
-    // Add all results to conversation
+
+    // Convert all results to ToolResult format
     const toolResults = results.map((result, index) => ({
       toolCallId: toolCalls[index]!.id,
-      result: result.success ? result.result : `Error: ${result.error?.message || 'Unknown error'}`
+      content: result.success ? String(result.result) : `Error: ${result.error?.message || 'Unknown error'}`
     }))
-    
-    context.addToolResults(toolResults)
-    
+
+    // Add user message with all tool results
+    const userMessage: UserMessage = {
+      role: 'user',
+      toolResults,
+      provider: 'test',
+      model: 'test',
+      timestamp: new Date()
+    }
+
+    context.addMessage(userMessage)
+
     const messages = context.getMessages()
-    expect(messages).toHaveLength(2)
-    
-    expect(messages[0]?.role).toBe('tool_result')
-    const toolResult1 = messages[0] as any
-    expect(toolResult1?.tool_call_id).toBe('num_1')
-    expect(messages[0]?.content).toBe('10')
-    
-    expect(messages[1]?.role).toBe('tool_result')
-    const toolResult2 = messages[1] as any
-    expect(toolResult2?.tool_call_id).toBe('num_2')
-    expect(messages[1]?.content).toBe('20')
+    expect(messages).toHaveLength(1)
+    expect(messages[0]?.role).toBe('user')
+    const userMsg = messages[0] as UserMessage
+    expect(userMsg.toolResults).toHaveLength(2)
+
+    expect(userMsg.toolResults?.[0]?.toolCallId).toBe('num_1')
+    expect(userMsg.toolResults?.[0]?.content).toBe('10')
+
+    expect(userMsg.toolResults?.[1]?.toolCallId).toBe('num_2')
+    expect(userMsg.toolResults?.[1]?.content).toBe('20')
   })
 
   it('should handle zero-argument tools', async () => {
     const context = new Context()
-    
+
     const pingTool = defineTool({
       name: 'ping',
       description: 'Ping the server',
       schema: z.object({}), // Empty schema for zero arguments
       execute: async () => 'pong'
     })
-    
+
     context.addTool(pingTool)
-    
+
     const toolCall: ToolCall = {
       id: 'ping_1',
       name: 'ping',
       arguments: {}
     }
-    
+
     const result = await context.executeTool(toolCall)
-    
+
     expect(result.success).toBe(true)
     expect(result.result).toBe('pong')
   })
