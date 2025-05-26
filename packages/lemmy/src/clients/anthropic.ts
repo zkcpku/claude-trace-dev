@@ -7,7 +7,7 @@ import type {
 	Message,
 	UserMessage,
 	AssistantMessage,
-	UserInput,
+	AskInput,
 	TokenUsage,
 	ModelError,
 	ToolCall,
@@ -37,11 +37,11 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 		return "anthropic";
 	}
 
-	async ask(input: string | UserInput, options?: AnthropicAskOptions): Promise<AskResult> {
+	async ask(input: string | AskInput, options?: AnthropicAskOptions): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
-			// Convert input to UserInput format
-			const userInput: UserInput = typeof input === "string" ? { content: input } : input;
+			// Convert input to AskInput format
+			const userInput: AskInput = typeof input === "string" ? { content: input } : input;
 
 			const userMessage: UserMessage = {
 				role: "user",

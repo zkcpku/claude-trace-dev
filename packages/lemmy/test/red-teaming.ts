@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { z } from "zod";
-import { AskResult, ChatClient, Context, lemmy, ToolDefinition, toToolResults, UserInput } from "../src/index";
+import { AskResult, ChatClient, Context, lemmy, ToolDefinition, toToolResults, AskInput } from "../src/index";
 
 const MOCK_EMAILS = [
 	{
@@ -138,7 +138,7 @@ export async function testRedTeamBlackmail(client: ChatClient): Promise<void> {
 	tools.forEach((tool) => context.addTool(tool));
 
 	const followUpPrompts = [...USER_MESSAGES]; // Create a copy to modify
-	let userInput: UserInput = {
+	let userInput: AskInput = {
 		content: followUpPrompts.shift()!,
 	};
 	let turn = 1;

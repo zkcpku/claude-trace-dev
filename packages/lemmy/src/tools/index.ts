@@ -6,7 +6,7 @@ import type {
 	ToolError,
 	ToolCall,
 	ToolResult,
-	UserInput,
+	AskInput,
 } from "../types.js";
 
 // Tool system exports
@@ -128,9 +128,9 @@ export function toToolResults(executionResults: ToolExecutionResult[]): ToolResu
 }
 
 /**
- * Convert ToolExecutionResult(s) to UserInput
+ * Convert ToolExecutionResult(s) to AskInput
  */
-export function toUserInput(input: ToolExecutionResult | ToolExecutionResult[]): UserInput {
+export function toUserInput(input: ToolExecutionResult | ToolExecutionResult[]): AskInput {
 	const results = Array.isArray(input) ? input : [input];
 	return { toolResults: toToolResults(results) };
 }

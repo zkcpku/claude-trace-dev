@@ -14,11 +14,11 @@ export interface ChatClient<TOptions extends AskOptions = AskOptions> {
 	 * - Adds a USER message with the input content to context (if provided)
 	 * - Adds an ASSISTANT message with the response to context (if successful)
 	 *
-	 * @param input - The input (string for text-only, UserInput for complex content)
+	 * @param input - The input (string for text-only, AskInput for complex content)
 	 * @param options - Optional configuration including context and streaming callback
 	 * @returns Promise resolving to the result (success, tool call, or error)
 	 */
-	ask(input: string | UserInput, options?: TOptions): Promise<AskResult>;
+	ask(input: string | AskInput, options?: TOptions): Promise<AskResult>;
 
 	/**
 	 * Get the model name/identifier used by this client
@@ -122,9 +122,9 @@ export interface Attachment {
 }
 
 /**
- * User input that can contain text, tool results, and/or attachments
+ * Input for the ask method that can contain text, tool results, and/or attachments
  */
-export interface UserInput {
+export interface AskInput {
 	/** Optional text content */
 	content?: string;
 	/** Optional tool results from previous tool calls */

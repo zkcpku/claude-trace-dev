@@ -7,7 +7,7 @@ import type {
 	Message,
 	UserMessage,
 	AssistantMessage,
-	UserInput,
+	AskInput,
 	TokenUsage,
 	ModelError,
 	ToolCall,
@@ -38,11 +38,11 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 		return "openai";
 	}
 
-	async ask(input: string | UserInput, options?: OpenAIAskOptions): Promise<AskResult> {
+	async ask(input: string | AskInput, options?: OpenAIAskOptions): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
-			// Convert input to UserInput format
-			const userInput: UserInput = typeof input === "string" ? { content: input } : input;
+			// Convert input to AskInput format
+			const userInput: AskInput = typeof input === "string" ? { content: input } : input;
 
 			const userMessage: UserMessage = {
 				role: "user",

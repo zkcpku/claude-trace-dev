@@ -9,7 +9,8 @@
    - [x] Updated to use `maxThinkingTokens` and `thinkingEnabled` consistently
    - [x] Flattened nested `thinking` object in config
 - [x] Add missing `GoogleAskOptions extends AskOptions` for consistency with other providers
-- [ ] Review and standardize all provider-specific option naming
+- [x] Review and standardize all provider-specific option naming
+   - [x] All providers now have consistent AskOptions that mirror config fields
 
 ### Tool Result Type System
 
@@ -26,8 +27,9 @@
 
 ### Message Type Cleanup
 
-- [ ] Evaluate `UserInput` vs `UserMessage` duplication - make more distinct or merge
-- [ ] Consider if both types are truly needed or can be simplified
+- [x] Evaluate `UserInput` vs `UserMessage` duplication - make more distinct or merge
+   - [x] Renamed `UserInput` to `AskInput` to clarify it's specifically for ask method input
+- [x] Consider if both types are truly needed or can be simplified
 
 ### Context Interface Refactoring
 
@@ -95,9 +97,9 @@
 
 ### Provider Configuration
 
-- [ ] Add `GoogleAskOptions` interface with Google-specific parameters
-- [ ] Review if `GoogleConfig.includeThoughts` should have corresponding ask-time option
-- [ ] Standardize configuration patterns across all providers
+- [x] Add `GoogleAskOptions` interface with Google-specific parameters
+- [x] Review if `GoogleConfig.includeThoughts` should have corresponding ask-time option
+- [x] Standardize configuration patterns across all providers
 
 ### Error Handling
 
