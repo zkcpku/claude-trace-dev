@@ -1,25 +1,25 @@
 {
-  "name": "lemmy-cli-example",
-  "version": "0.1.0",
-  "description": "CLI chat example using lemmy",
-  "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "scripts": {
-    "dev": "tsx src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "lemmy": "file:../../packages/lemmy"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0",
-    "@types/node": "^20.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+	"name": "lemmy-cli-example",
+	"version": "0.1.0",
+	"description": "CLI chat example using lemmy",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"scripts": {
+		"dev": "tsx src/index.ts",
+		"build": "tsc",
+		"start": "node dist/index.js",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"lemmy": "file:../../packages/lemmy"
+	},
+	"devDependencies": {
+		"typescript": "^5.0.0",
+		"tsx": "^4.0.0",
+		"@types/node": "^20.0.0"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	}
 }

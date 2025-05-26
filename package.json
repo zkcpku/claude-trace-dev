@@ -1,23 +1,34 @@
 {
-  "name": "lemmy-monorepo",
-  "version": "0.1.0",
-  "description": "TypeScript API wrapper for multiple LLM providers",
-  "type": "module",
-  "private": true,
-  "workspaces": [
-    "packages/lemmy",
-    "examples/*"
-  ],
-  "scripts": {
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "dev": "npm run dev --workspaces",
-    "clean": "npm run clean --workspaces"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+	"name": "lemmy-monorepo",
+	"version": "0.1.0",
+	"description": "TypeScript API wrapper for multiple LLM providers",
+	"type": "module",
+	"private": true,
+	"workspaces": [
+		"packages/lemmy",
+		"examples/*"
+	],
+	"scripts": {
+		"build": "npm run build --workspaces",
+		"test": "npm run test --workspaces",
+		"dev": "npm run dev --workspaces",
+		"clean": "npm run clean --workspaces",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"prepare": "husky"
+	},
+	"devDependencies": {
+		"husky": "^9.1.7",
+		"lint-staged": "^16.0.0",
+		"prettier": "^3.5.3",
+		"typescript": "^5.0.0"
+	},
+	"lint-staged": {
+		"*.{ts,js,json,md,yml,yaml}": [
+			"prettier --write"
+		]
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	}
 }

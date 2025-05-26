@@ -1,9 +1,11 @@
 # Lemmy Implementation TODO
 
 ## Chunk 1: Foundation (Steps 1.1-1.3)
+
 **Deliverable**: Working project structure with types and model system
 
 ### Step 1.1: Initialize Project Structure and Tooling
+
 - [x] Create root package.json with workspace configuration
 - [x] Set up packages/lemmy with proper package.json
 - [x] Add dependencies: zod, zod-to-json-schema, @modelcontextprotocol/sdk
@@ -17,6 +19,7 @@
 - [x] Verify build and test infrastructure works
 
 ### Step 1.2: Core Type Definitions
+
 - [x] Define ChatClient interface with ask method signature
 - [x] Define AskOptions interface with context and onChunk callback
 - [x] Define AskResult discriminated union (success, tool_call, model_error, tool_error)
@@ -31,6 +34,7 @@
 - [x] Create test/types.test.ts and verify type correctness
 
 ### Step 1.3: Model Registry System
+
 - [x] Create scripts/update-models.js Node.js script
 - [x] Implement fetching from ruby_llm's models.json URL
 - [x] Filter for text input/output models only
@@ -46,9 +50,11 @@
 - [x] Test the generation script and verify output
 
 ## Chunk 2: Context Core (Steps 2.1-2.2) ✅
+
 **Deliverable**: Context class with message and cost tracking
 
 ### Step 2.1: Basic Context Class ✅
+
 - [x] Create Context class with private messages array
 - [x] Implement addMessage(message: Message) method
 - [x] Implement getMessages() method returning readonly array
@@ -59,6 +65,7 @@
 - [x] Create test/context.test.ts with basic functionality tests
 
 ### Step 2.2: Cost and Token Tracking ✅
+
 - [x] Implement getTotalCost() using model registry lookup
 - [x] Implement getTokenUsage() aggregating tokens across messages
 - [x] Implement getCostByProvider() method
@@ -72,9 +79,11 @@
 - [x] Ensure immutability where appropriate
 
 ## Chunk 3: Basic Tool System (Steps 3.1-3.2) ✅
+
 **Deliverable**: Tool definition and format conversion
 
 ### Step 3.1: Zod Tool Definition System ✅
+
 - [x] Create defineTool function with Zod schema integration
 - [x] Implement automatic TypeScript inference for tool arguments
 - [x] Create ToolDefinition generic interface
@@ -89,6 +98,7 @@
 - [x] Verify TypeScript inference works correctly
 
 ### Step 3.2: Tool Format Conversion ✅
+
 - [x] Create zodToOpenAI converter function
 - [x] Create zodToAnthropic converter function
 - [x] Create zodToGoogle converter function
@@ -104,9 +114,11 @@
 - [x] Verify JSON Schema output matches provider expectations
 
 ## Chunk 4: First Provider (Step 4.1) ✅
+
 **Deliverable**: Complete Anthropic client with all features
 
 ### Step 4.1: Anthropic Client Implementation ✅
+
 - [x] Create AnthropicClient class implementing ChatClient interface
 - [x] Add constructor taking AnthropicConfig
 - [x] Implement ask() method with full implementation
@@ -127,9 +139,11 @@
 - [x] Verify token counting and cost calculation accuracy
 
 ## Chunk 5: Tool Execution (Step 3.3) ✅
+
 **Deliverable**: Full tool execution framework
 
 ### Step 3.3: Tool Execution Framework ✅
+
 - [x] Add private tools Map<string, ToolDefinition> to Context
 - [x] Implement addTool(tool: ToolDefinition) method
 - [x] Implement getTool(name: string) method
@@ -153,9 +167,11 @@
 - [x] **IMPROVEMENT**: Add stub implementations in other clients for TypeScript compliance
 
 ## Chunk 6: Second Provider (Step 4.2) ✅
+
 **Deliverable**: OpenAI client following established patterns
 
 ### Step 4.2: OpenAI Client Implementation ✅
+
 - [x] Create OpenAIClient class implementing ChatClient interface
 - [x] Add constructor taking OpenAIConfig
 - [x] Implement ask() method following AnthropicClient pattern
@@ -179,9 +195,11 @@
 - [x] **IMPROVEMENT**: Add fallback token estimation for compatibility
 
 ## Chunk 7: Context Tools Integration (Step 2.3)
+
 **Deliverable**: Tools fully integrated with context
 
 ### Step 2.3: Tool Registry in Context
+
 - [ ] Integrate tool storage with existing Context class
 - [ ] Implement tool lookup and execution tracking
 - [ ] Add basic tool result storage in context
@@ -191,9 +209,11 @@
 - [ ] Test tool execution flow end-to-end
 
 ## Chunk 8: Third Provider (Step 4.3)
+
 **Deliverable**: Google/Gemini client
 
 ### Step 4.3: Google/Gemini Client Implementation
+
 - [ ] Create GoogleClient class implementing ChatClient interface
 - [ ] Add constructor taking GoogleConfig
 - [ ] Implement ask() method consistent with other providers
@@ -215,9 +235,11 @@
 - [ ] Verify token counting matches Gemini's reported usage
 
 ## Chunk 9: Fourth Provider (Step 4.4)
+
 **Deliverable**: Ollama client for local models
 
 ### Step 4.4: Ollama Client Implementation
+
 - [ ] Create OllamaClient class implementing ChatClient interface
 - [ ] Add constructor taking OllamaConfig
 - [ ] Implement ask() method adapted for Ollama's capabilities
@@ -239,9 +261,11 @@
 - [ ] Set cost to 0 for all local model usage
 
 ## Chunk 10: MCP Integration (Steps 5.1-5.2)
+
 **Deliverable**: Full MCP server support
 
 ### Step 5.1: MCP Client Integration
+
 - [ ] Add @modelcontextprotocol/sdk dependency
 - [ ] Create MCPConnection class for individual server connections
 - [ ] Support stdio transport type
@@ -254,6 +278,7 @@
 - [ ] Test with example MCP servers
 
 ### Step 5.2: MCP Tool Format Handling
+
 - [ ] Implement MCP tool format parsing and conversion
 - [ ] Add MCP tool results handling
 - [ ] Integrate MCP tools with native tools in unified registry
@@ -268,9 +293,11 @@
 - [ ] Test MCP tool execution and error scenarios
 
 ## Chunk 11: Advanced Features (Steps 6.1-6.2)
+
 **Deliverable**: Continuation and error handling
 
 ### Step 6.1: Automatic Continuation System
+
 - [ ] Add continuation detection logic in provider clients
 - [ ] Implement automatic follow-up requests for max_tokens responses
 - [ ] Add response merging and token aggregation
@@ -280,6 +307,7 @@
 - [ ] Verify continuation works with tool calls
 
 ### Step 6.2: Error Handling and Retry Logic
+
 - [ ] Define and implement all error types (ModelError, ToolError)
 - [ ] Add retry logic with exponential backoff
 - [ ] Implement rate limit detection and handling
@@ -297,9 +325,11 @@
 - [ ] Create test/integration/advanced.test.ts for end-to-end testing
 
 ## Chunk 12: API Finalization (Steps 6.3, 7.1)
+
 **Deliverable**: Complete public API
 
 ### Step 6.3: Factory Function and Type Safety
+
 - [ ] Implement createClientForModel function with proper type inference
 - [ ] Add model-to-provider mapping logic
 - [ ] Ensure complete type safety for all model/config combinations
@@ -307,6 +337,7 @@
 - [ ] Use advanced TypeScript features for type safety
 
 ### Step 7.1: Main API Export
+
 - [ ] Create main lemmy object with provider methods
 - [ ] Each method takes appropriate config and returns client instance
 - [ ] Export all client classes, Context, defineTool
@@ -322,9 +353,11 @@
 - [ ] Verify exports work in both ESM and CommonJS
 
 ## Chunk 13: Examples and Testing (Steps 7.2-7.3)
+
 **Deliverable**: Working examples and integration tests
 
 ### Step 7.2: CLI Example Implementation
+
 - [ ] Create examples/cli-chat workspace
 - [ ] Implement interactive chat CLI using lemmy
 - [ ] Add support for switching between providers
@@ -339,6 +372,7 @@
 - [ ] Test with multiple providers
 
 ### Step 7.3: Integration Testing
+
 - [ ] Create test/integration/complete.test.ts
 - [ ] Create integration tests for multi-provider conversations
 - [ ] Test tool execution across different providers
@@ -356,6 +390,7 @@
 - [ ] Include performance benchmarks and metrics
 
 ## Final Checklist
+
 - [x] All tests pass (unit, integration, examples) - 119 tests passing
 - [x] TypeScript builds without errors in strict mode
 - [x] Both ESM and CommonJS exports work correctly
@@ -370,20 +405,23 @@
 ## Status Summary
 
 ### ✅ **Completed Chunks (1-6)**
+
 - **Chunk 1**: Foundation & Project Structure ✅
-- **Chunk 2**: Context Management System ✅ 
+- **Chunk 2**: Context Management System ✅
 - **Chunk 3**: Tool System Foundation ✅
 - **Chunk 4**: Anthropic Client (Reference Implementation) ✅
 - **Chunk 5**: Tool Execution Framework ✅
 - **Chunk 6**: OpenAI Client Implementation ✅
 
 ### 🚧 **Next Up**
+
 - **Chunk 7**: Context Tools Integration (Step 2.3)
 - **Chunk 8**: Google/Gemini Client (Step 4.3)
 - **Chunk 9**: Ollama Client (Step 4.4)
 - **Chunk 10**: MCP Integration (Steps 5.1-5.2)
 
 ### 📊 **Current Progress**
+
 - **Code**: 119 tests passing, 2 provider clients complete
 - **Features**: Full tool system, context management, cost tracking, streaming
 - **Quality**: TypeScript strict mode, comprehensive test coverage

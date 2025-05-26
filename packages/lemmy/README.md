@@ -11,19 +11,19 @@ npm install lemmy
 ## Usage
 
 ```typescript
-import { lemmy, Context } from 'lemmy'
+import { lemmy, Context } from "lemmy";
 
-const claude = lemmy.anthropic({ 
-  apiKey: 'your-key',
-  model: 'claude-3-5-sonnet-20241022'
-})
+const claude = lemmy.anthropic({
+	apiKey: "your-key",
+	model: "claude-3-5-sonnet-20241022",
+});
 
-const context = new Context()
-const result = await claude.ask("Hello!", { context })
+const context = new Context();
+const result = await claude.ask("Hello!", { context });
 
-if (result.type === 'success') {
-  console.log(result.response.content)
-  console.log(`Cost: $${result.response.cost}`)
+if (result.type === "success") {
+	console.log(result.response.content);
+	console.log(`Cost: $${result.response.cost}`);
 }
 ```
 

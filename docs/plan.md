@@ -3,9 +3,11 @@
 ## Phase 1: Foundation & Project Structure
 
 ### Step 1.1: Initialize Project Structure and Tooling
+
 **Goal**: Set up the monorepo workspace with proper TypeScript, testing, and build configuration.
 
 **Implementation**:
+
 - Create root package.json with workspace configuration
 - Set up packages/lemmy with proper package.json, tsconfig, and build tools
 - Configure tsup for dual ESM/CJS output
@@ -14,9 +16,11 @@
 - Configure TypeScript for strict typing and proper module resolution
 
 ### Step 1.2: Core Type Definitions
+
 **Goal**: Define the foundational TypeScript interfaces and types that will guide the entire implementation.
 
 **Implementation**:
+
 - Define `ChatClient` interface with `ask` method signature
 - Define `AskOptions`, `AskResult` union types, and `ChatResponse` interfaces
 - Define `TokenUsage`, `Message`, and error type interfaces
@@ -24,9 +28,11 @@
 - Create basic type structure for tools and MCP integration
 
 ### Step 1.3: Model Registry System
+
 **Goal**: Create the model data generation system that provides typing and pricing information.
 
 **Implementation**:
+
 - Create `scripts/update-models.js` to fetch from ruby_llm
 - Generate `src/models.ts` with model type unions and runtime data
 - Implement model-to-provider mapping
@@ -36,9 +42,11 @@
 ## Phase 2: Context Management System
 
 ### Step 2.1: Basic Context Class
+
 **Goal**: Implement the core Context class for managing conversation state.
 
 **Implementation**:
+
 - Create `Context` class with message history management
 - Implement `addMessage` method with proper typing
 - Add basic token and cost aggregation methods
@@ -46,9 +54,11 @@
 - Add timestamp tracking for messages
 
 ### Step 2.2: Cost and Token Tracking
+
 **Goal**: Implement sophisticated cost calculation and token usage tracking.
 
 **Implementation**:
+
 - Implement `getTotalCost()` using model registry lookup
 - Add `getCostByProvider()` and `getCostByModel()` methods
 - Implement `getTokenUsage()` aggregation
@@ -56,9 +66,11 @@
 - Test cost calculations with mock data
 
 ### Step 2.3: Tool Registry in Context
+
 **Goal**: Add tool management capabilities to the Context class.
 
 **Implementation**:
+
 - Add tool storage and registration methods to Context
 - Implement tool lookup and execution tracking
 - Add basic tool result storage in context
@@ -68,9 +80,11 @@
 ## Phase 3: Tool System Foundation
 
 ### Step 3.1: Zod Tool Definition System
+
 **Goal**: Create the `defineTool` function and Zod-based tool system.
 
 **Implementation**:
+
 - Create `defineTool` function with Zod schema integration
 - Implement automatic TypeScript inference for tool arguments
 - Add tool execution wrapper with error handling
@@ -78,9 +92,11 @@
 - Test tool definition and execution
 
 ### Step 3.2: Tool Format Conversion
+
 **Goal**: Convert Zod schemas to provider-specific tool formats.
 
 **Implementation**:
+
 - Implement OpenAI tool format converter using `zod-to-json-schema`
 - Implement Anthropic tool format converter
 - Implement Google/Gemini tool format converter
@@ -88,9 +104,11 @@
 - Test all format conversions with various schema types
 
 ### Step 3.3: Tool Execution Framework
+
 **Goal**: Create the execution framework for tools with proper error handling.
 
 **Implementation**:
+
 - Implement `executeTool` method in Context class
 - Add structured error handling for tool execution
 - Implement parallel tool execution capabilities
@@ -100,9 +118,11 @@
 ## Phase 4: Provider Client Implementation
 
 ### Step 4.1: Anthropic Client Implementation
+
 **Goal**: Create a fully functional Anthropic client as the reference implementation.
 
 **Implementation**:
+
 - Implement `AnthropicClient` class with proper configuration
 - Add message format conversion to/from Anthropic API format
 - Implement streaming with internal buffering and optional callback
@@ -112,9 +132,11 @@
 - Test with real Anthropic API calls
 
 ### Step 4.2: OpenAI Client Implementation
+
 **Goal**: Implement OpenAI client following the same pattern as Anthropic.
 
 **Implementation**:
+
 - Implement `OpenAIClient` class with OpenAI SDK integration
 - Add message format conversion for OpenAI API
 - Implement streaming support with chat completions
@@ -124,9 +146,11 @@
 - Test with real OpenAI API calls
 
 ### Step 4.3: Google/Gemini Client Implementation
+
 **Goal**: Implement Google Gemini client with full feature support.
 
 **Implementation**:
+
 - Implement `GoogleClient` class with Gemini API integration
 - Add message format conversion for Gemini API
 - Implement streaming support
@@ -136,9 +160,11 @@
 - Test with real Gemini API calls
 
 ### Step 4.4: Ollama Client Implementation
+
 **Goal**: Implement Ollama client for local model support.
 
 **Implementation**:
+
 - Implement `OllamaClient` class with Ollama API integration
 - Add message format conversion for Ollama
 - Implement streaming support
@@ -150,9 +176,11 @@
 ## Phase 5: MCP Integration
 
 ### Step 5.1: MCP Client Integration
+
 **Goal**: Integrate MCP server connections using the official SDK.
 
 **Implementation**:
+
 - Add `@modelcontextprotocol/sdk` dependency
 - Implement `addMCPServer` method in Context class
 - Add MCP server process management (stdio and SSE transports)
@@ -161,9 +189,11 @@
 - Test with example MCP servers
 
 ### Step 5.2: MCP Tool Format Handling
+
 **Goal**: Handle MCP tool formats and integrate with existing tool system.
 
 **Implementation**:
+
 - Implement MCP tool format parsing and conversion
 - Add MCP tool results handling
 - Integrate MCP tools with native tools in unified registry
@@ -173,9 +203,11 @@
 ## Phase 6: Advanced Features
 
 ### Step 6.1: Automatic Continuation System
+
 **Goal**: Implement automatic continuation for providers that support it.
 
 **Implementation**:
+
 - Add continuation detection logic in provider clients
 - Implement automatic follow-up requests for max_tokens responses
 - Add response merging and token aggregation
@@ -183,9 +215,11 @@
 - Test continuation with long responses
 
 ### Step 6.2: Error Handling and Retry Logic
+
 **Goal**: Implement comprehensive error handling across all components.
 
 **Implementation**:
+
 - Define and implement all error types (ModelError, ToolError)
 - Add retry logic for transient failures
 - Implement rate limit handling with backoff
@@ -193,9 +227,11 @@
 - Test error scenarios and recovery
 
 ### Step 6.3: Factory Function and Type Safety
+
 **Goal**: Implement the type-safe factory function for CLI usage.
 
 **Implementation**:
+
 - Implement `createClientForModel` function with proper type inference
 - Add model-to-provider mapping logic
 - Ensure complete type safety for all model/config combinations
@@ -204,9 +240,11 @@
 ## Phase 7: Integration and Examples
 
 ### Step 7.1: Main API Export
+
 **Goal**: Create the main lemmy export with all functionality.
 
 **Implementation**:
+
 - Implement main `lemmy` object with provider methods
 - Export all classes, types, and utility functions
 - Ensure proper TypeScript declarations
@@ -214,9 +252,11 @@
 - Test all export paths
 
 ### Step 7.2: CLI Example Implementation
+
 **Goal**: Create a working CLI example that demonstrates the API.
 
 **Implementation**:
+
 - Create `examples/cli-chat` workspace
 - Implement interactive chat CLI using lemmy
 - Add tool usage examples
@@ -225,9 +265,11 @@
 - Test with multiple providers
 
 ### Step 7.3: Integration Testing
+
 **Goal**: Create comprehensive integration tests across all components.
 
 **Implementation**:
+
 - Create integration tests for multi-provider conversations
 - Test tool execution across different providers
 - Test cost calculation accuracy
@@ -239,66 +281,79 @@
 Now breaking down the blueprint into right-sized iterative chunks that build on each other:
 
 ### Chunk 1: Foundation (Steps 1.1-1.3)
+
 **Size**: Small, foundational setup
 **Dependencies**: None
 **Deliverable**: Working project structure with types and model system
 
 ### Chunk 2: Context Core (Steps 2.1-2.2)
+
 **Size**: Medium, core functionality
 **Dependencies**: Chunk 1
 **Deliverable**: Context class with message and cost tracking
 
 ### Chunk 3: Basic Tool System (Steps 3.1-3.2)
+
 **Size**: Medium, tool foundation
 **Dependencies**: Chunk 2
 **Deliverable**: Tool definition and format conversion
 
 ### Chunk 4: First Provider (Step 4.1)
+
 **Size**: Large, reference implementation
 **Dependencies**: Chunk 3
 **Deliverable**: Complete Anthropic client with all features
 
 ### Chunk 5: Tool Execution (Step 3.3)
+
 **Size**: Medium, completes tool system
 **Dependencies**: Chunk 4
 **Deliverable**: Full tool execution framework
 
 ### Chunk 6: Second Provider (Step 4.2)
+
 **Size**: Medium, pattern replication
 **Dependencies**: Chunk 5
 **Deliverable**: OpenAI client following established patterns
 
 ### Chunk 7: Context Tools Integration (Step 2.3)
+
 **Size**: Small, integration work
 **Dependencies**: Chunk 5
 **Deliverable**: Tools fully integrated with context
 
 ### Chunk 8: Third Provider (Step 4.3)
+
 **Size**: Medium, pattern replication
 **Dependencies**: Chunk 6
 **Deliverable**: Google/Gemini client
 
 ### Chunk 9: Fourth Provider (Step 4.4)
+
 **Size**: Medium, local model support
 **Dependencies**: Chunk 8
 **Deliverable**: Ollama client for local models
 
 ### Chunk 10: MCP Integration (Steps 5.1-5.2)
+
 **Size**: Large, external integration
 **Dependencies**: Chunk 7
 **Deliverable**: Full MCP server support
 
 ### Chunk 11: Advanced Features (Steps 6.1-6.2)
+
 **Size**: Medium, enhancement features
 **Dependencies**: Chunk 9
 **Deliverable**: Continuation and error handling
 
 ### Chunk 12: API Finalization (Steps 6.3, 7.1)
+
 **Size**: Small, API completion
 **Dependencies**: Chunk 11
 **Deliverable**: Complete public API
 
 ### Chunk 13: Examples and Testing (Steps 7.2-7.3)
+
 **Size**: Medium, validation and examples
 **Dependencies**: Chunk 12
 **Deliverable**: Working examples and integration tests
@@ -308,6 +363,7 @@ Now breaking down the blueprint into right-sized iterative chunks that build on 
 After reviewing the chunks, they are appropriately sized - each chunk represents 1-3 days of focused development work and builds incrementally on previous work. The steps within each chunk are small enough to be implemented safely with strong testing, but substantial enough to move the project forward meaningfully.
 
 The progression ensures:
+
 1. **No hanging code**: Each chunk delivers working, integrated functionality
 2. **Incremental complexity**: Each step builds on established patterns
 3. **Early testing**: Foundation chunks establish testing patterns used throughout
@@ -475,7 +531,7 @@ Create packages/lemmy/src/tools/converters.ts:
 
 1. Format converters for each provider:
    - zodToOpenAI(tool: ToolDefinition) - converts to OpenAI function format
-   - zodToAnthropic(tool: ToolDefinition) - converts to Anthropic tool format  
+   - zodToAnthropic(tool: ToolDefinition) - converts to Anthropic tool format
    - zodToGoogle(tool: ToolDefinition) - converts to Google function format
    - zodToMCP(tool: ToolDefinition) - converts to MCP tool format
 
@@ -626,7 +682,7 @@ Implement the Google Gemini client following established provider patterns.
 Create packages/lemmy/src/clients/google.ts:
 
 1. GoogleClient class implementing ChatClient interface:
-   - Constructor taking GoogleConfig  
+   - Constructor taking GoogleConfig
    - ask() method consistent with other providers
    - Message format conversion for Gemini API
 

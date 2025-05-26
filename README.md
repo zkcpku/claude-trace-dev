@@ -21,44 +21,47 @@ npm install lemmy
 ## Quick Start
 
 ```typescript
-import { lemmy, Context, defineTool } from 'lemmy'
-import { z } from 'zod'
+import { lemmy, Context, defineTool } from "lemmy";
+import { z } from "zod";
 
 // Create clients
-const claude = lemmy.anthropic({ 
-  apiKey: 'sk-...',
-  model: 'claude-3-5-sonnet-20241022'
-})
+const claude = lemmy.anthropic({
+	apiKey: "sk-...",
+	model: "claude-3-5-sonnet-20241022",
+});
 
 // Shared context across providers
-const context = new Context()
+const context = new Context();
 
 // Define tools with Zod
 const weatherTool = defineTool({
-  name: "get_weather",
-  description: "Get current weather",
-  schema: z.object({
-    location: z.string()
-  }),
-  execute: async ({ location }) => {
-    return { temp: 72, condition: "sunny" }
-  }
-})
+	name: "get_weather",
+	description: "Get current weather",
+	schema: z.object({
+		location: z.string(),
+	}),
+	execute: async ({ location }) => {
+		return { temp: 72, condition: "sunny" };
+	},
+});
 
-context.addTool(weatherTool)
+context.addTool(weatherTool);
 
 // Use tools
-const result = await claude.ask("What's the weather in NYC?", { context })
+const result = await claude.ask("What's the weather in NYC?", { context });
 
-if (result.type === 'tool_call') {
-  const toolResults = await context.executeTools(result.toolCalls)
-  await claude.sendToolResults(toolResults.map(r => ({
-    toolCallId: r.toolCallId,
-    content: r.success ? JSON.stringify(r.result) : `Error: ${r.error?.message}`
-  })), { context })
+if (result.type === "tool_call") {
+	const toolResults = await context.executeTools(result.toolCalls);
+	await claude.sendToolResults(
+		toolResults.map((r) => ({
+			toolCallId: r.toolCallId,
+			content: r.success ? JSON.stringify(r.result) : `Error: ${r.error?.message}`,
+		})),
+		{ context },
+	);
 }
 
-console.log(`Total cost: $${context.getTotalCost()}`)
+console.log(`Total cost: $${context.getTotalCost()}`);
 ```
 
 ## Tools & MCP
@@ -66,17 +69,17 @@ console.log(`Total cost: $${context.getTotalCost()}`)
 ```typescript
 // Add MCP servers
 context.addMCPServer("filesystem", {
-  transport: "stdio",
-  command: "mcp-fs"
-})
+	transport: "stdio",
+	command: "mcp-fs",
+});
 
 // Zero-argument tools
 const pingTool = defineTool({
-  name: "ping",
-  description: "Ping server",
-  schema: z.object({}),
-  execute: async () => "pong"
-})
+	name: "ping",
+	description: "Ping server",
+	schema: z.object({}),
+	execute: async () => "pong",
+});
 ```
 
 ## Extended Thinking
@@ -84,24 +87,24 @@ const pingTool = defineTool({
 ```typescript
 // Enable Claude's thinking
 const claude = lemmy.anthropic({
-  apiKey: 'sk-...',
-  model: 'claude-3-5-sonnet-20241022',
-  thinking: { enabled: true }
-})
+	apiKey: "sk-...",
+	model: "claude-3-5-sonnet-20241022",
+	thinking: { enabled: true },
+});
 
 // OpenAI reasoning models
 const openai = lemmy.openai({
-  apiKey: 'sk-...',
-  model: 'o1-mini',
-  reasoningEffort: 'medium'
-})
+	apiKey: "sk-...",
+	model: "o1-mini",
+	reasoningEffort: "medium",
+});
 
 // Stream thinking in real-time
 await claude.ask("Solve this complex problem", {
-  context,
-  onChunk: (content) => console.log("Response:", content),
-  onThinkingChunk: (thinking) => console.log("Thinking:", thinking)
-})
+	context,
+	onChunk: (content) => console.log("Response:", content),
+	onThinkingChunk: (thinking) => console.log("Thinking:", thinking),
+});
 ```
 
 ## Development
