@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { Context } from "../../src/context.js";
-import { defineTool, toToolResults, toUserInput } from "../../src/tools/index.js";
+import { defineTool, toToolResults, toAskInput } from "../../src/tools/index.js";
 import { findModelData } from "../../src/model-registry.js";
 import { z } from "zod";
 import type { ChatClient, UserMessage } from "../../src/types.js";
@@ -121,8 +121,10 @@ export function sharedClientTests(
 
 				const toolResult = await context.executeTool(result.message.toolCalls![0]!);
 				expect(toolResult.success).toBe(true);
-				expect(toolResult.result).toBe(42);
-				const result2 = await client.ask(toUserInput(toolResult), { context });
+				if (toolResult.success) {
+					expect(toolResult.result).toBe(42);
+				}
+				const result2 = await client.ask(toAskInput(toolResult), { context });
 				expect(result2.type).toBe("success");
 				if (result2.type === "success") {
 					expect(result2.message.content).toContain("42");
@@ -352,7 +354,7 @@ export function sharedClientTests(
 					expect(uniqueIds.size).toBe(toolCallIds.length);
 
 					// Send tool results back and check if we get more tool calls
-					const result2 = await client.ask(toUserInput(toolResults), { context });
+					const result2 = await client.ask(toAskInput(toolResults), { context });
 					expect(result2.type).toBe("success");
 
 					if (result2.type === "success") {
@@ -456,7 +458,7 @@ export function sharedClientTests(
 					}
 
 					// Send tool results back and check if we get more tool calls
-					const result2 = await client.ask(toUserInput(toolResults), { context });
+					const result2 = await client.ask(toAskInput(toolResults), { context });
 					expect(result2.type).toBe("success");
 
 					if (result2.type === "success") {
@@ -538,14 +540,16 @@ export function sharedClientTests(
 				// Step 2: Execute the tool
 				const toolResult = await context.executeTool(toolCall);
 				expect(toolResult.success).toBe(true);
-				expect(toolResult.result).toBe(42);
+				if (toolResult.success) {
+					expect(toolResult.result).toBe(42);
+				}
 
 				// Step 3: Send tool results back to continue the conversation
 				const userInputWithToolResults = {
 					toolResults: [
 						{
 							toolCallId: toolCall.id,
-							content: String(toolResult.result),
+							content: toolResult.success ? String(toolResult.result) : `Error: ${toolResult.error.message}`,
 						},
 					],
 				};
@@ -725,7 +729,7 @@ export function sharedClientTests(
 				let toolCalls = result.message.toolCalls!;
 				do {
 					const toolResults = await context.executeTools(toolCalls);
-					const result2 = await client.ask(toUserInput(toolResults), {
+					const result2 = await client.ask(toAskInput(toolResults), {
 						context,
 						onThinkingChunk,
 					});

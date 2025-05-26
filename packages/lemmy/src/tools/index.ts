@@ -2,7 +2,7 @@ import { z } from "zod";
 import type {
 	DefineToolParams,
 	ToolDefinition,
-	ToolExecutionResult,
+	ExecuteToolResult,
 	ToolError,
 	ToolCall,
 	ToolResult,
@@ -35,7 +35,7 @@ export function defineTool<T extends Record<string, unknown>, R>(params: DefineT
 export async function validateAndExecute<T extends Record<string, unknown>, R>(
 	tool: ToolDefinition<T, R>,
 	toolCall: ToolCall,
-): Promise<ToolExecutionResult> {
+): Promise<ExecuteToolResult> {
 	try {
 		// Validate the arguments using the Zod schema
 		const validatedArgs = tool.schema.parse(toolCall.arguments);
@@ -45,8 +45,8 @@ export async function validateAndExecute<T extends Record<string, unknown>, R>(
 
 		return {
 			success: true,
-			result,
 			toolCallId: toolCall.id,
+			result,
 		};
 	} catch (error) {
 		// Handle Zod validation errors
@@ -58,8 +58,8 @@ export async function validateAndExecute<T extends Record<string, unknown>, R>(
 			};
 			return {
 				success: false,
-				error: toolError,
 				toolCallId: toolCall.id,
+				error: toolError,
 			};
 		}
 
@@ -71,8 +71,8 @@ export async function validateAndExecute<T extends Record<string, unknown>, R>(
 		};
 		return {
 			success: false,
-			error: toolError,
 			toolCallId: toolCall.id,
+			error: toolError,
 		};
 	}
 }
@@ -109,10 +109,10 @@ export function resultToString(result: unknown): string {
 /**
  * Convert a tool execution result to a ToolResult for LLM consumption
  */
-export function toToolResult(executionResult: ToolExecutionResult): ToolResult {
+export function toToolResult(executionResult: ExecuteToolResult): ToolResult {
 	const content = executionResult.success
 		? resultToString(executionResult.result)
-		: `Error: ${executionResult.error!.message}`;
+		: `Error: ${executionResult.error.message}`;
 
 	return {
 		toolCallId: executionResult.toolCallId,
@@ -123,14 +123,14 @@ export function toToolResult(executionResult: ToolExecutionResult): ToolResult {
 /**
  * Convert an array of tool execution results to an array of ToolResults for LLM consumption
  */
-export function toToolResults(executionResults: ToolExecutionResult[]): ToolResult[] {
+export function toToolResults(executionResults: ExecuteToolResult[]): ToolResult[] {
 	return executionResults.map(toToolResult);
 }
 
 /**
- * Convert ToolExecutionResult(s) to AskInput
+ * Convert ExecuteToolResult(s) to AskInput
  */
-export function toUserInput(input: ToolExecutionResult | ToolExecutionResult[]): AskInput {
+export function toAskInput(input: ExecuteToolResult | ExecuteToolResult[]): AskInput {
 	const results = Array.isArray(input) ? input : [input];
 	return { toolResults: toToolResults(results) };
 }

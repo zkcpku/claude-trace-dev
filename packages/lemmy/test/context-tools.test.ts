@@ -44,8 +44,9 @@ describe("Context Tool Execution", () => {
 		const result = await context.executeTool(toolCall);
 
 		expect(result.success).toBe(true);
-		expect(result.result).toBe(8);
-		expect(result.error).toBeUndefined();
+		if (result.success) {
+			expect(result.result).toBe(8);
+		}
 	});
 
 	it("should handle tool validation errors gracefully", async () => {
@@ -74,10 +75,12 @@ describe("Context Tool Execution", () => {
 		const result = await context.executeTool(toolCall);
 
 		expect(result.success).toBe(false);
-		expect(result.error).toBeDefined();
-		expect(result.error!.type).toBe("invalid_args");
-		expect(result.error!.toolName).toBe("weather");
-		expect(result.error!.message).toContain("Invalid arguments");
+		if (!result.success) {
+			expect(result.error).toBeDefined();
+			expect(result.error.type).toBe("invalid_args");
+			expect(result.error.toolName).toBe("weather");
+			expect(result.error.message).toContain("Invalid arguments");
+		}
 	});
 
 	it("should handle tool not found error", async () => {
@@ -92,10 +95,12 @@ describe("Context Tool Execution", () => {
 		const result = await context.executeTool(toolCall);
 
 		expect(result.success).toBe(false);
-		expect(result.error).toBeDefined();
-		expect(result.error!.type).toBe("execution_failed");
-		expect(result.error!.toolName).toBe("non_existent_tool");
-		expect(result.error!.message).toContain("Tool not found");
+		if (!result.success) {
+			expect(result.error).toBeDefined();
+			expect(result.error!.type).toBe("execution_failed");
+			expect(result.error!.toolName).toBe("non_existent_tool");
+			expect(result.error!.message).toContain("Tool not found");
+		}
 	});
 
 	it("should handle tool execution errors gracefully", async () => {
@@ -123,10 +128,12 @@ describe("Context Tool Execution", () => {
 		const result = await context.executeTool(toolCall);
 
 		expect(result.success).toBe(false);
-		expect(result.error).toBeDefined();
-		expect(result.error!.type).toBe("execution_failed");
-		expect(result.error!.toolName).toBe("faulty");
-		expect(result.error!.message).toContain("Tool execution failed for some reason");
+		if (!result.success) {
+			expect(result.error).toBeDefined();
+			expect(result.error!.type).toBe("execution_failed");
+			expect(result.error!.toolName).toBe("faulty");
+			expect(result.error!.message).toContain("Tool execution failed for some reason");
+		}
 	});
 
 	it("should execute multiple tools in parallel", async () => {
@@ -179,15 +186,21 @@ describe("Context Tool Execution", () => {
 
 		// Check first result
 		expect(results[0]?.success).toBe(true);
-		expect(results[0]?.result).toBe(16); // 4 squared
+		if (results[0]?.success) {
+			expect(results[0]?.result).toBe(16); // 4 squared
+		}
 
 		// Check second result
 		expect(results[1]?.success).toBe(true);
-		expect(results[1]?.result).toBe("HELLO");
+		if (results[1]?.success) {
+			expect(results[1]?.result).toBe("HELLO");
+		}
 
 		// Check third result
 		expect(results[2]?.success).toBe(true);
-		expect(results[2]?.result).toBe(14); // 7 doubled
+		if (results[2]?.success) {
+			expect(results[2]?.result).toBe(14); // 7 doubled
+		}
 	});
 
 	it("should handle mixed success and failure in parallel execution", async () => {
@@ -228,20 +241,28 @@ describe("Context Tool Execution", () => {
 
 		// First tool: success
 		expect(results[0]?.success).toBe(true);
-		expect(results[0]?.result).toBe(50);
+		if (results[0]?.success) {
+			expect(results[0]?.result).toBe(50);
+		}
 
 		// Second tool: failure
 		expect(results[1]?.success).toBe(false);
-		expect(results[1]?.error?.type).toBe("execution_failed");
-		expect(results[1]?.error?.message).toContain("Intentional failure");
+		if (!results[1]?.success) {
+			expect(results[1]?.error?.type).toBe("execution_failed");
+			expect(results[1]?.error?.message).toContain("Intentional failure");
+		}
 
 		// Third tool: success
 		expect(results[2]?.success).toBe(true);
-		expect(results[2]?.result).toBe(30);
+		if (results[2]?.success) {
+			expect(results[2]?.result).toBe(30);
+		}
 
 		// Fourth tool: success
 		expect(results[3]?.success).toBe(true);
-		expect(results[3]?.result).toBe("success");
+		if (results[3]?.success) {
+			expect(results[3]?.result).toBe("success");
+		}
 	});
 
 	it("should add tool results to conversation history via UserInput", async () => {
@@ -265,7 +286,9 @@ describe("Context Tool Execution", () => {
 
 		const result = await context.executeTool(toolCall);
 		expect(result.success).toBe(true);
-
+		if (!result.success) {
+			throw new Error("Tool execution failed");
+		}
 		// Convert execution result to ToolResult and add via UserMessage
 		const toolResults = [
 			{
@@ -360,6 +383,8 @@ describe("Context Tool Execution", () => {
 		const result = await context.executeTool(toolCall);
 
 		expect(result.success).toBe(true);
-		expect(result.result).toBe("pong");
+		if (result.success) {
+			expect(result.result).toBe("pong");
+		}
 	});
 });

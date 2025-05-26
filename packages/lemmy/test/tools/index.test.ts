@@ -79,9 +79,10 @@ describe("validateAndExecute", () => {
 		const result = await validateAndExecute(mathTool, toolCall);
 
 		expect(result.success).toBe(true);
-		expect(result.result).toBe(8); // Number result preserved
-		expect(typeof result.result).toBe("number");
-		expect(result.error).toBeUndefined();
+		if (result.success) {
+			expect(result.result).toBe(8); // Number result preserved
+			expect(typeof result.result).toBe("number");
+		}
 
 		// Convert to string for LLM
 		if (result.success) {
@@ -99,11 +100,12 @@ describe("validateAndExecute", () => {
 		const result = await validateAndExecute(mathTool, toolCall);
 
 		expect(result.success).toBe(false);
-		expect(result.result).toBeUndefined();
-		expect(result.error).toBeDefined();
-		expect(result.error?.type).toBe("invalid_args");
-		expect(result.error?.toolName).toBe("add_numbers");
-		expect(result.error?.message).toContain("Invalid arguments");
+		if (!result.success) {
+			expect(result.error).toBeDefined();
+			expect(result.error.type).toBe("invalid_args");
+			expect(result.error.toolName).toBe("add_numbers");
+			expect(result.error.message).toContain("Invalid arguments");
+		}
 	});
 
 	it("should handle execution errors", async () => {
@@ -125,11 +127,12 @@ describe("validateAndExecute", () => {
 		const result = await validateAndExecute(faultyTool, toolCall);
 
 		expect(result.success).toBe(false);
-		expect(result.result).toBeUndefined();
-		expect(result.error).toBeDefined();
-		expect(result.error?.type).toBe("execution_failed");
-		expect(result.error?.toolName).toBe("faulty_tool");
-		expect(result.error?.message).toBe("Something went wrong");
+		if (!result.success) {
+			expect(result.error).toBeDefined();
+			expect(result.error.type).toBe("execution_failed");
+			expect(result.error.toolName).toBe("faulty_tool");
+			expect(result.error.message).toBe("Something went wrong");
+		}
 	});
 
 	it("should handle non-Error execution failures", async () => {
@@ -151,8 +154,10 @@ describe("validateAndExecute", () => {
 		const result = await validateAndExecute(stringThrowTool, toolCall);
 
 		expect(result.success).toBe(false);
-		expect(result.error?.type).toBe("execution_failed");
-		expect(result.error?.message).toBe("Unknown error during tool execution");
+		if (!result.success) {
+			expect(result.error.type).toBe("execution_failed");
+			expect(result.error.message).toBe("Unknown error during tool execution");
+		}
 	});
 });
 
@@ -258,7 +263,9 @@ describe("Complex schema types", () => {
 
 		const result = await validateAndExecute(pingTool, toolCall);
 		expect(result.success).toBe(true);
-		expect(result.result).toBe("pong");
+		if (result.success) {
+			expect(result.result).toBe("pong");
+		}
 	});
 
 	it("should preserve different return types", async () => {
@@ -292,8 +299,10 @@ describe("Complex schema types", () => {
 			arguments: { input: "World" },
 		});
 		expect(stringResult.success).toBe(true);
-		expect(typeof stringResult.result).toBe("string");
-		expect(stringResult.result).toBe("Hello World");
+		if (stringResult.success) {
+			expect(typeof stringResult.result).toBe("string");
+			expect(stringResult.result).toBe("Hello World");
+		}
 
 		const numberResult = await validateAndExecute(numberTool, {
 			id: "test-2",
@@ -301,8 +310,10 @@ describe("Complex schema types", () => {
 			arguments: { x: 5 },
 		});
 		expect(numberResult.success).toBe(true);
-		expect(typeof numberResult.result).toBe("number");
-		expect(numberResult.result).toBe(10);
+		if (numberResult.success) {
+			expect(typeof numberResult.result).toBe("number");
+			expect(numberResult.result).toBe(10);
+		}
 
 		const objectResult = await validateAndExecute(objectTool, {
 			id: "test-3",
@@ -310,13 +321,17 @@ describe("Complex schema types", () => {
 			arguments: { name: "Alice" },
 		});
 		expect(objectResult.success).toBe(true);
-		expect(typeof objectResult.result).toBe("object");
-		expect(objectResult.result).toMatchObject({ greeting: "Hello Alice" });
+		if (objectResult.success) {
+			expect(typeof objectResult.result).toBe("object");
+			expect(objectResult.result).toMatchObject({ greeting: "Hello Alice" });
+		}
 
 		// Test string conversion for LLM consumption
-		expect(resultToString(stringResult.result)).toBe("Hello World");
-		expect(resultToString(numberResult.result)).toBe("10");
-		expect(resultToString(objectResult.result)).toContain('"greeting": "Hello Alice"');
+		if (stringResult.success && numberResult.success && objectResult.success) {
+			expect(resultToString(stringResult.result)).toBe("Hello World");
+			expect(resultToString(numberResult.result)).toBe("10");
+			expect(resultToString(objectResult.result)).toContain('"greeting": "Hello Alice"');
+		}
 	});
 });
 

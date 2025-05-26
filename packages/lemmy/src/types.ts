@@ -251,18 +251,25 @@ export interface DefineToolParams<T = Record<string, unknown>, R = unknown> {
 }
 
 /**
- * Result of tool execution
+ * Result of tool execution with type-safe discriminated union
  */
-export interface ToolExecutionResult {
-	/** The ID of the tool call this result corresponds to */
-	toolCallId: string;
-	/** Whether the tool executed successfully */
-	success: boolean;
-	/** Result from tool execution (type preserved) */
-	result?: any;
-	/** Error information if failed */
-	error?: ToolError;
-}
+export type ExecuteToolResult =
+	| {
+			/** Tool executed successfully */
+			success: true;
+			/** The ID of the tool call this result corresponds to */
+			toolCallId: string;
+			/** Result from tool execution (type preserved as unknown) */
+			result: unknown;
+	  }
+	| {
+			/** Tool execution failed */
+			success: false;
+			/** The ID of the tool call this result corresponds to */
+			toolCallId: string;
+			/** Error information */
+			error: ToolError;
+	  };
 
 // Provider-specific configuration interfaces
 
@@ -356,7 +363,7 @@ export interface Context {
 	/** List all available tools */
 	listTools(): ToolDefinition<any, any>[];
 	/** Execute a tool call and return the result with error handling */
-	executeTool(toolCall: ToolCall): Promise<ToolExecutionResult>;
+	executeTool(toolCall: ToolCall): Promise<ExecuteToolResult>;
 	/** Execute multiple tools in parallel */
-	executeTools(toolCalls: ToolCall[]): Promise<ToolExecutionResult[]>;
+	executeTools(toolCalls: ToolCall[]): Promise<ExecuteToolResult[]>;
 }

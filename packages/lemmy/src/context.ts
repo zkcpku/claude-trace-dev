@@ -1,6 +1,6 @@
 import { findModelData, type ModelData } from "./model-registry.js";
 import { validateAndExecute } from "./tools/index.js";
-import type { Message, TokenUsage, ToolCall, ToolDefinition, ToolError, ToolExecutionResult } from "./types.js";
+import type { Message, TokenUsage, ToolCall, ToolDefinition, ToolError, ExecuteToolResult } from "./types.js";
 
 export class Context {
 	private systemMessage?: string;
@@ -143,7 +143,7 @@ export class Context {
 		return Array.from(this.tools.values());
 	}
 
-	async executeTool(toolCall: ToolCall): Promise<ToolExecutionResult> {
+	async executeTool(toolCall: ToolCall): Promise<ExecuteToolResult> {
 		const tool = this.tools.get(toolCall.name);
 		if (!tool) {
 			const error: ToolError = {
@@ -151,7 +151,7 @@ export class Context {
 				message: `Tool not found: ${toolCall.name}`,
 				toolName: toolCall.name,
 			};
-			return { success: false, error, toolCallId: toolCall.id };
+			return { success: false, toolCallId: toolCall.id, error };
 		}
 
 		return validateAndExecute(tool, toolCall);
@@ -162,7 +162,7 @@ export class Context {
 	 * @param toolCalls Array of tool calls to execute
 	 * @returns Promise resolving to array of results in the same order
 	 */
-	async executeTools(toolCalls: ToolCall[]): Promise<ToolExecutionResult[]> {
+	async executeTools(toolCalls: ToolCall[]): Promise<ExecuteToolResult[]> {
 		return Promise.all(toolCalls.map((toolCall) => this.executeTool(toolCall)));
 	}
 }
