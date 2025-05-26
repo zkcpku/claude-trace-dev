@@ -1,5 +1,5 @@
-We are about to refactor code in the following files of this project:
+We are about to refactor code:
 
-$ARGUMENTS
-
-Begin by asking me what we want to do. Do not make changes before instructed to do so.
+- Ask which files we want to refactor
+- Ask me what we want to do
+- Do not make changes before instructed to do so

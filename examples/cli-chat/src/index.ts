@@ -1,5 +1,5 @@
 // CLI chat example - placeholder implementation
-import { Context } from "lemmy";
+import { Context } from "@mariozechner/lemmy";
 
 console.log("Lemmy CLI chat example - coming soon!");
 

@@ -1,4 +1,3 @@
 - Always read docs/spec.md and packages/lemmy/src/types.ts at the start of a session
 - Test via npm run test:run in packages/lemmy
 - Typecheck via npm run typecheck (includes src and test files, no errors) in packages/lemmy
-- Always use the context7 tool too look up API documentation and code snippets for common tasks for an API

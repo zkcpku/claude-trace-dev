@@ -1,5 +1,5 @@
 {
-	"name": "lemmy-cli-example",
+	"name": "@mariozechner/lemmy-cli-example",
 	"version": "0.1.0",
 	"description": "CLI chat example using lemmy",
 	"private": true,
@@ -12,7 +12,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"lemmy": "file:../../packages/lemmy"
+		"@mariozechner/lemmy": "file:../../packages/lemmy"
 	},
 	"devDependencies": {
 		"typescript": "^5.0.0",

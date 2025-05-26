@@ -1,134 +1,185 @@
 # Lemmy
 
-TypeScript API wrapper for LLM providers (Anthropic, OpenAI, Google, Ollama) designed for building agentic workflows.
-
-## Features
-
-- **Unified Interface**: Common API across all providers
-- **Provider-Agnostic Context**: Switch models mid-conversation
-- **Zod-Based Tools**: Type-safe tool definitions with automatic validation
-- **MCP Integration**: Built-in Model Context Protocol support
-- **Cost Tracking**: Automatic token/cost tracking across all providers
-- **Streaming**: Real-time responses with thinking/reasoning support
-- **Extended Thinking**: Support for Claude's thinking and OpenAI's reasoning models
-
-## Installation
-
-```bash
-npm install lemmy
-```
+TypeScript library for building AI applications with multiple LLM providers. Unified interface, manual tool handling, and conversation management across Anthropic Claude, OpenAI, and Google Gemini.
 
 ## Quick Start
 
-```typescript
-import { lemmy, Context, defineTool } from "lemmy";
-import { z } from "zod";
+```bash
+npm install @mariozechner/lemmy
+```
 
-// Create clients
+```typescript
+import { lemmy, Context } from "@mariozechner/lemmy";
+
+// Create a client
 const claude = lemmy.anthropic({
 	apiKey: "sk-...",
 	model: "claude-3-5-sonnet-20241022",
 });
 
-// Shared context across providers
+// Simple conversation
+const result = await claude.ask("Hello!");
+console.log(result.message.content);
+```
+
+## Conversation Management
+
+```typescript
+// Maintain context across multiple messages
 const context = new Context();
+context.setSystemMessage("You are a helpful coding assistant.");
 
-// Define tools with Zod
-const weatherTool = defineTool({
-	name: "get_weather",
-	description: "Get current weather",
-	schema: z.object({
-		location: z.string(),
-	}),
-	execute: async ({ location }) => {
-		return { temp: 72, condition: "sunny" };
-	},
-});
+await claude.ask("My name is Alice", { context });
+const result = await claude.ask("What's my name?", { context });
+// "Your name is Alice"
 
-context.addTool(weatherTool);
-
-// Use tools
-const result = await claude.ask("What's the weather in NYC?", { context });
-
-if (result.type === "tool_call") {
-	const toolResults = await context.executeTools(result.toolCalls);
-	await claude.sendToolResults(
-		toolResults.map((r) => ({
-			toolCallId: r.toolCallId,
-			content: r.success ? JSON.stringify(r.result) : `Error: ${r.error?.message}`,
-		})),
-		{ context },
-	);
-}
-
+// Track costs automatically
 console.log(`Total cost: $${context.getTotalCost()}`);
 ```
 
-## Tools & MCP
+## Tools & Function Calling
 
 ```typescript
-// Add MCP servers
-context.addMCPServer("filesystem", {
-	transport: "stdio",
-	command: "mcp-fs",
+import { defineTool, toUserInput } from "@mariozechner/lemmy";
+import { z } from "zod";
+
+// Define a tool
+const calculator = defineTool({
+	name: "calculator",
+	description: "Perform basic math",
+	schema: z.object({
+		operation: z.enum(["add", "subtract", "multiply", "divide"]),
+		a: z.number(),
+		b: z.number(),
+	}),
+	execute: async ({ operation, a, b }) => {
+		switch (operation) {
+			case "add":
+				return a + b;
+			case "multiply":
+				return a * b;
+			// ...
+		}
+	},
 });
 
-// Zero-argument tools
-const pingTool = defineTool({
-	name: "ping",
-	description: "Ping server",
-	schema: z.object({}),
-	execute: async () => "pong",
-});
+// Add tool to context
+context.addTool(calculator);
+
+// Request tool usage
+const result = await claude.ask("Calculate 15 + 27", { context });
+
+// Handle tool calls manually (allows intercepting/modifying results)
+if (result.type === "success" && result.stopReason === "tool_call") {
+	// Execute tools and get results
+	const toolResults = await context.executeTools(result.message.toolCalls);
+
+	// Optionally intercept/modify results here
+	console.log("Tool executed:", toolResults[0].result);
+
+	// Send results back using helper function
+	const finalResult = await claude.ask(toUserInput(toolResults), { context });
+
+	console.log(finalResult.message.content); // "The result is 42"
+}
 ```
 
-## Extended Thinking
+## Multiple Providers
 
 ```typescript
-// Enable Claude's thinking
+// Switch providers mid-conversation
+const openai = lemmy.openai({
+	apiKey: "sk-...",
+	model: "gpt-4o",
+});
+
+const google = lemmy.google({
+	apiKey: "...",
+	model: "gemini-1.5-pro",
+});
+
+// Same context works across all providers
+await claude.ask("Start a story", { context });
+await openai.ask("Continue the story", { context });
+await google.ask("End the story", { context });
+```
+
+## Image Input
+
+```typescript
+const result = await claude.ask(
+	{
+		content: "Describe this image",
+		attachments: [
+			{
+				type: "image",
+				data: base64ImageData, // or Buffer
+				mimeType: "image/jpeg",
+			},
+		],
+	},
+	{ context },
+);
+```
+
+## Streaming & Thinking
+
+```typescript
+// Enable thinking for supported models
 const claude = lemmy.anthropic({
 	apiKey: "sk-...",
-	model: "claude-3-5-sonnet-20241022",
+	model: "claude-opus-4-20250514", // thinking-enabled model
 	thinking: { enabled: true },
 });
 
-// OpenAI reasoning models
-const openai = lemmy.openai({
-	apiKey: "sk-...",
-	model: "o1-mini",
-	reasoningEffort: "medium",
-});
-
-// Stream thinking in real-time
+// Stream responses with thinking
 await claude.ask("Solve this complex problem", {
 	context,
-	onChunk: (content) => console.log("Response:", content),
+	onChunk: (content) => process.stdout.write(content),
 	onThinkingChunk: (thinking) => console.log("Thinking:", thinking),
 });
+
+// OpenAI reasoning models
+const o1 = lemmy.openai({
+	apiKey: "sk-...",
+	model: "o1-mini",
+	reasoningEffort: "high", // low, medium, high
+});
 ```
+
+## Multi-step Tool Workflows
+
+```typescript
+// Handle complex tool workflows with loops
+let currentResult = await claude.ask("Calculate compound interest then format result", { context });
+
+while (currentResult.type === "success" && currentResult.stopReason === "tool_call") {
+	const toolResults = await context.executeTools(currentResult.message.toolCalls);
+
+	// Intercept and log each tool execution
+	toolResults.forEach((result) => {
+		console.log(`Tool ${result.toolCallId}: ${result.success ? "Success" : "Failed"}`);
+	});
+
+	currentResult = await claude.ask(toUserInput(toolResults), { context });
+}
+
+console.log(currentResult.message.content); // Final response
+```
+
+## What Doesn't Work Yet
+
+- **MCP (Model Context Protocol)**: Not implemented yet
+- **File attachments**: Only images supported currently
+- **Local models**: Ollama support removed temporarily
+- **Tool call streaming**: Tool calls complete before being returned
+- **Advanced retry logic**: Limited error recovery and backoff strategies
 
 ## Development
 
 ```bash
-npm install                # Install dependencies
-npm run test:run          # Run tests
-npm run typecheck         # Type checking
-
-# Examples
-cd examples/cli-chat
-npm run dev
+npm run test:run     # Run tests
+npm run typecheck    # Type checking
 ```
 
-## Architecture
-
-- **packages/lemmy/**: Main library with provider clients
-- **examples/**: Usage examples and demos
-- **scripts/**: Model data generation from ruby_llm
-
-## Status
-
-🚧 Under active development
-
-## License
-
-MIT
+See `examples/cli-chat` for a complete working example.
