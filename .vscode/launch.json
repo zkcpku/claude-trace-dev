@@ -1,0 +1,33 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug CLI Example",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/examples/cli-chat/src/index.ts",
+			"runtimeArgs": ["--loader", "tsx/esm"],
+			"env": {
+				"OPENAI_API_KEY": "your-key-here",
+				"ANTHROPIC_API_KEY": "your-key-here",
+				"GOOGLE_API_KEY": "your-key-here"
+			},
+			"console": "integratedTerminal",
+			"skipFiles": ["<node_internals>/**"]
+		},
+		{
+			"name": "Debug Red-teaming Example",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/examples/red-teaming/src/index.ts",
+			"runtimeArgs": ["--loader", "tsx/esm"],
+			"env": {
+				"OPENAI_API_KEY": "your-key-here",
+				"ANTHROPIC_API_KEY": "your-key-here",
+				"GOOGLE_API_KEY": "your-key-here"
+			},
+			"console": "integratedTerminal",
+			"skipFiles": ["<node_internals>/**"]
+		}
+	]
+}
