@@ -1474,9 +1474,7 @@ export const GoogleModelData = {
 	},
 } as const;
 
-export type OllamaModels = string;
-
-export type AllModels = AnthropicModels | OpenAIModels | GoogleModels | OllamaModels;
+export type AllModels = AnthropicModels | OpenAIModels | GoogleModels;
 
 export const ModelToProvider = {
 	"claude-2.0": "anthropic",

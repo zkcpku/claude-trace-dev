@@ -1,9 +1,9 @@
 import OpenAI from "openai";
 import type {
 	ChatClient,
-	AskOptions,
 	AskResult,
 	OpenAIConfig,
+	OpenAIAskOptions,
 	Message,
 	UserMessage,
 	AssistantMessage,
@@ -16,11 +16,7 @@ import type {
 import { zodToOpenAI } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
 
-export interface OpenAIAskOptions extends AskOptions {
-	reasoningEffort?: "low" | "medium" | "high";
-}
-
-export class OpenAIClient implements ChatClient {
+export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 	private openai: OpenAI;
 	private config: OpenAIConfig;
 
@@ -69,6 +65,10 @@ export class OpenAIClient implements ChatClient {
 
 			// Convert context messages to OpenAI format
 			const messages = this.convertMessages(options?.context?.getMessages() || [userMessage]);
+			const systemMessage = options?.context?.getSystemMessage();
+			if (systemMessage) {
+				messages.unshift({ role: "system", content: systemMessage });
+			}
 			const tools = options?.context?.listTools() || [];
 
 			// Convert tools to OpenAI format
@@ -181,9 +181,6 @@ export class OpenAIClient implements ChatClient {
 					// Regular text-only assistant message
 					messages.push({ role: "assistant", content: msg.content });
 				}
-			} else if (msg.role === "system") {
-				// Add system messages at the beginning
-				messages.unshift({ role: "system", content: msg.content });
 			}
 		}
 
@@ -192,7 +189,7 @@ export class OpenAIClient implements ChatClient {
 
 	private async processStream(
 		stream: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
-		options?: AskOptions,
+		options?: OpenAIAskOptions,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";

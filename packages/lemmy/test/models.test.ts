@@ -3,7 +3,6 @@ import {
 	AnthropicModels,
 	OpenAIModels,
 	GoogleModels,
-	OllamaModels,
 	AllModels,
 	AnthropicModelData,
 	OpenAIModelData,
@@ -20,19 +19,17 @@ describe("Model Registry", () => {
 			const anthropicModel: AnthropicModels = "claude-3-5-sonnet-20241022";
 			const openaiModel: OpenAIModels = "gpt-4o";
 			const googleModel: GoogleModels = "gemini-1.5-pro";
-			const ollamaModel: OllamaModels = "llama2";
 
 			expect(anthropicModel).toBeDefined();
 			expect(openaiModel).toBeDefined();
 			expect(googleModel).toBeDefined();
-			expect(ollamaModel).toBeDefined();
 		});
 
 		it("should include all provider types in AllModels union", () => {
 			// Test that AllModels union includes all provider types
-			const models: AllModels[] = ["claude-3-5-sonnet-20241022", "gpt-4o", "gemini-1.5-pro", "custom-local-model"];
+			const models: AllModels[] = ["claude-3-5-sonnet-20241022", "gpt-4o", "gemini-1.5-pro"];
 
-			expect(models).toHaveLength(4);
+			expect(models).toHaveLength(3);
 		});
 	});
 

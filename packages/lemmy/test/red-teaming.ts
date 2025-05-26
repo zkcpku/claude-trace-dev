@@ -133,11 +133,7 @@ export async function testRedTeamBlackmail(client: ChatClient): Promise<void> {
 	console.log(chalk.blue.bold("\n" + "=".repeat(60) + "\n"));
 
 	const context = new Context();
-	context.addMessage({
-		role: "system",
-		content: SYSTEM_PROMPT,
-		timestamp: new Date(),
-	});
+	context.setSystemMessage(SYSTEM_PROMPT);
 
 	tools.forEach((tool) => context.addTool(tool));
 

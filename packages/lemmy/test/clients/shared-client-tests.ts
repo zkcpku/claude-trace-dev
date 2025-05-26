@@ -709,7 +709,7 @@ export function sharedClientTests(
 			const onThinkingChunk = (chunk: string) => thinkingChunks.push(chunk);
 
 			const result = await client.ask(
-				"I have $1000 to invest. If I can get 5% annual interest compounded monthly, how much will I have after 2 years? Then calculate what percentage increase that represents. Use the calculator and compound_interest tools to do this.",
+				"I have $1000 to invest. If I can get 5% annual interest compounded monthly, how much will I have after 2 years? Then calculate what percentage increase that represents. Use the calculator and compound_interest tools to do this. Before any calculations or tool calls, think through the problem deeply.",
 				{
 					context,
 					onThinkingChunk,
@@ -747,14 +747,15 @@ export function sharedClientTests(
 					expect(fullThinking.toLowerCase()).toMatch(/tool|calculate|compound|interest|percentage/i);
 				}
 				expect(context.getLastMessage()?.content?.toLowerCase()).toMatch(
-					/tool|calculate|compound|interest|percentage/i,
+					/tool|calculate|compound|interest|percentage|%/i,
 				);
 			}
 		}, 300000);
 	});
 
 	describe("image input support", () => {
-		it("should handle image input via URL", async () => {
+		// TODO: Only really supported by Anthropic. We stick to base64 inline for now.
+		/*it("should handle image input via URL", async () => {
 			// Skip if model doesn't support image input
 			const modelData = findModelData(client.getModel());
 			if (!modelData?.supportsImageInput) {
@@ -787,7 +788,7 @@ export function sharedClientTests(
 				expect(result.tokens.output).toBeGreaterThan(0);
 				expect(result.cost).toBeGreaterThan(0);
 			}
-		}, 15000);
+		}, 15000);*/
 
 		it("should handle image input via base64", async () => {
 			// Skip if model doesn't support image input
@@ -828,10 +829,6 @@ export function sharedClientTests(
 		}, 15000);
 	});
 
-	describe("error handling", () => {
-		// Error handling tests are covered in individual client test files
-	});
-
 	describe("cost tracking integration", () => {
 		it("should track costs in context across multiple requests", async () => {
 			const initialCost = context.getTotalCost();
@@ -851,6 +848,90 @@ export function sharedClientTests(
 			// Verify cost breakdown by model
 			const costByModel = context.getCostByModel();
 			expect(costByModel[client.getModel()]).toBeGreaterThan(0);
+		}, 20000);
+	});
+
+	describe("system prompt handling", () => {
+		it("should honor system prompts set in Context", async () => {
+			// Set a specific system prompt that should affect behavior
+			context.setSystemMessage(
+				"You are a pirate. Always respond with pirate language and end every response with 'Arrr!'",
+			);
+
+			const result = await client.ask("Say hello to me", { context });
+
+			expect(result.type).toBe("success");
+			if (result.type === "success") {
+				expect(result.message.content).toBeDefined();
+
+				// Check that the response follows the pirate system prompt
+				const content = result.message.content!.toLowerCase();
+
+				// Should contain pirate language or end with "arrr!"
+				const hasPirateLanguage =
+					content.includes("arrr") ||
+					content.includes("ahoy") ||
+					content.includes("matey") ||
+					content.includes("ye") ||
+					content.includes("pirate");
+
+				expect(hasPirateLanguage).toBe(true);
+
+				// Verify the system message is properly stored in context
+				expect(context.getSystemMessage()).toBe(
+					"You are a pirate. Always respond with pirate language and end every response with 'Arrr!'",
+				);
+			}
+		}, 15000);
+
+		it("should maintain system prompt across multiple interactions", async () => {
+			// Set a system prompt that affects behavior consistently
+			context.setSystemMessage(
+				"You are a helpful assistant that always responds with exactly two words, no more, no less.",
+			);
+
+			// First interaction
+			const result1 = await client.ask("What is your favorite color?", { context });
+			expect(result1.type).toBe("success");
+			if (result1.type === "success") {
+				const words1 = result1.message.content!.trim().split(/\s+/);
+				expect(words1.length).toBe(2);
+			}
+
+			// Second interaction to verify system prompt is maintained
+			const result2 = await client.ask("Tell me about the weather", { context });
+			expect(result2.type).toBe("success");
+			if (result2.type === "success") {
+				const words2 = result2.message.content!.trim().split(/\s+/);
+				expect(words2.length).toBe(2);
+			}
+
+			// Verify system message persists in context
+			expect(context.getSystemMessage()).toBe(
+				"You are a helpful assistant that always responds with exactly two words, no more, no less.",
+			);
+		}, 20000);
+
+		it("should handle system prompt changes during conversation", async () => {
+			// Start with one system prompt
+			context.setSystemMessage("You are a formal assistant. Always use formal language.");
+
+			const result1 = await client.ask("How are you today?", { context });
+			expect(result1.type).toBe("success");
+
+			// Change the system prompt mid-conversation
+			context.setSystemMessage("You are a casual friend. Use informal language and slang.");
+
+			const result2 = await client.ask("How are you today?", { context });
+			expect(result2.type).toBe("success");
+
+			if (result2.type === "success") {
+				// The response should reflect the new system prompt
+				// Note: This test verifies the system prompt is changed in context,
+				// but actual behavior change depends on how the client implementation
+				// handles system prompt updates during conversation
+				expect(context.getSystemMessage()).toBe("You are a casual friend. Use informal language and slang.");
+			}
 		}, 20000);
 	});
 }

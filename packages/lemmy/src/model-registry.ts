@@ -1,16 +1,6 @@
 import { lemmy } from "./index.js";
-import {
-	ModelToProvider,
-	AnthropicModelData,
-	OpenAIModelData,
-	GoogleModelData,
-	AllModels,
-	AnthropicModels,
-	OpenAIModels,
-	GoogleModels,
-	OllamaModels,
-} from "./models.js";
-import { AnthropicConfig, OpenAIConfig, GoogleConfig, OllamaConfig, ChatClient, TokenUsage } from "./types.js";
+import { AllModels, AnthropicModelData, GoogleModelData, ModelToProvider, OpenAIModelData } from "./models.js";
+import { AnthropicConfig, ChatClient, GoogleConfig, OpenAIConfig, TokenUsage } from "./types.js";
 
 // Re-export model types and data
 export * from "./models.js";
@@ -18,7 +8,7 @@ export * from "./models.js";
 // Type-safe factory function for CLI usage
 export function createClientForModel(
 	model: AllModels,
-	config: AnthropicConfig | OpenAIConfig | GoogleConfig | OllamaConfig,
+	config: AnthropicConfig | OpenAIConfig | GoogleConfig,
 ): ChatClient {
 	const provider = ModelToProvider[model as keyof typeof ModelToProvider];
 
@@ -29,9 +19,7 @@ export function createClientForModel(
 	} else if (provider === "google") {
 		return lemmy.google({ ...config, model } as GoogleConfig);
 	} else {
-		// For ollama models (which are strings and not in ModelToProvider)
-		// or for any unknown provider, default to ollama
-		return lemmy.ollama({ ...config, model } as OllamaConfig);
+		throw new Error(`Unsupported model: ${model}`);
 	}
 }
 

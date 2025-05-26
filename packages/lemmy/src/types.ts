@@ -5,7 +5,7 @@ import { OpenAIModels, AnthropicModels } from "./model-registry.js";
 /**
  * Common interface implemented by all LLM provider clients
  */
-export interface ChatClient {
+export interface ChatClient<TOptions extends AskOptions = AskOptions> {
 	/**
 	 * Send input to the LLM and get a response
 	 * Supports text, tool results, and multimodal attachments
@@ -18,7 +18,7 @@ export interface ChatClient {
 	 * @param options - Optional configuration including context and streaming callback
 	 * @returns Promise resolving to the result (success, tool call, or error)
 	 */
-	ask(input: string | UserInput, options?: AskOptions): Promise<AskResult>;
+	ask(input: string | UserInput, options?: TOptions): Promise<AskResult>;
 
 	/**
 	 * Get the model name/identifier used by this client
@@ -47,6 +47,22 @@ export interface AskOptions {
 	onChunk?: (content: string) => void;
 	/** Optional callback for streaming thinking chunks (if supported by provider) */
 	onThinkingChunk?: (thinking: string) => void;
+}
+
+/**
+ * Options for the ask method for AnthropicClient
+ */
+export interface AnthropicAskOptions extends AskOptions {
+	/** Optional budget for thinking tokens (default: reasonable model-specific limit) */
+	thinkingBudget?: number;
+}
+
+/**
+ * Options for the ask method for OpenAIClient
+ */
+export interface OpenAIAskOptions extends AskOptions {
+	/** Optional reasoning effort (default: 'low') */
+	reasoningEffort?: "low" | "medium" | "high";
 }
 
 /**
@@ -89,7 +105,7 @@ export interface BaseMessage {
  * Attachment for multimodal models (images, files, etc.)
  */
 export interface Attachment {
-	type: "image" | "file";
+	type: "image";
 	data: string | Buffer; // base64 string or buffer
 	mimeType: string;
 	name?: string;
@@ -144,18 +160,9 @@ export interface AssistantMessage extends BaseMessage {
 }
 
 /**
- * System message
- */
-export interface SystemMessage extends BaseMessage {
-	role: "system";
-	/** The message content */
-	content: string;
-}
-
-/**
  * A message in the conversation history - discriminated union
  */
-export type Message = UserMessage | AssistantMessage | SystemMessage;
+export type Message = UserMessage | AssistantMessage;
 
 /**
  * Error from the LLM provider
@@ -306,18 +313,10 @@ export interface GoogleConfig {
 	baseURL?: string;
 	/** Maximum number of retries for failed requests */
 	maxRetries?: number;
-}
-
-/**
- * Configuration for Ollama clients (local models)
- */
-export interface OllamaConfig {
-	/** Model name (user-defined local model) */
-	model: string;
-	/** Ollama server base URL (default: http://localhost:11434) */
-	baseURL?: string;
-	/** Maximum number of retries for failed requests */
-	maxRetries?: number;
+	/** Maximum number of output tokens to generate (default: 4096) */
+	maxOutputTokens?: number;
+	/** Whether to include thinking tokens */
+	includeThoughts?: boolean;
 }
 
 /**
@@ -325,6 +324,10 @@ export interface OllamaConfig {
  * Forward declaration - full implementation in context.ts
  */
 export interface Context {
+	/** Set the system message for the conversation */
+	setSystemMessage(message: string): void;
+	/** Get the system message for the conversation */
+	getSystemMessage(): string | undefined;
 	/** Add a message to the conversation history */
 	addMessage(message: Message): void;
 	/** Get all messages in the conversation */

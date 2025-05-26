@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type {
 	ChatClient,
-	AskOptions,
 	AskResult,
 	AnthropicConfig,
+	AnthropicAskOptions,
 	Message,
 	UserMessage,
 	AssistantMessage,
@@ -16,11 +16,7 @@ import type {
 import { zodToAnthropic } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
 
-export interface AnthropicAskOptions extends AskOptions {
-	thinkingBudget?: number;
-}
-
-export class AnthropicClient implements ChatClient {
+export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 	private anthropic: Anthropic;
 	private config: AnthropicConfig;
 
@@ -67,7 +63,10 @@ export class AnthropicClient implements ChatClient {
 			}
 
 			// Convert context messages to Anthropic format
-			const messages = this.convertMessagesToAnthropic(options?.context?.getMessages() || [userMessage]);
+			const messages = this.convertMessagesToAnthropic(
+				options?.context?.getMessages() || [userMessage],
+				options?.context?.getSystemMessage(),
+			);
 			const tools = options?.context?.listTools() || [];
 
 			// Convert tools to Anthropic format
@@ -108,8 +107,15 @@ export class AnthropicClient implements ChatClient {
 		}
 	}
 
-	private convertMessagesToAnthropic(contextMessages: readonly Message[]): Anthropic.MessageParam[] {
+	private convertMessagesToAnthropic(
+		contextMessages: readonly Message[],
+		systemMessage?: string,
+	): Anthropic.MessageParam[] {
 		const messages: Anthropic.MessageParam[] = [];
+
+		if (systemMessage) {
+			messages.push({ role: "user", content: systemMessage });
+		}
 
 		// Add context messages first
 		for (const msg of contextMessages) {
@@ -231,9 +237,6 @@ export class AnthropicClient implements ChatClient {
 								: contentBlocks,
 					});
 				}
-			} else if (msg.role === "system") {
-				// Handle system messages - Anthropic doesn't have system role, so convert to user message
-				messages.push({ role: "user", content: msg.content });
 			}
 		}
 
@@ -242,7 +245,7 @@ export class AnthropicClient implements ChatClient {
 
 	private async processStream(
 		stream: AsyncIterable<Anthropic.MessageStreamEvent>,
-		options?: AskOptions,
+		options?: AnthropicAskOptions,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";

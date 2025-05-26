@@ -1,19 +1,19 @@
-// Context class for managing conversation state and tools
-import type {
-	Message,
-	TokenUsage,
-	ToolDefinition,
-	ToolCall,
-	ToolExecutionResult,
-	ToolError,
-	ToolResult,
-} from "./types.js";
 import { findModelData, type ModelData } from "./model-registry.js";
 import { validateAndExecute } from "./tools/index.js";
+import type { Message, TokenUsage, ToolCall, ToolDefinition, ToolError, ToolExecutionResult } from "./types.js";
 
 export class Context {
+	private systemMessage?: string;
 	private messages: Message[] = [];
 	private tools = new Map<string, ToolDefinition<any, any>>();
+
+	setSystemMessage(message: string): void {
+		this.systemMessage = message;
+	}
+
+	getSystemMessage(): string | undefined {
+		return this.systemMessage;
+	}
 
 	addMessage(message: Message): void {
 		this.messages.push(message);
