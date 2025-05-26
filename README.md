@@ -129,7 +129,7 @@ const result = await claude.ask(
 const claude = lemmy.anthropic({
 	apiKey: "sk-...",
 	model: "claude-opus-4-20250514", // thinking-enabled model
-	thinking: { enabled: true },
+	thinkingEnabled: true,
 });
 
 // Stream responses with thinking

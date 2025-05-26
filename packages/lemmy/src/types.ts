@@ -53,8 +53,10 @@ export interface AskOptions {
  * Options for the ask method for AnthropicClient
  */
 export interface AnthropicAskOptions extends AskOptions {
-	/** Optional budget for thinking tokens (default: reasonable model-specific limit) */
-	thinkingBudget?: number;
+	/** Whether to enable extended thinking for this request (overrides config default) */
+	thinkingEnabled?: boolean;
+	/** Maximum number of thinking tokens for this request (overrides config default) */
+	maxThinkingTokens?: number;
 }
 
 /**
@@ -270,13 +272,10 @@ export interface AnthropicConfig {
 	maxRetries?: number;
 	/** Maximum number of output tokens to generate (default: 4096) */
 	maxOutputTokens?: number;
-	/** Optional extended thinking configuration */
-	thinking?: {
-		/** Whether to enable extended thinking */
-		enabled: boolean;
-		/** Optional budget for thinking tokens (default: reasonable model-specific limit) */
-		budgetTokens?: number;
-	};
+	/** Whether to enable extended thinking */
+	thinkingEnabled?: boolean;
+	/** Maximum number of thinking tokens (default: reasonable model-specific limit) */
+	maxThinkingTokens?: number;
 }
 
 /**

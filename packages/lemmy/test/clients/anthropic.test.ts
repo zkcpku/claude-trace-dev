@@ -22,7 +22,8 @@ describe("AnthropicClient", () => {
 		}
 
 		if (withThinking) {
-			config.thinking = { enabled: true, budgetTokens: 3000 };
+			config.thinkingEnabled = true;
+			config.maxThinkingTokens = 3000;
 		}
 
 		if (apiKey) {
@@ -51,10 +52,8 @@ describe("AnthropicClient", () => {
 			// Test with Claude 3.5 Sonnet (current testConfig model) which doesn't support thinking
 			const nonThinkingClient = new AnthropicClient({
 				...testConfig, // Uses claude-3-5-sonnet-20241022 which doesn't support thinking
-				thinking: {
-					enabled: true,
-					budgetTokens: 2000,
-				},
+				thinkingEnabled: true,
+				maxThinkingTokens: 2000,
 			});
 
 			const result = await nonThinkingClient.ask("What is 15 * 23?", { context });
