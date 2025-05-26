@@ -182,4 +182,10 @@ npm run test:run     # Run tests
 npm run typecheck    # Type checking
 ```
 
+### Debugging
+
+VS Code launch configurations are provided in `.vscode/launch.json`. Set your API keys in the env section, then use F5 to debug examples with breakpoints.
+
+For debugging tests, install the Vitest extension and click debug icons next to individual tests.
+
 See `examples/cli-chat` for a complete working example.
