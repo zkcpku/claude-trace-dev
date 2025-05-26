@@ -68,6 +68,14 @@ export interface OpenAIAskOptions extends AskOptions {
 }
 
 /**
+ * Options for the ask method for GoogleClient
+ */
+export interface GoogleAskOptions extends AskOptions {
+	/** Whether to include thinking tokens for this request (overrides config default) */
+	includeThoughts?: boolean;
+}
+
+/**
  * The reason the generation stopped
  */
 export type StopReason = "max_tokens" | "stop_sequence" | "tool_call" | "complete";

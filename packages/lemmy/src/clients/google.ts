@@ -9,9 +9,9 @@ import {
 } from "@google/genai";
 import type {
 	ChatClient,
-	AskOptions,
 	AskResult,
 	GoogleConfig,
+	GoogleAskOptions,
 	Message,
 	UserMessage,
 	AssistantMessage,
@@ -24,7 +24,7 @@ import type {
 import { zodToGoogle } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
 
-export class GoogleClient implements ChatClient<AskOptions> {
+export class GoogleClient implements ChatClient<GoogleAskOptions> {
 	private google: GoogleGenAI;
 	private config: GoogleConfig;
 
@@ -45,7 +45,7 @@ export class GoogleClient implements ChatClient<AskOptions> {
 		return "google";
 	}
 
-	async ask(input: string | UserInput, options?: AskOptions): Promise<AskResult> {
+	async ask(input: string | UserInput, options?: GoogleAskOptions): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
 			// Convert input to UserInput format
@@ -99,9 +99,9 @@ export class GoogleClient implements ChatClient<AskOptions> {
 							},
 						],
 					}),
-					...(this.config.includeThoughts && {
+					...((options?.includeThoughts ?? this.config.includeThoughts ?? false) && {
 						thinkingConfig: {
-							includeThoughts: this.config.includeThoughts,
+							includeThoughts: options?.includeThoughts ?? this.config.includeThoughts ?? false,
 						},
 					}),
 				},
@@ -234,7 +234,7 @@ export class GoogleClient implements ChatClient<AskOptions> {
 
 	private async processStream(
 		stream: AsyncGenerator<GenerateContentResponse, any, any>,
-		options?: AskOptions,
+		options?: GoogleAskOptions,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";

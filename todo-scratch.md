@@ -8,7 +8,7 @@
    - [x] Choose one naming convention (either `budget` or `budgetTokens`) and apply consistently
    - [x] Updated to use `maxThinkingTokens` and `thinkingEnabled` consistently
    - [x] Flattened nested `thinking` object in config
-- [ ] Add missing `GoogleAskOptions extends AskOptions` for consistency with other providers
+- [x] Add missing `GoogleAskOptions extends AskOptions` for consistency with other providers
 - [ ] Review and standardize all provider-specific option naming
 
 ### Tool Result Type System
