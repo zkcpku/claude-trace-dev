@@ -5,8 +5,12 @@ import type { OpenAIConfig } from "../../src/types.js";
 import { sharedClientTests } from "./shared-client-tests.js";
 
 describe("OpenAIClient", () => {
+	if (!process.env["OPENAI_API_KEY"]) {
+		throw new Error("OPENAI_API_KEY environment variable is required for OpenAI tests");
+	}
+
 	const testConfig: OpenAIConfig = {
-		apiKey: process.env["OPENAI_API_KEY"] || "test-key",
+		apiKey: process.env["OPENAI_API_KEY"]!,
 		model: "gpt-4o",
 	};
 

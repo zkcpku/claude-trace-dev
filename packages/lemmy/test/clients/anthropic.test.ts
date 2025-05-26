@@ -6,8 +6,12 @@ import { sharedClientTests } from "./shared-client-tests.js";
 import { AllModels } from "../../src/models.js";
 
 describe("AnthropicClient", () => {
+	if (!process.env["ANTHROPIC_API_KEY"]) {
+		throw new Error("ANTHROPIC_API_KEY environment variable is required for Anthropic tests");
+	}
+
 	const testConfig: AnthropicConfig = {
-		apiKey: process.env["ANTHROPIC_API_KEY"] || "test-key",
+		apiKey: process.env["ANTHROPIC_API_KEY"]!,
 		model: "claude-3-5-sonnet-20241022",
 	};
 
