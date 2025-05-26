@@ -214,31 +214,33 @@
 
 ### Step 4.3: Google/Gemini Client Implementation
 
-- [ ] Create GoogleClient class implementing ChatClient interface
-- [ ] Add constructor taking GoogleConfig
-- [ ] Implement ask() method consistent with other providers
-- [ ] Add message format conversion for Gemini API
-- [ ] Convert to Gemini content format with parts
-- [ ] Handle role mapping (user/model instead of user/assistant)
-- [ ] Use Gemini streaming API with proper response handling
-- [ ] Extract token usage from response metadata
-- [ ] Convert tools to Gemini function declaration format
-- [ ] Handle function calling responses
-- [ ] Support Gemini's function call format
-- [ ] Handle Gemini-specific errors and rate limits
-- [ ] Map to unified ModelError types
-- [ ] Handle safety filtering and content policy errors
-- [ ] Use @google/generative-ai package
-- [ ] Create test/clients/google.test.ts with mocked responses
-- [ ] Handle Gemini's unique content structure properly
-- [ ] Test tool calling and streaming functionality
-- [ ] Verify token counting matches Gemini's reported usage
+- [x] Create GoogleClient class implementing ChatClient interface
+- [x] Add constructor taking GoogleConfig
+- [x] Implement ask() method consistent with other providers
+- [x] Add message format conversion for Gemini API
+- [x] Convert to Gemini content format with parts
+- [x] Handle role mapping (user/model instead of user/assistant)
+- [x] Use Gemini streaming API with proper response handling
+- [x] Extract token usage from response metadata
+- [x] Convert tools to Gemini function declaration format
+- [x] Handle function calling responses
+- [x] Support Gemini's function call format
+- [x] Handle Gemini-specific errors and rate limits
+- [x] Map to unified ModelError types
+- [x] Handle safety filtering and content policy errors
+- [x] Use @google/generative-ai package
+- [x] Create test/clients/google.test.ts with mocked responses
+- [x] Handle Gemini's unique content structure properly
+- [x] Test tool calling and streaming functionality
+- [x] Verify token counting matches Gemini's reported usage
 
 ## Chunk 9: Fourth Provider (Step 4.4)
 
 **Deliverable**: Ollama client for local models
 
 ### Step 4.4: Ollama Client Implementation
+
+**Note:** Put on hold for now. Can use OpenAIClient.
 
 - [ ] Create OllamaClient class implementing ChatClient interface
 - [ ] Add constructor taking OllamaConfig

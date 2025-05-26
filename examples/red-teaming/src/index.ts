@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { z } from "zod";
-import { AskResult, ChatClient, Context, lemmy, ToolDefinition, toToolResults, AskInput } from "../src/index";
+import { AskResult, ChatClient, Context, lemmy, ToolDefinition, toToolResults, AskInput } from "@mariozechner/lemmy";
 
 const MOCK_EMAILS = [
 	{
