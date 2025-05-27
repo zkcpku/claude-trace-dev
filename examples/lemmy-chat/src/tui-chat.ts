@@ -118,7 +118,7 @@ export async function runTUIChat(options: any): Promise<void> {
 	const messagesContainer = new Container(tui);
 
 	// Status component for tokens/cost
-	const statusComponent = new TextComponent("Ready to chat...");
+	const statusComponent = new TextComponent(" Ready to chat...");
 
 	// Input editor
 	const inputEditor = new TextEditor();
@@ -145,7 +145,7 @@ export async function runTUIChat(options: any): Promise<void> {
 
 		animationInterval = setInterval(() => {
 			const spinner = frames[frameIndex % frames.length];
-			statusComponent.setText(chalk.magenta(`${spinner} Processing...`));
+			statusComponent.setText(chalk.magenta(` ${spinner} Processing...`));
 			tui.requestRender();
 			frameIndex++;
 		}, 100);
@@ -173,11 +173,11 @@ export async function runTUIChat(options: any): Promise<void> {
 				const totalUsage = `↑${context.getTokenUsage().input} ↓${context.getTokenUsage().output}`;
 				const totalCost = context.getTotalCost();
 
-				const statusInfo = `Last: ${lastUsage} $${lastCost.toFixed(6)} | Total: ${totalUsage} $${totalCost.toFixed(6)}`;
+				const statusInfo = ` Last: ${lastUsage} $${lastCost.toFixed(6)} | Total: ${totalUsage} $${totalCost.toFixed(6)}`;
 				statusComponent.setText(chalk.italic(chalk.gray(statusInfo)));
 			}
 		} else {
-			statusComponent.setText(chalk.italic(chalk.gray("Ready to chat...")));
+			statusComponent.setText(chalk.italic(chalk.gray(" Ready to chat...")));
 		}
 		tui.requestRender();
 	}
@@ -189,7 +189,7 @@ export async function runTUIChat(options: any): Promise<void> {
 				messagesContainer.addChild(thinkingComponent);
 			}
 
-			const messageComponent = new TextComponent(chalk.blue(`Assistant: ${message.content}\n`));
+			const messageComponent = new TextComponent(`Assistant: ${message.content}\n`);
 			messagesContainer.addChild(messageComponent);
 
 			totalCost += calculateTokenCost(message.model, message.usage);

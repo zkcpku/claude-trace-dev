@@ -1,5 +1,5 @@
-import process from "process";
 import { writeSync } from "fs";
+import process from "process";
 import { logger } from "./logger.js";
 
 export interface ComponentRenderResult {
@@ -265,7 +265,7 @@ export class TUI extends Container {
 		}
 	}
 
-	private renderToScreen(): void {
+	private renderToScreen(resize: boolean = false): void {
 		const termWidth = process.stdout.columns || 80;
 
 		logger.debug("TUI", "Starting render cycle", {
@@ -275,6 +275,12 @@ export class TUI extends Container {
 		});
 
 		const result = this.render(termWidth);
+
+		if (resize) {
+			this.totalLines = result.lines.length;
+			result.keepLines = 0;
+			this.isFirstRender = true;
+		}
 
 		logger.debug("TUI", "Render result", {
 			totalLines: result.lines.length,
@@ -292,6 +298,20 @@ export class TUI extends Container {
 		if (this.isFirstRender) {
 			// First render: just append to current terminal position
 			this.isFirstRender = false;
+
+			// Display ASCII LEMMY logo
+			console.log("\x1b[38;5;172m"); // Dimmer orange color
+			console.log("╭───────────────────────────────────────────────────╮");
+			console.log("│  ██╗     ███████╗███╗   ███╗███╗   ███╗██╗   ██╗  │");
+			console.log("│  ██║     ██╔════╝████╗ ████║████╗ ████║╚██╗ ██╔╝  │");
+			console.log("│  ██║     █████╗  ██╔████╔██║██╔████╔██║ ╚████╔╝   │");
+			console.log("│  ██║     ██╔══╝  ██║╚██╔╝██║██║╚██╔╝██║  ╚██╔╝    │");
+			console.log("│  ███████╗███████╗██║ ╚═╝ ██║██║ ╚═╝ ██║   ██║     │");
+			console.log("│  ╚══════╝╚══════╝╚═╝     ╚═╝╚═╝     ╚═╝   ╚═╝     │");
+			console.log("╰───────────────────────────────────────────────────╯");
+			console.log("\x1b[0m"); // Reset color
+			console.log("");
+
 			// Output all lines normally on first render
 			for (const line of result.lines) {
 				console.log(line);
@@ -338,8 +358,11 @@ export class TUI extends Container {
 	}
 
 	private handleResize(): void {
+		// Clear screen, hide cursor, and reset color
+		process.stdout.write("\u001Bc\x1b[?25l\u001B[3J");
+
 		// Terminal size changed - force re-render all
-		this.requestRender();
+		this.renderToScreen(true);
 	}
 
 	private handleKeypress(data: string): void {
