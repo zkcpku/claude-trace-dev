@@ -7,7 +7,7 @@ import {
 	getProviders,
 	UserMessage,
 } from "@mariozechner/lemmy";
-import { TUI, Container, TextComponent, TextEditor, logger } from "@mariozechner/lemmy-tui";
+import { TUI, Container, TextComponent, TextEditor, SelectList, SelectItem, logger } from "@mariozechner/lemmy-tui";
 import { loadDefaults } from "./defaults.js";
 import chalk from "chalk";
 
@@ -141,6 +141,21 @@ export async function runTUIChat(options: any): Promise<void> {
 
 	// Input editor
 	const inputEditor = new TextEditor();
+
+	// Define available slash commands
+	const commands: SelectItem[] = [
+		{ value: "exit", label: "Exit", description: "Exit the chat" },
+		{ value: "clear", label: "Clear", description: "Clear the conversation" },
+		{ value: "model", label: "Model", description: "Show current model" },
+		{ value: "usage", label: "Usage", description: "Show token usage and costs" },
+		{ value: "system", label: "System", description: "Set system prompt" },
+		{ value: "temperature", label: "Temperature", description: "Set temperature (0-2)" },
+		{ value: "help", label: "Help", description: "Show available commands" },
+	];
+
+	// Command selector (initially not shown)
+	let commandSelector: SelectList | null = null;
+	let isSelectingCommand = false;
 
 	// Add components to TUI
 	tui.addChild(logo);
@@ -302,6 +317,112 @@ export async function runTUIChat(options: any): Promise<void> {
 			updateStatus();
 		}
 	};
+
+	// Handle text changes in the editor
+	inputEditor.onChange = (text: string) => {
+		// Check if text starts with "/" and we're not already showing commands
+		if (text.startsWith("/") && !isSelectingCommand) {
+			// Create and show command selector
+			commandSelector = new SelectList(commands, 5);
+			commandSelector.setFilter(text.substring(1)); // Remove the "/"
+
+			// Insert command selector between input editor and status
+			const editorIndex = tui.getChildCount() - 1; // Status is last
+			tui.removeChild(statusComponent);
+			tui.addChild(commandSelector);
+			tui.addChild(statusComponent);
+
+			isSelectingCommand = true;
+			tui.setFocus(commandSelector);
+
+			// Handle command selection
+			commandSelector.onSelect = (item: SelectItem) => {
+				// Execute the command
+				executeCommand(item.value);
+
+				// Clean up
+				cleanupCommandSelector();
+			};
+
+			commandSelector.onCancel = () => {
+				// Just clean up without executing
+				cleanupCommandSelector();
+			};
+		} else if (isSelectingCommand && commandSelector) {
+			// Update filter
+			if (text.startsWith("/")) {
+				commandSelector.setFilter(text.substring(1));
+			} else {
+				// No longer starts with "/", cancel selection
+				cleanupCommandSelector();
+			}
+		}
+	};
+
+	function cleanupCommandSelector() {
+		if (commandSelector) {
+			tui.removeChild(commandSelector);
+			commandSelector = null;
+		}
+		isSelectingCommand = false;
+		inputEditor.setText(""); // Clear the "/" from the editor
+		tui.setFocus(inputEditor);
+	}
+
+	function executeCommand(command: string) {
+		switch (command) {
+			case "exit":
+				console.log("\n👋 Goodbye!");
+				tui.stop();
+				process.exit(0);
+
+			case "clear":
+				// Clear all messages from the container
+				messagesContainer.clear();
+
+				// Clear context
+				context.getMessages().length = 0;
+				totalCost = 0;
+				updateStatus("Conversation cleared");
+				break;
+
+			case "model":
+				const infoComponent = new TextComponent(chalk.cyan(`Current model: ${provider}/${model}`), {
+					bottom: 1,
+					left: 1,
+					right: 1,
+				});
+				messagesContainer.addChild(infoComponent);
+				break;
+
+			case "usage":
+				const usage = context.getTokenUsage();
+				const usageComponent = new TextComponent(
+					chalk.cyan(`Total usage: ↑${usage.input} ↓${usage.output} tokens, $${totalCost.toFixed(6)}`),
+					{ bottom: 1, left: 1, right: 1 },
+				);
+				messagesContainer.addChild(usageComponent);
+				break;
+
+			case "help":
+				const helpText = commands.map((cmd) => `  /${cmd.value} - ${cmd.description}`).join("\n");
+				const helpComponent = new TextComponent(chalk.cyan("Available commands:\n" + helpText), {
+					bottom: 1,
+					left: 1,
+					right: 1,
+				});
+				messagesContainer.addChild(helpComponent);
+				break;
+
+			default:
+				const errorComponent = new TextComponent(chalk.red(`Unknown command: /${command}`), {
+					bottom: 1,
+					left: 1,
+					right: 1,
+				});
+				messagesContainer.addChild(errorComponent);
+		}
+	}
 
 	// Start the TUI
 	tui.start();

@@ -123,13 +123,64 @@ export class Container {
 	}
 
 	// Get child for external manipulation
+	// Get child at index
+	// Note: This may return a SentinelComponent if a child was removed but not yet cleaned up
 	getChild(index: number): Element | undefined {
 		return this.children[index];
 	}
 
 	// Get number of children
+	// Note: This count includes sentinel components until they are cleaned up after the next render pass
 	getChildCount(): number {
 		return this.children.length;
+	}
+
+	// Clear all children from the container
+	clear(): void {
+		// Clear parent TUI references for nested containers
+		for (const child of this.children) {
+			if (child instanceof Container) {
+				child.setParentTui(undefined);
+			}
+		}
+
+		// Clear the children array
+		this.children = [];
+
+		// Request render if we have a parent TUI
+		if (this.parentTui) {
+			this.parentTui.requestRender();
+		}
+	}
+
+	// Clean up sentinel components
+	cleanupSentinels(): void {
+		const originalCount = this.children.length;
+		const validChildren: Element[] = [];
+		let sentinelCount = 0;
+
+		for (const child of this.children) {
+			if (child && !(child instanceof SentinelComponent)) {
+				validChildren.push(child);
+
+				// Recursively clean up nested containers
+				if (child instanceof Container) {
+					child.cleanupSentinels();
+				}
+			} else if (child instanceof SentinelComponent) {
+				sentinelCount++;
+			}
+		}
+
+		this.children = validChildren;
+
+		if (sentinelCount > 0) {
+			logger.debug("Container", "Cleaned up sentinels", {
+				originalCount,
+				newCount: this.children.length,
+				sentinelsRemoved: sentinelCount,
+			});
+		}
 	}
 }
 
@@ -348,6 +399,9 @@ export class TUI extends Container {
 		}
 
 		this.totalLines = result.lines.length;
+
+		// Clean up sentinels after rendering
+		this.cleanupSentinels();
 	}
 
 	private handleResize(): void {

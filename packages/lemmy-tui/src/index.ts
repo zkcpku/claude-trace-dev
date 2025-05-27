@@ -17,5 +17,8 @@ export { TextComponent } from "./text-component.js";
 // Markdown component
 export { MarkdownComponent } from "./markdown-component.js";
 
+// Select list component
+export { SelectList, type SelectItem } from "./select-list.js";
+
 // Logger for debugging
 export { logger, type LoggerConfig } from "./logger.js";

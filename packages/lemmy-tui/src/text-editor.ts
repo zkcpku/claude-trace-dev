@@ -28,6 +28,7 @@ export class TextEditor implements Component {
 	private config: TextEditorConfig = {};
 
 	public onSubmit?: (text: string) => void;
+	public onChange?: (text: string) => void;
 
 	constructor(config?: TextEditorConfig) {
 		if (config) {
@@ -178,6 +179,11 @@ export class TextEditor implements Component {
 				cursorCol: 0,
 			};
 
+			// Notify that editor is now empty
+			if (this.onChange) {
+				this.onChange("");
+			}
+
 			if (this.onSubmit) {
 				logger.info("TextEditor", "Calling onSubmit callback", { result });
 				this.onSubmit(result);
@@ -298,6 +304,27 @@ export class TextEditor implements Component {
 		return layoutLines;
 	}
 
+	getText(): string {
+		return this.state.lines.join("\n");
+	}
+
+	setText(text: string): void {
+		// Split text into lines, handling different line endings
+		const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+
+		// Ensure at least one empty line
+		this.state.lines = lines.length === 0 ? [""] : lines;
+
+		// Reset cursor to end of text
+		this.state.cursorLine = this.state.lines.length - 1;
+		this.state.cursorCol = this.state.lines[this.state.cursorLine]?.length || 0;
+
+		// Notify of change
+		if (this.onChange) {
+			this.onChange(this.getText());
+		}
+	}
+
 	// All the editor methods from before...
 	private insertCharacter(char: string): void {
 		const line = this.state.lines[this.state.cursorLine] || "";
@@ -307,6 +334,10 @@ export class TextEditor implements Component {
 
 		this.state.lines[this.state.cursorLine] = before + char + after;
 		this.state.cursorCol++;
+
+		if (this.onChange) {
+			this.onChange(this.getText());
+		}
 	}
 
 	private handlePaste(pastedText: string): void {
@@ -411,6 +442,11 @@ export class TextEditor implements Component {
 		this.state.cursorLine += pastedLines.length - 1;
 		this.state.cursorCol = (pastedLines[pastedLines.length - 1] || "").length;
 
+		// Notify of change
+		if (this.onChange) {
+			this.onChange(this.getText());
+		}
+
 		// If submit trigger was found, trigger submit
 		if (shouldSubmit) {
 			logger.info("TextEditor", "Triggering submit after multi-line paste");
@@ -422,6 +458,11 @@ export class TextEditor implements Component {
 				cursorLine: 0,
 				cursorCol: 0,
 			};
+
+			// Notify that editor is now empty
+			if (this.onChange) {
+				this.onChange("");
+			}
 
 			if (this.onSubmit) {
 				logger.info("TextEditor", "Calling onSubmit from paste trigger", { result });
@@ -445,6 +486,10 @@ export class TextEditor implements Component {
 		// Move cursor to start of new line
 		this.state.cursorLine++;
 		this.state.cursorCol = 0;
+
+		if (this.onChange) {
+			this.onChange(this.getText());
+		}
 	}
 
 	private handleBackspace(): void {
@@ -467,6 +512,10 @@ export class TextEditor implements Component {
 
 			this.state.cursorLine--;
 			this.state.cursorCol = previousLine.length;
+		}
+
+		if (this.onChange) {
+			this.onChange(this.getText());
 		}
 	}
 
@@ -493,6 +542,10 @@ export class TextEditor implements Component {
 			this.state.lines[this.state.cursorLine] = currentLine + nextLine;
 			this.state.lines.splice(this.state.cursorLine + 1, 1);
 		}
+
+		if (this.onChange) {
+			this.onChange(this.getText());
+		}
 	}
 
 	private deleteCurrentLine(): void {
@@ -513,6 +566,10 @@ export class TextEditor implements Component {
 			// Clamp cursor column to new line length
 			const newLine = this.state.lines[this.state.cursorLine] || "";
 			this.state.cursorCol = Math.min(this.state.cursorCol, newLine.length);
+		}
+
+		if (this.onChange) {
+			this.onChange(this.getText());
 		}
 	}
 
