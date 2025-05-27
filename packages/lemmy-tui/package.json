@@ -27,7 +27,8 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"chalk": "^5.4.1"
+		"chalk": "^5.4.1",
+		"marked": "^15.0.12"
 	},
 	"devDependencies": {
 		"@types/node": "^20.0.0",

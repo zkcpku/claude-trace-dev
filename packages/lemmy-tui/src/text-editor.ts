@@ -51,7 +51,7 @@ export class TextEditor implements Component {
 		const vertical = chalk.gray("│");
 
 		// Calculate box width (leave some margin)
-		const boxWidth = width - 2;
+		const boxWidth = width - 1;
 		const contentWidth = boxWidth - 4; // Account for "│ " and " │"
 
 		// Layout the text

@@ -2,6 +2,13 @@ import { writeSync } from "fs";
 import process from "process";
 import { logger } from "./logger.js";
 
+export interface Padding {
+	top?: number;
+	bottom?: number;
+	left?: number;
+	right?: number;
+}
+
 export interface ComponentRenderResult {
 	lines: string[];
 	changed: boolean;
@@ -298,20 +305,6 @@ export class TUI extends Container {
 		if (this.isFirstRender) {
 			// First render: just append to current terminal position
 			this.isFirstRender = false;
-
-			// Display ASCII LEMMY logo
-			console.log("\x1b[38;5;172m"); // Dimmer orange color
-			console.log("╭───────────────────────────────────────────────────╮");
-			console.log("│  ██╗     ███████╗███╗   ███╗███╗   ███╗██╗   ██╗  │");
-			console.log("│  ██║     ██╔════╝████╗ ████║████╗ ████║╚██╗ ██╔╝  │");
-			console.log("│  ██║     █████╗  ██╔████╔██║██╔████╔██║ ╚████╔╝   │");
-			console.log("│  ██║     ██╔══╝  ██║╚██╔╝██║██║╚██╔╝██║  ╚██╔╝    │");
-			console.log("│  ███████╗███████╗██║ ╚═╝ ██║██║ ╚═╝ ██║   ██║     │");
-			console.log("│  ╚══════╝╚══════╝╚═╝     ╚═╝╚═╝     ╚═╝   ╚═╝     │");
-			console.log("╰───────────────────────────────────────────────────╯");
-			console.log("\x1b[0m"); // Reset color
-			console.log("");
-
 			// Output all lines normally on first render
 			for (const line of result.lines) {
 				console.log(line);

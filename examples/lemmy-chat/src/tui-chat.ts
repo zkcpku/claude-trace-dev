@@ -111,19 +111,39 @@ export async function runTUIChat(options: any): Promise<void> {
 		logLevel: "debug",
 	});
 
+	// Logo component
+	const logoText = chalk.hex("#AC5A1F")(
+		[
+			"╭───────────────────────────────────────────────────╮",
+			"│  ██╗     ███████╗███╗   ███╗███╗   ███╗██╗   ██╗  │",
+			"│  ██║     ██╔════╝████╗ ████║████╗ ████║╚██╗ ██╔╝  │",
+			"│  ██║     █████╗  ██╔████╔██║██╔████╔██║ ╚████╔╝   │",
+			"│  ██║     ██╔══╝  ██║╚██╔╝██║██║╚██╔╝██║  ╚██╔╝    │",
+			"│  ███████╗███████╗██║ ╚═╝ ██║██║ ╚═╝ ██║   ██║     │",
+			"│  ╚══════╝╚══════╝╚═╝     ╚═╝╚═╝     ╚═╝   ╚═╝     │",
+			"╰───────────────────────────────────────────────────╯",
+		].join("\n"),
+	);
+	const logo = new TextComponent(logoText, { top: 1, bottom: 1 });
+
 	// Header component
-	const header = new TextComponent(chalk.yellow(`Chat with ${provider}/${model} | Type 'exit' to quit`));
+	const header = new TextComponent(chalk.yellow(`Chat with ${provider}/${model} | Type 'exit' to quit`), {
+		left: 1,
+		right: 1,
+		bottom: 1,
+	});
 
 	// Messages container
 	const messagesContainer = new Container(tui);
 
 	// Status component for tokens/cost
-	const statusComponent = new TextComponent(" Ready to chat...");
+	const statusComponent = new TextComponent(" Ready to chat...", { left: 1, right: 1 });
 
 	// Input editor
 	const inputEditor = new TextEditor();
 
 	// Add components to TUI
+	tui.addChild(logo);
 	tui.addChild(header);
 	tui.addChild(messagesContainer);
 	tui.addChild(inputEditor);
@@ -185,11 +205,19 @@ export async function runTUIChat(options: any): Promise<void> {
 	function addMessage(message: UserMessage | AssistantMessage) {
 		if (message.role === "assistant") {
 			if (message.thinking && config.thinkingEnabled) {
-				const thinkingComponent = new TextComponent(chalk.dim.italic(`Thinking: ${message.thinking}\n`));
+				const thinkingComponent = new TextComponent(chalk.dim.italic(`Thinking: ${message.thinking}`), {
+					bottom: 1,
+					left: 1,
+					right: 1,
+				});
 				messagesContainer.addChild(thinkingComponent);
 			}
 
-			const messageComponent = new TextComponent(`Assistant: ${message.content}\n`);
+			const messageComponent = new TextComponent(`Assistant: ${message.content}`, {
+				bottom: 1,
+				left: 1,
+				right: 1,
+			});
 			messagesContainer.addChild(messageComponent);
 
 			totalCost += calculateTokenCost(message.model, message.usage);
@@ -207,37 +235,13 @@ export async function runTUIChat(options: any): Promise<void> {
 				lineCount: lines.length,
 			});
 
-			if (lines.length === 1) {
-				// Single line message
-				const messageComponent = new TextComponent(chalk.green(`You: ${message.content}\n`));
-				messagesContainer.addChild(messageComponent);
-			} else {
-				// Multiline message - build the text without color first, then apply color
-				let textLines = [`You: ${lines[0]}`];
-
-				// Add subsequent lines with proper indentation
-				for (let i = 1; i < lines.length; i++) {
-					const line = lines[i] || "";
-					logger.debug("Chat", "Adding line", {
-						lineIndex: i,
-						line: line,
-						lineLength: line.length,
-						lineJSON: JSON.stringify(line),
-					});
-					textLines.push(`     ${line}`);
-				}
-
-				// Join lines and apply color to the entire text
-				const displayText = chalk.green(textLines.join("\n") + "\n");
-
-				logger.debug("Chat", "Final displayText for multiline message", {
-					displayText: JSON.stringify(displayText),
-					displayTextLines: displayText.split("\n"),
-				});
-
-				const messageComponent = new TextComponent(displayText);
-				messagesContainer.addChild(messageComponent);
-			}
+			// Always use padding for user messages
+			const messageComponent = new TextComponent(chalk.green(`You: ${message.content}`), {
+				bottom: 1,
+				left: 1,
+				right: 1,
+			});
+			messagesContainer.addChild(messageComponent);
 		}
 
 		updateStatus();
