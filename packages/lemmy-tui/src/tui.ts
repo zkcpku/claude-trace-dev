@@ -1,5 +1,6 @@
 import process, { stdout } from "process";
 import { logger } from "./logger.js";
+import { appendFileSync } from "fs";
 
 export interface ComponentRenderResult {
 	lines: string[];
@@ -15,11 +16,6 @@ export interface Component {
 	handleInput?(keyData: string): void;
 }
 
-export interface ContainerInterface {
-	render(width: number): ContainerRenderResult;
-	handleInput?(keyData: string): void;
-}
-
 // Sentinel component used to mark removed components - triggers cascade rendering
 class SentinelComponent implements Component {
 	render(): ComponentRenderResult {
@@ -30,62 +26,109 @@ class SentinelComponent implements Component {
 	}
 }
 
-// Shared differential rendering logic for containers
-function renderChildren(
-	children: (Component | ContainerInterface)[],
-	termWidth: number,
-	previousTotalLines: number[],
-	componentName: string,
-): { unchangedLines: number; newLines: string[]; newTotalLines: number[] } {
-	let unchangedLines = 0;
-	const newLines: string[] = [];
-	const newTotalLines: number[] = [];
-	let firstChangeIndex = -1;
+// Base Container class that manages child components
+export class Container {
+	protected children: Element[] = [];
+	protected lines: string[] = [];
+	protected parentTui: TUI | undefined; // Reference to parent TUI for triggering re-renders
 
-	// Find first changed component/container
-	for (let i = 0; i < children.length; i++) {
-		const child = children[i];
-		if (!child) continue;
+	constructor(parentTui?: TUI | undefined) {
+		this.parentTui = parentTui;
+	}
 
-		const result = child.render(termWidth);
-		const currentTotalLines = result.lines.length;
-		const oldTotalLines = previousTotalLines[i] || 0;
+	setParentTui(tui: TUI | undefined): void {
+		this.parentTui = tui;
+	}
 
-		logger.render(`${componentName}-Child-${i}`, {
-			childType: child.constructor.name,
-			result: {
-				lines: result.lines,
-				changed: result.changed,
-				...("keepLines" in result ? { keepLines: result.keepLines } : {}),
-			},
-			currentTotalLines,
-			oldTotalLines,
-		});
+	addChild(component: Element): void {
+		this.children.push(component);
 
-		newTotalLines[i] = currentTotalLines;
+		// Set parent TUI reference for nested containers
+		if (component instanceof Container && this.parentTui) {
+			component.setParentTui(this.parentTui);
+		}
 
-		if (firstChangeIndex === -1) {
-			// Still looking for first change
-			if (result.changed) {
-				// Found first change - start re-rendering from here
-				firstChangeIndex = i;
-				newLines.push(...result.lines);
-			} else {
-				// Child unchanged - count its lines as unchanged
-				unchangedLines += oldTotalLines;
-			}
-		} else {
-			// Already past first change - re-render everything
-			newLines.push(...result.lines);
+		if (this.parentTui) {
+			this.parentTui.requestRender();
 		}
 	}
 
-	return { unchangedLines, newLines, newTotalLines };
+	removeChild(component: Element): void {
+		const index = this.children.indexOf(component);
+		if (index >= 0) {
+			// Replace with sentinel instead of splicing to maintain array structure
+			this.children[index] = new SentinelComponent();
+			// Keep the childTotalLines entry - sentinel will update it to 0
+
+			// Clear parent TUI reference for nested containers
+			if (component instanceof Container) {
+				component.setParentTui(undefined);
+			}
+
+			// Use normal render - sentinel will trigger cascade naturally
+			if (this.parentTui) {
+				this.parentTui.requestRender();
+			}
+		} else {
+			for (const child of this.children) {
+				if (child instanceof Container) {
+					child.removeChild(component);
+				}
+			}
+		}
+	}
+
+	render(width: number): ContainerRenderResult {
+		let keepLines = 0;
+		let changed = false;
+		const newLines: string[] = [];
+
+		for (let i = 0; i < this.children.length; i++) {
+			const child = this.children[i];
+			if (!child) continue;
+
+			if (child instanceof Container) {
+				const result = child.render(width);
+				newLines.push(...result.lines);
+				if (!changed && !result.changed) {
+					keepLines += result.lines.length;
+				} else {
+					changed = true;
+					keepLines += result.keepLines;
+				}
+			} else {
+				const result = child.render(width);
+				newLines.push(...result.lines);
+				if (!changed && !result.changed) {
+					keepLines += result.lines.length;
+				} else {
+					changed = true;
+				}
+			}
+		}
+
+		this.lines = newLines;
+		return {
+			lines: this.lines,
+			changed,
+			keepLines,
+		};
+	}
+
+	// Get child for external manipulation
+	getChild(index: number): Element | undefined {
+		return this.children[index];
+	}
+
+	// Get number of children
+	getChildCount(): number {
+		return this.children.length;
+	}
 }
 
-export class TUI implements ContainerInterface {
-	private components: Component[] = [];
-	private componentTotalLines: number[] = []; // Track total lines for each component
+type Element = Component | Container;
+
+export class TUI extends Container {
 	private focusedComponent: Component | null = null;
 	private needsRender: boolean = false;
 	private wasRaw: boolean = false;
@@ -94,6 +137,7 @@ export class TUI implements ContainerInterface {
 	private isStarted: boolean = false;
 
 	constructor() {
+		super(); // No parent TUI for root
 		this.handleResize = this.handleResize.bind(this);
 		this.handleKeypress = this.handleKeypress.bind(this);
 		logger.componentLifecycle("TUI", "created");
@@ -104,83 +148,22 @@ export class TUI implements ContainerInterface {
 		logger.info("TUI", "Logging configured", config);
 	}
 
-	addComponent(component: Component): void {
-		this.components.push(component);
-		this.componentTotalLines.push(0);
-
+	override addChild(component: Element): void {
 		// Set parent TUI reference for containers
 		if (component instanceof Container) {
 			component.setParentTui(this);
 		}
+		super.addChild(component);
 
 		// Only auto-render if TUI has been started
 		if (this.isStarted) {
-			this.renderAll();
-		}
-	}
-
-	removeComponent(component: Component): void {
-		// First check if it's a direct child
-		const index = this.components.indexOf(component);
-		if (index >= 0) {
-			// Replace with sentinel instead of splicing to maintain array structure
-			this.components[index] = new SentinelComponent();
-			// Keep the componentTotalLines entry - sentinel will update it to 0
-
-			// Clear parent TUI reference for containers
-			if (component instanceof Container) {
-				component.setParentTui(undefined);
-			}
-
-			// Clear focus if this was the focused component
-			if (this.focusedComponent === component) {
-				this.focusedComponent = null;
-			}
-
-			// Use normal render - sentinel will trigger cascade naturally
 			this.requestRender();
-			return;
-		}
-
-		// Recursively search in containers
-		for (const comp of this.components) {
-			if (comp instanceof Container) {
-				if (this.removeFromContainer(comp, component)) {
-					// Clear focus if this was the focused component
-					if (this.focusedComponent === component) {
-						this.focusedComponent = null;
-					}
-
-					// Force full re-render to clear deleted content from screen
-					this.renderAll();
-					return;
-				}
-			}
 		}
 	}
 
-	private removeFromContainer(container: Container, component: Component): boolean {
-		// Check if component is a direct child of this container
-		const childCount = container.getChildCount();
-		for (let i = 0; i < childCount; i++) {
-			const child = container.getChild(i);
-			if (child === component) {
-				container.removeChild(component);
-				return true;
-			}
-		}
-
-		// Recursively search in nested containers
-		for (let i = 0; i < childCount; i++) {
-			const child = container.getChild(i);
-			if (child instanceof Container) {
-				if (this.removeFromContainer(child, component)) {
-					return true;
-				}
-			}
-		}
-
-		return false;
+	override removeChild(component: Element): void {
+		super.removeChild(component);
+		this.requestRender();
 	}
 
 	setFocus(component: Component): void {
@@ -192,12 +175,12 @@ export class TUI implements ContainerInterface {
 
 	private findComponent(component: Component): boolean {
 		// Check direct children
-		if (this.components.includes(component)) {
+		if (this.children.includes(component)) {
 			return true;
 		}
 
 		// Recursively search in containers
-		for (const comp of this.components) {
+		for (const comp of this.children) {
 			if (comp instanceof Container) {
 				if (this.findInContainer(comp, component)) {
 					return true;
@@ -233,6 +216,7 @@ export class TUI implements ContainerInterface {
 	}
 
 	requestRender(): void {
+		if (!this.isStarted) return;
 		this.needsRender = true;
 		// Batch renders on next tick
 		process.nextTick(() => {
@@ -275,29 +259,12 @@ export class TUI implements ContainerInterface {
 		}
 	}
 
-	render(width: number): ContainerRenderResult {
-		const renderResult = renderChildren(this.components, width, this.componentTotalLines, "TUI");
-
-		// Update our tracking
-		this.componentTotalLines = renderResult.newTotalLines;
-
-		// Determine if we changed
-		const newTotalLines = renderResult.unchangedLines + renderResult.newLines.length;
-		const changed = newTotalLines !== this.totalLines || renderResult.newLines.length > 0;
-
-		return {
-			lines: renderResult.newLines,
-			changed,
-			keepLines: renderResult.unchangedLines,
-		};
-	}
-
 	private renderToScreen(): void {
 		const termWidth = process.stdout.columns || 80;
 
 		logger.debug("TUI", "Starting render cycle", {
 			termWidth,
-			componentCount: this.components.length,
+			componentCount: this.children.length,
 			isFirstRender: this.isFirstRender,
 		});
 
@@ -318,35 +285,27 @@ export class TUI implements ContainerInterface {
 			if (linesToMoveUp > 0) {
 				stdout.write(`\x1b[${linesToMoveUp}A\x1b[0J`);
 			}
+			appendFileSync(
+				"tui.log",
+				`linesToMoveUp: ${linesToMoveUp}, keepLines: ${result.keepLines}, totalLines: ${this.totalLines}\n`,
+			);
 		}
 
-		// Output all new lines
-		for (const line of result.lines) {
+		// Output the changing content only
+		// Skip the unchanged lines since they're already on screen
+		const changingLines = result.lines.slice(result.keepLines);
+		appendFileSync("tui.log", `changingLines:\n${changingLines.join("\n")}\n`);
+		for (const line of changingLines) {
 			console.log(line);
 		}
 
-		const newTotalLines = result.keepLines + result.lines.length;
-		this.totalLines = newTotalLines;
+		this.totalLines = result.lines.length;
+		appendFileSync("tui.log", `\n\n========================================\n\n`);
 	}
 
 	private handleResize(): void {
 		// Terminal size changed - force re-render all
-		this.renderAll();
-	}
-
-	renderAll(): void {
-		// Force re-render everything (preserve terminal history)
-		// Move up to start of our content and clear down
-		if (this.totalLines > 0) {
-			stdout.write(`\x1b[${this.totalLines}A\x1b[0J`);
-		}
-		this.totalLines = 0;
-		this.isFirstRender = false; // Not first render since we already have content
-
-		// Reset all component line counts to force full re-render
-		this.componentTotalLines.fill(0);
-
-		this.renderToScreen();
+		this.requestRender();
 	}
 
 	private handleKeypress(data: string): void {
@@ -373,87 +332,5 @@ export class TUI implements ContainerInterface {
 				hasHandleInput: this.focusedComponent?.handleInput ? "yes" : "no",
 			});
 		}
-	}
-}
-
-// Container component that manages child components
-export class Container implements ContainerInterface {
-	private children: (Component | ContainerInterface)[] = [];
-	private childTotalLines: number[] = []; // Track total lines for each child
-	private parentTui: TUI | undefined; // Reference to parent TUI for triggering re-renders
-
-	constructor(parentTui?: TUI | undefined) {
-		this.parentTui = parentTui;
-	}
-
-	setParentTui(tui: TUI | undefined): void {
-		this.parentTui = tui;
-	}
-
-	addChild(component: Component | ContainerInterface): void {
-		this.children.push(component);
-		this.childTotalLines.push(0);
-
-		// Set parent TUI reference for nested containers
-		if (component instanceof Container && this.parentTui) {
-			component.setParentTui(this.parentTui);
-		}
-
-		// Note: Manual re-render via ui.requestRender() is preferred for now
-		// to avoid interference with TUI's rendering cycle
-	}
-
-	removeChild(component: Component): void {
-		const index = this.children.indexOf(component);
-		if (index >= 0) {
-			// Replace with sentinel instead of splicing to maintain array structure
-			this.children[index] = new SentinelComponent();
-			// Keep the childTotalLines entry - sentinel will update it to 0
-
-			// Clear parent TUI reference for nested containers
-			if (component instanceof Container) {
-				component.setParentTui(undefined);
-			}
-
-			// Use normal render - sentinel will trigger cascade naturally
-			if (this.parentTui) {
-				this.parentTui.requestRender();
-			}
-		}
-	}
-
-	render(width: number): ContainerRenderResult {
-		const renderResult = renderChildren(this.children, width, this.childTotalLines, "Container");
-
-		// Update our tracking
-		this.childTotalLines = renderResult.newTotalLines;
-
-		// Build full lines array by rendering all children
-		const fullLines: string[] = [];
-		for (const child of this.children) {
-			if (child) {
-				const childResult = child.render(width);
-				fullLines.push(...childResult.lines);
-			}
-		}
-
-		// Determine if we changed
-		const changed = renderResult.newLines.length > 0;
-
-		return {
-			lines: fullLines,
-			changed,
-			keepLines: renderResult.unchangedLines,
-		};
-	}
-
-	// Get child for external manipulation
-	getChild(index: number): Component | ContainerInterface | undefined {
-		return this.children[index];
-	}
-
-	// Get number of children
-	getChildCount(): number {
-		return this.children.length;
 	}
 }

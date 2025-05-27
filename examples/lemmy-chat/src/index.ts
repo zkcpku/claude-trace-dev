@@ -20,7 +20,7 @@ function setupProgram(): Command {
 	program.addCommand(createModelsCommand());
 	program.addCommand(createDefaultsCommand());
 
-	// Add chat command
+	// Add chat commands
 	program.addCommand(createChatCommand());
 
 	// Add provider subcommands
@@ -45,17 +45,17 @@ Examples:
   $ lemmy-chat openai "Solve this math problem"         # Direct provider usage
   $ lemmy-chat google "Tell me a joke"                  # Direct provider usage
 
-Interactive Chat Mode (Multi-line TUI):
-  $ lemmy-chat chat                                     # Uses defaults for fancy interactive chat
+Interactive Chat Mode (TUI):
+  $ lemmy-chat chat                                     # Uses defaults for TUI chat interface
   $ lemmy-chat chat -p anthropic -m claude-sonnet-4-20250514 --thinkingEnabled
-  $ lemmy-chat chat -p openai -m o4-mini               # Interactive chat with specific model
-  
-  Features:
-  - Multi-line text area with proper cursor navigation
-  - Ctrl+Enter to send, Enter for new lines
-  - Text area grows as you type
-  - Real-time streaming responses with timestamps
-  - Natural terminal flow (scrollable history)
+  $ lemmy-chat chat -p openai -m o4-mini               # TUI chat with specific model
+
+  TUI Features:
+  - Rich terminal user interface with message history
+  - Real-time streaming responses with proper display
+  - Visual separation of thinking vs response content
+  - Token usage and cost tracking displayed
+  - Proper component-based rendering
 
 Set Defaults (saves to ~/.lemmy-chat/defaults.json):
   $ lemmy-chat defaults anthropic -m claude-opus-4-20250514 --thinkingEnabled

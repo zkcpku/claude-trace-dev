@@ -26,7 +26,9 @@
 		"typecheck": "tsc --noEmit",
 		"clean": "rm -rf dist"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"chalk": "^5.4.1"
+	},
 	"devDependencies": {
 		"@types/node": "^20.0.0",
 		"tsup": "^8.5.0",

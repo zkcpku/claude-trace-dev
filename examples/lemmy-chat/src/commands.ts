@@ -14,7 +14,7 @@ import {
 } from "@mariozechner/lemmy";
 import { saveDefaults, loadDefaults, DEFAULTS_FILE } from "./defaults.js";
 import { runSimpleChat } from "./chat.js";
-import { runInteractiveChat } from "./interactive-chat.js";
+import { runTUIChat } from "./tui-chat.js";
 
 function formatModelInfo(modelId: string, modelData: any): string {
 	const contextWindow = modelData.contextWindow || 0;
@@ -283,7 +283,7 @@ export function createDefaultsCommand(): Command {
 
 export function createChatCommand(): Command {
 	const command = new Command("chat");
-	command.description("Interactive chat mode with readline interface");
+	command.description("Interactive chat mode with TUI interface");
 
 	command.option("-p, --provider <provider>", "Provider to use (anthropic, openai, google)");
 	command.option("-m, --model <model>", "Model to use");
@@ -341,7 +341,7 @@ export function createChatCommand(): Command {
 
 	command.action(async (options) => {
 		try {
-			await runInteractiveChat(options);
+			await runTUIChat(options);
 		} catch (error) {
 			console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
 			process.exit(1);

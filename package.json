@@ -6,12 +6,14 @@
 	"private": true,
 	"workspaces": [
 		"packages/lemmy",
+		"packages/lemmy-tui",
 		"examples/*"
 	],
 	"scripts": {
 		"build": "npm run build --workspaces",
 		"test": "npm run test --workspaces",
-		"dev": "npm run dev --workspaces",
+		"dev": "npm run dev -w packages/lemmy -w packages/lemmy-tui",
+		"dev:all": "npm run dev --workspaces",
 		"clean": "npm run clean --workspaces",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",

@@ -14,9 +14,9 @@ const chatContainer = new Container();
 const editor = new TextEditor();
 
 // Add components to UI
-ui.addComponent(header);
-ui.addComponent(chatContainer);
-ui.addComponent(editor);
+ui.addChild(header);
+ui.addChild(chatContainer);
+ui.addChild(editor);
 
 // Set focus to the editor (index 2)
 ui.setFocus(editor);

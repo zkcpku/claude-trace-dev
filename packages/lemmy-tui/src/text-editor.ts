@@ -1,5 +1,6 @@
 import { Component, ComponentRenderResult } from "./tui.js";
 import { logger } from "./logger.js";
+import chalk from "chalk";
 
 interface EditorState {
 	lines: string[];
@@ -42,15 +43,15 @@ export class TextEditor implements Component {
 
 	render(width: number): ComponentRenderResult {
 		// Box drawing characters
-		const topLeft = "╭";
-		const topRight = "╮";
-		const bottomLeft = "╰";
-		const bottomRight = "╯";
-		const horizontal = "─";
-		const vertical = "│";
+		const topLeft = chalk.gray("╭");
+		const topRight = chalk.gray("╮");
+		const bottomLeft = chalk.gray("╰");
+		const bottomRight = chalk.gray("╯");
+		const horizontal = chalk.gray("─");
+		const vertical = chalk.gray("│");
 
 		// Calculate box width (leave some margin)
-		const boxWidth = Math.min(width - 2, 80);
+		const boxWidth = width - 2;
 		const contentWidth = boxWidth - 4; // Account for "│ " and " │"
 
 		// Layout the text

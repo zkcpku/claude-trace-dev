@@ -32,11 +32,11 @@ const SUBMIT_TRIGGER = "|||SUBMIT|||";
 const editor = new TextEditor({ submitTrigger: SUBMIT_TRIGGER });
 
 // Add components to UI
-ui.addComponent(header);
-ui.addComponent(statusComponent);
-ui.addComponent(dynamicContainer);
-ui.addComponent(instructionsContainer);
-ui.addComponent(editor);
+ui.addChild(header);
+ui.addChild(statusComponent);
+ui.addChild(dynamicContainer);
+ui.addChild(instructionsContainer);
+ui.addChild(editor);
 
 // Set focus to the editor
 ui.setFocus(editor);

@@ -1,4 +1,4 @@
-# Lemmy CLI Chat Example
+# Lemmy Chat
 
 A comprehensive CLI tool demonstrating automatic command-line argument generation from the lemmy configuration schema.
 
