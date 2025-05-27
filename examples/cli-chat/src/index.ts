@@ -1,13 +1,4 @@
-#!/usr/bin/env node
-
-// Suppress punycode deprecation warning
-process.removeAllListeners("warning");
-process.on("warning", (warning) => {
-	if (warning.name === "DeprecationWarning" && warning.message.includes("punycode")) {
-		return; // Ignore punycode deprecation warnings
-	}
-	console.warn(warning.message);
-});
+#!/usr/bin/env node --no-deprecation
 
 import { Command } from "commander";
 import { getProviders } from "@mariozechner/lemmy";
@@ -54,10 +45,17 @@ Examples:
   $ lemmy-chat openai "Solve this math problem"         # Direct provider usage
   $ lemmy-chat google "Tell me a joke"                  # Direct provider usage
 
-Interactive Chat Mode:
-  $ lemmy-chat chat                                     # Uses defaults for interactive chat
+Interactive Chat Mode (Multi-line TUI):
+  $ lemmy-chat chat                                     # Uses defaults for fancy interactive chat
   $ lemmy-chat chat -p anthropic -m claude-sonnet-4-20250514 --thinkingEnabled
   $ lemmy-chat chat -p openai -m o4-mini               # Interactive chat with specific model
+  
+  Features:
+  - Multi-line text area with proper cursor navigation
+  - Ctrl+Enter to send, Enter for new lines
+  - Text area grows as you type
+  - Real-time streaming responses with timestamps
+  - Natural terminal flow (scrollable history)
 
 Set Defaults (saves to ~/.lemmy-chat/defaults.json):
   $ lemmy-chat defaults anthropic -m claude-opus-4-20250514 --thinkingEnabled

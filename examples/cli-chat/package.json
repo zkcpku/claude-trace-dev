@@ -16,11 +16,15 @@
 		"install-global": "npm run build && npm link"
 	},
 	"dependencies": {
+		"@inkjs/ui": "^2.0.0",
 		"@mariozechner/lemmy": "file:../../packages/lemmy",
 		"@types/react": "^19.1.5",
 		"commander": "^12.0.0",
 		"ink": "^5.2.1",
-		"react": "^18.3.1"
+		"ink-text-area": "^0.0.1",
+		"ink-text-input": "^6.0.0",
+		"react": "^18.3.1",
+		"tiny-toolkit": "^0.3.0"
 	},
 	"devDependencies": {
 		"@types/node": "^20.0.0",

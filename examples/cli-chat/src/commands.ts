@@ -283,7 +283,7 @@ export function createDefaultsCommand(): Command {
 
 export function createChatCommand(): Command {
 	const command = new Command("chat");
-	command.description("Interactive chat mode");
+	command.description("Interactive chat mode with readline interface");
 
 	command.option("-p, --provider <provider>", "Provider to use (anthropic, openai, google)");
 	command.option("-m, --model <model>", "Model to use");

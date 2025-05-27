@@ -4,7 +4,9 @@
 		"outDir": "./dist",
 		"rootDir": "./src",
 		"noEmit": false,
-		"emitDeclarationOnly": false
+		"emitDeclarationOnly": false,
+		"jsx": "react-jsx",
+		"jsxImportSource": "react"
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"]
