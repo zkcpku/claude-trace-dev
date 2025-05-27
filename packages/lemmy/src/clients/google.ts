@@ -27,6 +27,7 @@ import { calculateTokenCost, findModelData } from "../index.js";
 export class GoogleClient implements ChatClient<GoogleAskOptions> {
 	private google: GoogleGenAI;
 	private config: GoogleConfig;
+	private nextId = 0;
 
 	constructor(config: GoogleConfig) {
 		this.config = config;
@@ -279,7 +280,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 							} else if (part.functionCall) {
 								// Handle function call
 								const toolCall: ToolCall = {
-									id: part.functionCall.name + "_" + performance.now(), // Generate unique ID
+									id: part.functionCall.name + "_" + this.nextId++, // Generate unique ID
 									name: part.functionCall.name || "unknown",
 									arguments: part.functionCall.args || {},
 								};
