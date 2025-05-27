@@ -9,24 +9,35 @@ export class TextComponent implements Component {
 	}
 
 	render(width: number): ComponentRenderResult {
-		// Simple text wrapping
+		// First split by newlines to preserve line breaks
+		const textLines = this.text.split("\n");
 		const lines: string[] = [];
-		const words = this.text.split(" ");
-		let currentLine = "";
 
-		for (const word of words) {
-			if (currentLine.length + word.length + 1 <= width) {
-				currentLine += (currentLine ? " " : "") + word;
+		// Process each line for word wrapping
+		for (const textLine of textLines) {
+			if (textLine.length === 0) {
+				// Preserve empty lines
+				lines.push("");
 			} else {
+				// Simple text wrapping for this line
+				const words = textLine.split(" ");
+				let currentLine = "";
+
+				for (const word of words) {
+					if (currentLine.length + word.length + 1 <= width) {
+						currentLine += (currentLine ? " " : "") + word;
+					} else {
+						if (currentLine) {
+							lines.push(currentLine);
+						}
+						currentLine = word;
+					}
+				}
+
 				if (currentLine) {
 					lines.push(currentLine);
 				}
-				currentLine = word;
 			}
-		}
-
-		if (currentLine) {
-			lines.push(currentLine);
 		}
 
 		const newLines = lines.length > 0 ? lines : [""];

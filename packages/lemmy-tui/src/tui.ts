@@ -1,4 +1,5 @@
-import process, { stdout } from "process";
+import process from "process";
+import { writeSync } from "fs";
 import { logger } from "./logger.js";
 
 export interface ComponentRenderResult {
@@ -275,6 +276,13 @@ export class TUI extends Container {
 
 		const result = this.render(termWidth);
 
+		logger.debug("TUI", "Render result", {
+			totalLines: result.lines.length,
+			keepLines: result.keepLines,
+			changed: result.changed,
+			previousTotalLines: this.totalLines,
+		});
+
 		if (!result.changed) {
 			// Nothing changed - skip render
 			return;
@@ -293,23 +301,38 @@ export class TUI extends Container {
 			const linesToMoveUp = this.totalLines - result.keepLines;
 			let output = "";
 
+			logger.debug("TUI", "Cursor movement", {
+				linesToMoveUp,
+				totalLines: this.totalLines,
+				keepLines: result.keepLines,
+				changingLineCount: result.lines.length - result.keepLines,
+			});
+
 			if (linesToMoveUp > 0) {
 				output += `\x1b[${linesToMoveUp}A\x1b[0J`;
 			}
 
 			// Build the output string for all changing lines
 			const changingLines = result.lines.slice(result.keepLines);
+
+			logger.debug("TUI", "Output details", {
+				linesToMoveUp,
+				changingLinesCount: changingLines.length,
+				keepLines: result.keepLines,
+				totalLines: result.lines.length,
+				previousTotalLines: this.totalLines,
+			});
 			for (const line of changingLines) {
 				output += `${line}\n`;
 			}
 
-			// Write everything at once
-			stdout.write(output);
-		}
+			// Position cursor at the bottom of all content
+			// This ensures consistent cursor position for next render
+			output += `\x1b[${result.lines.length}A\x1b[${result.lines.length}B`;
 
-		// After rendering, position the terminal cursor at a safe location
-		// (e.g., at the end of the rendered content)
-		stdout.write(`\x1b[${result.lines.length}A\x1b[${result.lines.length}B`);
+			// Write everything at once - use synchronous write to prevent race conditions
+			writeSync(process.stdout.fd, output);
+		}
 
 		this.totalLines = result.lines.length;
 	}

@@ -194,8 +194,50 @@ export async function runTUIChat(options: any): Promise<void> {
 
 			totalCost += calculateTokenCost(message.model, message.usage);
 		} else {
-			const messageComponent = new TextComponent(chalk.green(`You: ${message.content}\n`));
-			messagesContainer.addChild(messageComponent);
+			// Handle multiline content properly
+			// Filter out empty lines at the end that might come from trailing newlines
+			const allLines = message.content?.split("\n") || [""];
+			const lines = allLines.filter((line, index) => {
+				// Keep all non-empty lines and empty lines that aren't at the end
+				return line !== "" || index < allLines.length - 1;
+			});
+			logger.debug("Chat", "Processing user message display", {
+				originalContent: JSON.stringify(message.content),
+				lines: lines,
+				lineCount: lines.length,
+			});
+
+			if (lines.length === 1) {
+				// Single line message
+				const messageComponent = new TextComponent(chalk.green(`You: ${message.content}\n`));
+				messagesContainer.addChild(messageComponent);
+			} else {
+				// Multiline message - build the text without color first, then apply color
+				let textLines = [`You: ${lines[0]}`];
+
+				// Add subsequent lines with proper indentation
+				for (let i = 1; i < lines.length; i++) {
+					const line = lines[i] || "";
+					logger.debug("Chat", "Adding line", {
+						lineIndex: i,
+						line: line,
+						lineLength: line.length,
+						lineJSON: JSON.stringify(line),
+					});
+					textLines.push(`     ${line}`);
+				}
+
+				// Join lines and apply color to the entire text
+				const displayText = chalk.green(textLines.join("\n") + "\n");
+
+				logger.debug("Chat", "Final displayText for multiline message", {
+					displayText: JSON.stringify(displayText),
+					displayTextLines: displayText.split("\n"),
+				});
+
+				const messageComponent = new TextComponent(displayText);
+				messagesContainer.addChild(messageComponent);
+			}
 		}
 
 		updateStatus();
@@ -203,6 +245,11 @@ export async function runTUIChat(options: any): Promise<void> {
 
 	// Handle input submissions
 	inputEditor.onSubmit = async (text: string) => {
+		logger.debug("Chat", "Received submission", {
+			originalText: JSON.stringify(text),
+			trimmedText: JSON.stringify(text.trim()),
+			lines: text.split("\n"),
+		});
 		const message = text.trim();
 
 		if (message === "exit" || message === "quit") {

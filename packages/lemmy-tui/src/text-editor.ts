@@ -126,8 +126,11 @@ export class TextEditor implements Component {
 		logger.debug("TextEditor", "Paste detection", {
 			dataLength: data.length,
 			includesNewline: data.includes("\n"),
+			includesTabs: data.includes("\t"),
+			tabCount: (data.match(/\t/g) || []).length,
 			isPaste,
 			data: JSON.stringify(data),
+			charCodes: Array.from(data).map((c) => c.charCodeAt(0)),
 		});
 
 		if (isPaste) {
@@ -161,7 +164,12 @@ export class TextEditor implements Component {
 		else if (data.charCodeAt(0) === 13 && data.length === 1) {
 			// Plain Enter = submit
 			const result = this.state.lines.join("\n").trim();
-			logger.info("TextEditor", "Submit triggered", { result });
+			logger.info("TextEditor", "Submit triggered", {
+				result,
+				rawResult: JSON.stringify(this.state.lines.join("\n")),
+				lines: this.state.lines,
+				resultLines: result.split("\n"),
+			});
 
 			// Reset editor
 			this.state = {
@@ -302,7 +310,11 @@ export class TextEditor implements Component {
 	}
 
 	private handlePaste(pastedText: string): void {
-		logger.debug("TextEditor", "Processing paste", { pastedText: JSON.stringify(pastedText) });
+		logger.debug("TextEditor", "Processing paste", {
+			pastedText: JSON.stringify(pastedText),
+			hasTab: pastedText.includes("\t"),
+			tabCount: (pastedText.match(/\t/g) || []).length,
+		});
 
 		// Check if paste contains submit trigger
 		const shouldSubmit = this.config.submitTrigger && pastedText.includes(this.config.submitTrigger);
@@ -322,8 +334,11 @@ export class TextEditor implements Component {
 		// Clean the processed text
 		const cleanText = processedText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
+		// Convert tabs to spaces (4 spaces per tab)
+		const tabExpandedText = cleanText.replace(/\t/g, "    ");
+
 		// Filter out non-printable characters except newlines
-		const filteredText = cleanText
+		const filteredText = tabExpandedText
 			.split("")
 			.filter((char) => char === "\n" || (char >= " " && char <= "~"))
 			.join("");
