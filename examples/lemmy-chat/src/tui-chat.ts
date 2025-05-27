@@ -145,7 +145,7 @@ export async function runTUIChat(options: any): Promise<void> {
 
 		animationInterval = setInterval(() => {
 			const spinner = frames[frameIndex % frames.length];
-			statusComponent.setText(`${spinner} Processing...`);
+			statusComponent.setText(chalk.magenta(`${spinner} Processing...`));
 			tui.requestRender();
 			frameIndex++;
 		}, 100);
@@ -167,9 +167,14 @@ export async function runTUIChat(options: any): Promise<void> {
 		} else if (context.getMessages().length > 0) {
 			const lastMsg = context.getLastMessage();
 			if (lastMsg && lastMsg.role === "assistant") {
-				const tokensInfo = lastMsg.usage ? `↑${lastMsg.usage.input} ↓${lastMsg.usage.output}` : "";
-				const costInfo = `Last: $${(calculateTokenCost(lastMsg.model, lastMsg.usage) || 0).toFixed(6)} | Total: $${totalCost.toFixed(6)}`;
-				statusComponent.setText(chalk.italic(chalk.gray([tokensInfo, costInfo].filter(Boolean).join(" | "))));
+				const lastUsage = lastMsg.usage ? `↑${lastMsg.usage.input} ↓${lastMsg.usage.output}` : "";
+				const lastCost = calculateTokenCost(lastMsg.model, lastMsg.usage);
+
+				const totalUsage = `↑${context.getTokenUsage().input} ↓${context.getTokenUsage().output}`;
+				const totalCost = context.getTotalCost();
+
+				const statusInfo = `Last: ${lastUsage} $${lastCost.toFixed(6)} | Total: ${totalUsage} $${totalCost.toFixed(6)}`;
+				statusComponent.setText(chalk.italic(chalk.gray(statusInfo)));
 			}
 		} else {
 			statusComponent.setText(chalk.italic(chalk.gray("Ready to chat...")));

@@ -151,13 +151,14 @@ export class TextEditor implements Component {
 			(data.charCodeAt(0) === 10 && data.length > 1) || // Ctrl+Enter with modifiers
 			data === "\x1b\r" || // Option+Enter in some terminals
 			data === "\x1b[13;2~" || // Shift+Enter in some terminals
-			(data.length > 1 && data.includes("\x1b") && data.includes("\r"))
+			(data.length > 1 && data.includes("\x1b") && data.includes("\r")) ||
+			(data === "\n" && data.length === 1) // Shift+Enter from iTerm2 mapping
 		) {
 			// Modifier + Enter = new line
 			this.addNewLine();
 		}
-		// Plain Enter (char code 13 for CR or char code 10 for LF)
-		else if ((data.charCodeAt(0) === 13 || data.charCodeAt(0) === 10) && data.length === 1) {
+		// Plain Enter (char code 13 for CR) - only CR submits, LF adds new line
+		else if (data.charCodeAt(0) === 13 && data.length === 1) {
 			// Plain Enter = submit
 			const result = this.state.lines.join("\n").trim();
 			logger.info("TextEditor", "Submit triggered", { result });

@@ -1,6 +1,5 @@
 import process, { stdout } from "process";
 import { logger } from "./logger.js";
-import { appendFileSync } from "fs";
 
 export interface ComponentRenderResult {
 	lines: string[];
@@ -231,6 +230,9 @@ export class TUI extends Container {
 		// Set started flag
 		this.isStarted = true;
 
+		// Hide the terminal cursor
+		process.stdout.write("\x1b[?25l");
+
 		// Set up raw mode for key capture
 		try {
 			this.wasRaw = process.stdin.isRaw || false;
@@ -252,6 +254,9 @@ export class TUI extends Container {
 	}
 
 	stop(): void {
+		// Show the terminal cursor again
+		process.stdout.write("\x1b[?25h");
+
 		process.stdin.removeListener("data", this.handleKeypress);
 		process.stdout.removeListener("resize", this.handleResize);
 		if (process.stdin.setRawMode) {
@@ -279,28 +284,34 @@ export class TUI extends Container {
 		if (this.isFirstRender) {
 			// First render: just append to current terminal position
 			this.isFirstRender = false;
+			// Output all lines normally on first render
+			for (const line of result.lines) {
+				console.log(line);
+			}
 		} else {
 			// Move cursor up to start of changing content and clear down
 			const linesToMoveUp = this.totalLines - result.keepLines;
+			let output = "";
+
 			if (linesToMoveUp > 0) {
-				stdout.write(`\x1b[${linesToMoveUp}A\x1b[0J`);
+				output += `\x1b[${linesToMoveUp}A\x1b[0J`;
 			}
-			appendFileSync(
-				"tui.log",
-				`linesToMoveUp: ${linesToMoveUp}, keepLines: ${result.keepLines}, totalLines: ${this.totalLines}\n`,
-			);
+
+			// Build the output string for all changing lines
+			const changingLines = result.lines.slice(result.keepLines);
+			for (const line of changingLines) {
+				output += `${line}\n`;
+			}
+
+			// Write everything at once
+			stdout.write(output);
 		}
 
-		// Output the changing content only
-		// Skip the unchanged lines since they're already on screen
-		const changingLines = result.lines.slice(result.keepLines);
-		appendFileSync("tui.log", `changingLines:\n${changingLines.join("\n")}\n`);
-		for (const line of changingLines) {
-			console.log(line);
-		}
+		// After rendering, position the terminal cursor at a safe location
+		// (e.g., at the end of the rendered content)
+		stdout.write(`\x1b[${result.lines.length}A\x1b[${result.lines.length}B`);
 
 		this.totalLines = result.lines.length;
-		appendFileSync("tui.log", `\n\n========================================\n\n`);
 	}
 
 	private handleResize(): void {
