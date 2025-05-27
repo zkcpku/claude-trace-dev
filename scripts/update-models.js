@@ -200,8 +200,8 @@ async function main() {
 		// Generate TypeScript code
 		const tsCode = generateTypeScript(categories);
 
-		// Write to models.ts
-		const modelsPath = join(__dirname, "../packages/lemmy/src/models.ts");
+		// Write to generated/models.ts
+		const modelsPath = join(__dirname, "../packages/lemmy/src/generated/models.ts");
 		writeFileSync(modelsPath, tsCode, "utf8");
 
 		console.log(`\n✓ Generated ${modelsPath}`);

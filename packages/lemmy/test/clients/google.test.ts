@@ -3,6 +3,7 @@ import { GoogleClient } from "../../src/clients/google.js";
 import { Context } from "../../src/context.js";
 import type { GoogleConfig } from "../../src/types.js";
 import { sharedClientTests } from "./shared-client-tests.js";
+import { GoogleModels } from "../../src/model-registry.js";
 
 describe("GoogleClient", () => {
 	if (!process.env["GOOGLE_API_KEY"]) {
@@ -199,7 +200,7 @@ describe("GoogleClient", () => {
 
 	describe("latest google model compatibility", () => {
 		it("should work with Gemini 2.0+ model families", async () => {
-			const models = [
+			const models: GoogleModels[] = [
 				"gemini-2.0-flash",
 				"gemini-2.0-flash-001",
 				"gemini-2.0-flash-thinking-exp",

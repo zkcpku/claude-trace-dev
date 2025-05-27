@@ -182,10 +182,29 @@ npm run test:run     # Run tests
 npm run typecheck    # Type checking
 ```
 
+### Generated Sources
+
+This project includes automatically generated TypeScript files that should not be edited manually:
+
+- `packages/lemmy/src/generated/models.ts` - Model definitions and pricing data from [ruby_llm](https://github.com/crmne/ruby_llm)
+- `packages/lemmy/src/generated/config-schema.ts` - Configuration schema for CLI argument parsing
+
+**Regenerating Sources:**
+
+```bash
+# Update model definitions from latest ruby_llm data
+node scripts/update-models.js
+
+# Regenerate config schema from TypeScript interfaces
+node scripts/update-config-schema.js
+```
+
+The `update-config-schema.js` script uses Claude Sonnet 4.0 to analyze the TypeScript interfaces in `types.ts` and generate a comprehensive schema for CLI tooling. Make sure `ANTHROPIC_API_KEY` is set in your environment.
+
 ### Debugging
 
 VS Code launch configurations are provided in `.vscode/launch.json`. Set your API keys in the env section, then use F5 to debug examples with breakpoints.
 
 For debugging tests, install the Vitest extension and click debug icons next to individual tests.
 
-See `examples/cli-chat` for a complete working example.
+See `examples/cli-chat` for a complete CLI example with auto-generated command-line arguments from the TypeScript configuration schema.

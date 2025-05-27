@@ -1,6 +1,6 @@
 // Core type definitions for lemmy
 
-import { OpenAIModels, AnthropicModels } from "./model-registry.js";
+import { OpenAIModels, AnthropicModels, GoogleModels } from "./model-registry.js";
 
 /**
  * Common interface implemented by all LLM provider clients
@@ -274,19 +274,25 @@ export type ExecuteToolResult =
 // Provider-specific configuration interfaces
 
 /**
- * Configuration for Anthropic/Claude clients
+ * Base configuration shared by all providers
  */
-export interface AnthropicConfig {
-	/** Anthropic API key */
+export interface BaseConfig {
+	/** API key for the provider */
 	apiKey: string;
-	/** Model name (e.g. 'claude-3-5-sonnet-20241022') */
-	model: AnthropicModels;
 	/** Optional custom API base URL */
 	baseURL?: string;
 	/** Maximum number of retries for failed requests */
 	maxRetries?: number;
 	/** Maximum number of output tokens to generate (default: 4096) */
 	maxOutputTokens?: number;
+}
+
+/**
+ * Configuration for Anthropic/Claude clients
+ */
+export interface AnthropicConfig extends BaseConfig {
+	/** Model name (e.g. 'claude-3-5-sonnet-20241022') */
+	model: AnthropicModels;
 	/** Whether to enable extended thinking */
 	thinkingEnabled?: boolean;
 	/** Maximum number of thinking tokens (default: reasonable model-specific limit) */
@@ -296,19 +302,11 @@ export interface AnthropicConfig {
 /**
  * Configuration for OpenAI clients
  */
-export interface OpenAIConfig {
-	/** OpenAI API key */
-	apiKey: string;
+export interface OpenAIConfig extends BaseConfig {
 	/** Model name (e.g. 'gpt-4o') */
 	model: OpenAIModels;
 	/** Optional OpenAI organization ID */
 	organization?: string;
-	/** Optional custom API base URL */
-	baseURL?: string;
-	/** Maximum number of retries for failed requests */
-	maxRetries?: number;
-	/** Maximum number of output tokens to generate (default: 4096) */
-	maxOutputTokens?: number;
 	/** Reasoning effort level - only supported by reasoning models (o1-mini, o1-preview) */
 	reasoningEffort?: "low" | "medium" | "high";
 }
@@ -316,19 +314,11 @@ export interface OpenAIConfig {
 /**
  * Configuration for Google/Gemini clients
  */
-export interface GoogleConfig {
-	/** Google API key */
-	apiKey: string;
+export interface GoogleConfig extends BaseConfig {
 	/** Model name (e.g. 'gemini-1.5-pro') */
-	model: string;
+	model: GoogleModels;
 	/** Optional Google Cloud project ID */
 	projectId?: string;
-	/** Optional custom API base URL */
-	baseURL?: string;
-	/** Maximum number of retries for failed requests */
-	maxRetries?: number;
-	/** Maximum number of output tokens to generate (default: 4096) */
-	maxOutputTokens?: number;
 	/** Whether to include thinking tokens */
 	includeThoughts?: boolean;
 }

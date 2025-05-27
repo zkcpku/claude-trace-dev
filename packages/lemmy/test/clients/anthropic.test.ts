@@ -3,7 +3,7 @@ import { AnthropicClient } from "../../src/clients/anthropic.js";
 import { Context } from "../../src/context.js";
 import type { AnthropicConfig } from "../../src/types.js";
 import { sharedClientTests } from "./shared-client-tests.js";
-import { AllModels } from "../../src/models.js";
+import { AllModels } from "../../src/generated/models.js";
 
 describe("AnthropicClient", () => {
 	if (!process.env["ANTHROPIC_API_KEY"]) {

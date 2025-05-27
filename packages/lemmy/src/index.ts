@@ -5,7 +5,7 @@ import { AnthropicConfig, GoogleConfig, OpenAIConfig } from "./types.js";
 
 // Main entry point for lemmy
 export { Context } from "./context.js";
-export * from "./models.js";
+export * from "./generated/models.js";
 export * from "./model-registry.js";
 export * from "./tools/index.js";
 export * from "./types.js";
