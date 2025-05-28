@@ -1,6 +1,8 @@
 import { Component, ComponentRenderResult } from "./tui.js";
 import { logger } from "./logger.js";
 import chalk from "chalk";
+import { AutocompleteProvider, AutocompleteItem } from "./autocomplete.js";
+import { SelectList } from "./select-list.js";
 
 interface EditorState {
 	lines: string[];
@@ -27,6 +29,12 @@ export class TextEditor implements Component {
 
 	private config: TextEditorConfig = {};
 
+	// Autocomplete support
+	private autocompleteProvider?: AutocompleteProvider;
+	private autocompleteList?: SelectList;
+	private isAutocompleting: boolean = false;
+	private autocompletePrefix: string = "";
+
 	public onSubmit?: (text: string) => void;
 	public onChange?: (text: string) => void;
 
@@ -40,6 +48,10 @@ export class TextEditor implements Component {
 	configure(config: Partial<TextEditorConfig>): void {
 		this.config = { ...this.config, ...config };
 		logger.info("TextEditor", "Configuration updated", { config: this.config });
+	}
+
+	setAutocompleteProvider(provider: AutocompleteProvider): void {
+		this.autocompleteProvider = provider;
 	}
 
 	render(width: number): ComponentRenderResult {
@@ -98,6 +110,12 @@ export class TextEditor implements Component {
 		// Render bottom border
 		result.push(bottomLeft + horizontal.repeat(boxWidth - 2) + bottomRight);
 
+		// Add autocomplete list if active
+		if (this.isAutocompleting && this.autocompleteList) {
+			const autocompleteResult = this.autocompleteList.render(width);
+			result.push(...autocompleteResult.lines);
+		}
+
 		// For interactive components like text editors, always assume changed
 		// This ensures cursor position updates are always reflected
 		return {
@@ -137,9 +155,70 @@ export class TextEditor implements Component {
 		if (isPaste) {
 			logger.info("TextEditor", "Handling as paste");
 			this.handlePaste(data);
+			return;
 		}
+
+		// Handle autocomplete special keys first (but don't block other input)
+		if (this.isAutocompleting && this.autocompleteList) {
+			logger.debug("TextEditor", "Autocomplete active, handling input", {
+				data,
+				charCode: data.charCodeAt(0),
+				isEscape: data === "\x1b",
+				isArrowOrEnter: data === "\x1b[A" || data === "\x1b[B" || data === "\r",
+			});
+
+			// Escape - cancel autocomplete
+			if (data === "\x1b") {
+				this.cancelAutocomplete();
+				return;
+			}
+			// Let the autocomplete list handle navigation and selection
+			else if (data === "\x1b[A" || data === "\x1b[B" || data === "\r") {
+				this.autocompleteList.handleInput(data);
+
+				// If Enter was pressed, apply the selection
+				if (data === "\r") {
+					const selected = this.autocompleteList.getSelectedItem();
+					if (selected && this.autocompleteProvider) {
+						const result = this.autocompleteProvider.applyCompletion(
+							this.state.lines,
+							this.state.cursorLine,
+							this.state.cursorCol,
+							selected,
+							this.autocompletePrefix,
+						);
+
+						this.state.lines = result.lines;
+						this.state.cursorLine = result.cursorLine;
+						this.state.cursorCol = result.cursorCol;
+
+						this.cancelAutocomplete();
+
+						if (this.onChange) {
+							this.onChange(this.getText());
+						}
+					}
+				}
+				return;
+			}
+			// For other keys (like regular typing), DON'T return here
+			// Let them fall through to normal character handling
+			logger.debug("TextEditor", "Autocomplete active but falling through to normal handling");
+		}
+
+		// Tab key - trigger file completion (but not when already autocompleting)
+		if (data === "\t" && !this.isAutocompleting) {
+			logger.debug("TextEditor", "Tab key pressed, triggering autocomplete", {
+				isAutocompleting: this.isAutocompleting,
+				hasProvider: !!this.autocompleteProvider,
+			});
+			this.tryTriggerAutocomplete(true);
+			return;
+		}
+
+		// Continue with rest of input handling
 		// Ctrl+K - Delete current line
-		else if (data.charCodeAt(0) === 11) {
+		if (data.charCodeAt(0) === 11) {
 			this.deleteCurrentLine();
 		}
 		// Ctrl+A - Move to start of line
@@ -338,6 +417,13 @@ export class TextEditor implements Component {
 		if (this.onChange) {
 			this.onChange(this.getText());
 		}
+
+		// Check if we should trigger or update autocomplete
+		if (!this.isAutocompleting) {
+			this.tryTriggerAutocomplete();
+		} else {
+			this.updateAutocomplete();
+		}
 	}
 
 	private handlePaste(pastedText: string): void {
@@ -517,6 +603,11 @@ export class TextEditor implements Component {
 		if (this.onChange) {
 			this.onChange(this.getText());
 		}
+
+		// Update autocomplete after backspace
+		if (this.isAutocompleting) {
+			this.updateAutocomplete();
+		}
 	}
 
 	private moveToLineStart(): void {
@@ -590,6 +681,83 @@ export class TextEditor implements Component {
 			const currentLine = this.state.lines[this.state.cursorLine] || "";
 			const maxCol = currentLine.length;
 			this.state.cursorCol = Math.max(0, Math.min(maxCol, newCol));
+		}
+	}
+
+	// Autocomplete methods
+	private tryTriggerAutocomplete(explicitTab: boolean = false): void {
+		logger.debug("TextEditor", "tryTriggerAutocomplete called", {
+			explicitTab,
+			hasProvider: !!this.autocompleteProvider,
+		});
+
+		if (!this.autocompleteProvider) return;
+
+		// Check if we should trigger file completion on Tab
+		if (explicitTab) {
+			const provider = this.autocompleteProvider as any;
+			const shouldTrigger =
+				!provider.shouldTriggerFileCompletion ||
+				provider.shouldTriggerFileCompletion(this.state.lines, this.state.cursorLine, this.state.cursorCol);
+
+			logger.debug("TextEditor", "Tab file completion check", {
+				hasShouldTriggerMethod: !!provider.shouldTriggerFileCompletion,
+				shouldTrigger,
+				lines: this.state.lines,
+				cursorLine: this.state.cursorLine,
+				cursorCol: this.state.cursorCol,
+			});
+
+			if (!shouldTrigger) {
+				return;
+			}
+		}
+
+		const suggestions = this.autocompleteProvider.getSuggestions(
+			this.state.lines,
+			this.state.cursorLine,
+			this.state.cursorCol,
+		);
+
+		logger.debug("TextEditor", "Autocomplete suggestions", {
+			hasSuggestions: !!suggestions,
+			itemCount: suggestions?.items.length || 0,
+			prefix: suggestions?.prefix,
+		});
+
+		if (suggestions && suggestions.items.length > 0) {
+			this.autocompletePrefix = suggestions.prefix;
+			this.autocompleteList = new SelectList(suggestions.items, 5);
+			this.isAutocompleting = true;
+		} else {
+			this.cancelAutocomplete();
+		}
+	}
+
+	private cancelAutocomplete(): void {
+		this.isAutocompleting = false;
+		this.autocompleteList = undefined as any;
+		this.autocompletePrefix = "";
+	}
+
+	private updateAutocomplete(): void {
+		if (!this.isAutocompleting || !this.autocompleteProvider) return;
+
+		const suggestions = this.autocompleteProvider.getSuggestions(
+			this.state.lines,
+			this.state.cursorLine,
+			this.state.cursorCol,
+		);
+
+		if (suggestions && suggestions.items.length > 0) {
+			this.autocompletePrefix = suggestions.prefix;
+			if (this.autocompleteList) {
+				// Update the existing list with new items
+				this.autocompleteList = new SelectList(suggestions.items, 5);
+			}
+		} else {
+			// No more matches, cancel autocomplete
+			this.cancelAutocomplete();
 		}
 	}
 }

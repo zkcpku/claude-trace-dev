@@ -7,7 +7,16 @@ import {
 	getProviders,
 	UserMessage,
 } from "@mariozechner/lemmy";
-import { TUI, Container, TextComponent, TextEditor, SelectList, SelectItem, logger } from "@mariozechner/lemmy-tui";
+import {
+	TUI,
+	Container,
+	TextComponent,
+	TextEditor,
+	CombinedAutocompleteProvider,
+	type AutocompleteItem,
+	logger,
+} from "@mariozechner/lemmy-tui";
+import { CONFIG_SCHEMA } from "@mariozechner/lemmy";
 import { loadDefaults } from "./defaults.js";
 import chalk from "chalk";
 
@@ -143,19 +152,66 @@ export async function runTUIChat(options: any): Promise<void> {
 	const inputEditor = new TextEditor();
 
 	// Define available slash commands
-	const commands: SelectItem[] = [
-		{ value: "exit", label: "Exit", description: "Exit the chat" },
-		{ value: "clear", label: "Clear", description: "Clear the conversation" },
-		{ value: "model", label: "Model", description: "Show current model" },
-		{ value: "usage", label: "Usage", description: "Show token usage and costs" },
-		{ value: "system", label: "System", description: "Set system prompt" },
-		{ value: "temperature", label: "Temperature", description: "Set temperature (0-2)" },
-		{ value: "help", label: "Help", description: "Show available commands" },
+	const commands: AutocompleteItem[] = [
+		{ value: "exit", label: "exit", description: "Exit the chat" },
+		{ value: "clear", label: "clear", description: "Clear the conversation" },
+		{ value: "model", label: "model", description: "Show current model" },
+		{ value: "usage", label: "usage", description: "Show token usage and costs" },
+		{ value: "system", label: "system", description: "Set system prompt" },
+		{ value: "temperature", label: "temperature", description: "Set temperature (0-2)" },
+		{ value: "help", label: "help", description: "Show available commands" },
 	];
 
-	// Command selector (initially not shown)
-	let commandSelector: SelectList | null = null;
-	let isSelectingCommand = false;
+	// Add provider-specific options from config schema
+	const providerSchema = CONFIG_SCHEMA[provider as keyof typeof CONFIG_SCHEMA] as any;
+	if (providerSchema && typeof providerSchema === "object") {
+		for (const [key, config] of Object.entries(providerSchema)) {
+			// Skip the model field as it's already set
+			if (key === "model") continue;
+
+			const configObj = config as any;
+			const commandName = `${provider}:${key}`;
+			let description = configObj.doc || "";
+
+			// Add type/value hints to description
+			if (configObj.type === "boolean") {
+				description += " (true/false)";
+			} else if (configObj.type === "enum" && "values" in configObj) {
+				description += ` (${configObj.values.join("/")})`;
+			} else if (configObj.type === "number") {
+				description += " (number)";
+			}
+
+			commands.push({
+				value: commandName,
+				label: commandName,
+				description,
+			});
+		}
+	}
+
+	// Add base options that apply to all providers
+	const baseSchema = CONFIG_SCHEMA.base;
+	for (const [key, config] of Object.entries(baseSchema)) {
+		// Skip apiKey and baseURL as they're not typically changed at runtime
+		if (key === "apiKey" || key === "baseURL") continue;
+
+		const configObj = config as any;
+		let description = configObj.doc || "";
+		if (configObj.type === "number") {
+			description += " (number)";
+		}
+
+		commands.push({
+			value: key,
+			label: key,
+			description,
+		});
+	}
+
+	// Set up autocomplete provider
+	const autocompleteProvider = new CombinedAutocompleteProvider(commands);
+	inputEditor.setAutocompleteProvider(autocompleteProvider);
 
 	// Add components to TUI
 	tui.addChild(logo);
@@ -170,6 +226,9 @@ export async function runTUIChat(options: any): Promise<void> {
 	// Track conversation state
 	let totalCost = 0;
 	let isProcessing = false;
+
+	// Store current ask options
+	const currentOptions: Record<string, any> = {};
 	let animationInterval: NodeJS.Timeout | null = null;
 
 	function startLoadingAnimation() {
@@ -277,6 +336,44 @@ export async function runTUIChat(options: any): Promise<void> {
 			process.exit(0);
 		}
 
+		// Check if it's a slash command
+		if (message.startsWith("/")) {
+			const parts = message.substring(1).split(" ");
+			const commandName = parts[0];
+			const commandValue = parts.slice(1).join(" ");
+
+			if (commandName) {
+				// Check if we're setting a value for an option
+				if (commandValue && (commandName.includes(":") || CONFIG_SCHEMA.base.hasOwnProperty(commandName))) {
+					// Parse and store the value
+					let parsedValue: any = commandValue;
+
+					// Try to parse as boolean
+					if (commandValue.toLowerCase() === "true") {
+						parsedValue = true;
+					} else if (commandValue.toLowerCase() === "false") {
+						parsedValue = false;
+					}
+					// Try to parse as number
+					else if (!isNaN(Number(commandValue))) {
+						parsedValue = Number(commandValue);
+					}
+
+					currentOptions[commandName] = parsedValue;
+
+					const confirmComponent = new TextComponent(chalk.green(`✓ Set ${commandName} to: ${parsedValue}`), {
+						bottom: 1,
+						left: 1,
+						right: 1,
+					});
+					messagesContainer.addChild(confirmComponent);
+				} else {
+					executeCommand(commandName);
+				}
+			}
+			return;
+		}
+
 		if (message === "" || isProcessing) {
 			return;
 		}
@@ -292,22 +389,34 @@ export async function runTUIChat(options: any): Promise<void> {
 				timestamp: new Date(),
 			});
 
-			// Make the API call
-			const result = await client.ask(message, {
-				context,
-			});
+			// Make the API call with current options
+			// Strip provider: prefix from option keys
+			const askOptions: any = { context };
+			for (const [key, value] of Object.entries(currentOptions)) {
+				// Remove provider: prefix if present
+				const parts = key.split(":");
+				const optionKey = parts.length > 1 && parts[1] ? parts[1] : key;
+				askOptions[optionKey] = value;
+			}
+
+			const result = await client.ask(message, askOptions);
 
 			if (result.type === "success") {
 				addMessage(result.message);
 				totalCost += calculateTokenCost(result.message.model, result.message.usage);
 			} else {
-				const errorComponent = new TextComponent(`❌ Error: ${result.error.message}`);
+				const errorComponent = new TextComponent(`❌ Error: ${result.error.message}`, {
+					bottom: 1,
+					left: 1,
+					right: 1,
+				});
 				messagesContainer.addChild(errorComponent);
 				tui.requestRender();
 			}
 		} catch (error) {
 			const errorComponent = new TextComponent(
 				`❌ Error: ${error instanceof Error ? error.message : String(error)}`,
+				{ bottom: 1, left: 1, right: 1 },
 			);
 			messagesContainer.addChild(errorComponent);
 			tui.requestRender();
@@ -317,57 +426,6 @@ export async function runTUIChat(options: any): Promise<void> {
 			updateStatus();
 		}
 	};
-
-	// Handle text changes in the editor
-	inputEditor.onChange = (text: string) => {
-		// Check if text starts with "/" and we're not already showing commands
-		if (text.startsWith("/") && !isSelectingCommand) {
-			// Create and show command selector
-			commandSelector = new SelectList(commands, 5);
-			commandSelector.setFilter(text.substring(1)); // Remove the "/"
-
-			// Insert command selector between input editor and status
-			const editorIndex = tui.getChildCount() - 1; // Status is last
-			tui.removeChild(statusComponent);
-			tui.addChild(commandSelector);
-			tui.addChild(statusComponent);
-
-			isSelectingCommand = true;
-			tui.setFocus(commandSelector);
-
-			// Handle command selection
-			commandSelector.onSelect = (item: SelectItem) => {
-				// Execute the command
-				executeCommand(item.value);
-
-				// Clean up
-				cleanupCommandSelector();
-			};
-
-			commandSelector.onCancel = () => {
-				// Just clean up without executing
-				cleanupCommandSelector();
-			};
-		} else if (isSelectingCommand && commandSelector) {
-			// Update filter
-			if (text.startsWith("/")) {
-				commandSelector.setFilter(text.substring(1));
-			} else {
-				// No longer starts with "/", cancel selection
-				cleanupCommandSelector();
-			}
-		}
-	};
-
-	function cleanupCommandSelector() {
-		if (commandSelector) {
-			tui.removeChild(commandSelector);
-			commandSelector = null;
-		}
-		isSelectingCommand = false;
-		inputEditor.setText(""); // Clear the "/" from the editor
-		tui.setFocus(inputEditor);
-	}
 
 	function executeCommand(command: string) {
 		switch (command) {
@@ -397,10 +455,19 @@ export async function runTUIChat(options: any): Promise<void> {
 
 			case "usage":
 				const usage = context.getTokenUsage();
-				const usageComponent = new TextComponent(
-					chalk.cyan(`Total usage: ↑${usage.input} ↓${usage.output} tokens, $${totalCost.toFixed(6)}`),
-					{ bottom: 1, left: 1, right: 1 },
+				let usageText = chalk.cyan(
+					`Total usage: ↑${usage.input} ↓${usage.output} tokens, $${totalCost.toFixed(6)}`,
 				);
+
+				// Add current options if any are set
+				if (Object.keys(currentOptions).length > 0) {
+					usageText += chalk.gray("\n\nActive options:");
+					for (const [key, value] of Object.entries(currentOptions)) {
+						usageText += chalk.gray(`\n  ${key}: ${JSON.stringify(value)}`);
+					}
+				}
+
+				const usageComponent = new TextComponent(usageText, { bottom: 1, left: 1, right: 1 });
 				messagesContainer.addChild(usageComponent);
 				break;
 
@@ -415,12 +482,25 @@ export async function runTUIChat(options: any): Promise<void> {
 				break;
 
 			default:
-				const errorComponent = new TextComponent(chalk.red(`Unknown command: /${command}`), {
-					bottom: 1,
-					left: 1,
-					right: 1,
-				});
-				messagesContainer.addChild(errorComponent);
+				// Check if it's a provider-specific option or base option
+				if (command.includes(":") || CONFIG_SCHEMA.base.hasOwnProperty(command)) {
+					// Show current value and prompt for new value
+					const currentValue = currentOptions[command];
+					const promptComponent = new TextComponent(
+						chalk.yellow(
+							`Current ${command}: ${currentValue ?? "not set"}\nUse /${command} <value> to set a new value`,
+						),
+						{ bottom: 1, left: 1, right: 1 },
+					);
+					messagesContainer.addChild(promptComponent);
+				} else {
+					const errorComponent = new TextComponent(chalk.red(`Unknown command: /${command}`), {
+						bottom: 1,
+						left: 1,
+						right: 1,
+					});
+					messagesContainer.addChild(errorComponent);
+				}
 		}
 	}
 

@@ -55,17 +55,59 @@ export class SelectList implements Component {
 
 			let line = "";
 			if (isSelected) {
-				// Calculate padding more carefully to avoid line wrap
-				const prefix = " /";
-				const suffix = " ";
-				const availableWidth = width - prefix.length - suffix.length - 1; // -1 for safety
-				const paddedValue = item.value.substring(0, availableWidth).padEnd(availableWidth);
-				line = chalk.bgBlue.white(prefix + paddedValue + suffix);
-			} else {
-				line = chalk.gray("  /") + item.value;
+				// Use arrow indicator for selection
+				const prefix = chalk.blue("→ ");
+				const displayValue = item.label || item.value;
+
 				if (item.description && width > 40) {
-					const spacing = " ".repeat(Math.max(1, 20 - item.value.length));
-					line += chalk.gray(spacing + item.description);
+					// Calculate how much space we have for value + description
+					const maxValueLength = Math.min(displayValue.length, 30);
+					const truncatedValue = displayValue.substring(0, maxValueLength);
+					const spacing = " ".repeat(Math.max(1, 32 - truncatedValue.length));
+
+					// Calculate remaining space for description
+					const descriptionStart = prefix.length + truncatedValue.length + spacing.length - 2; // -2 for arrow color codes
+					const remainingWidth = width - descriptionStart - 2; // -2 for safety
+
+					if (remainingWidth > 10) {
+						const truncatedDesc = item.description.substring(0, remainingWidth);
+						line = prefix + chalk.blue(truncatedValue) + chalk.gray(spacing + truncatedDesc);
+					} else {
+						// Not enough space for description
+						const maxWidth = width - 4; // 2 for arrow + space, 2 for safety
+						line = prefix + chalk.blue(displayValue.substring(0, maxWidth));
+					}
+				} else {
+					// No description or not enough width
+					const maxWidth = width - 4; // 2 for arrow + space, 2 for safety
+					line = prefix + chalk.blue(displayValue.substring(0, maxWidth));
+				}
+			} else {
+				const displayValue = item.label || item.value;
+				const prefix = "  ";
+
+				if (item.description && width > 40) {
+					// Calculate how much space we have for value + description
+					const maxValueLength = Math.min(displayValue.length, 30);
+					const truncatedValue = displayValue.substring(0, maxValueLength);
+					const spacing = " ".repeat(Math.max(1, 32 - truncatedValue.length));
+
+					// Calculate remaining space for description
+					const descriptionStart = prefix.length + truncatedValue.length + spacing.length;
+					const remainingWidth = width - descriptionStart - 2; // -2 for safety
+
+					if (remainingWidth > 10) {
+						const truncatedDesc = item.description.substring(0, remainingWidth);
+						line = prefix + truncatedValue + chalk.gray(spacing + truncatedDesc);
+					} else {
+						// Not enough space for description
+						const maxWidth = width - prefix.length - 2;
+						line = prefix + displayValue.substring(0, maxWidth);
+					}
+				} else {
+					// No description or not enough width
+					const maxWidth = width - prefix.length - 2;
+					line = prefix + displayValue.substring(0, maxWidth);
 				}
 			}
 

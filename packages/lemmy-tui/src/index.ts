@@ -20,5 +20,8 @@ export { MarkdownComponent } from "./markdown-component.js";
 // Select list component
 export { SelectList, type SelectItem } from "./select-list.js";
 
+// Autocomplete support
+export { type AutocompleteProvider, type AutocompleteItem, CombinedAutocompleteProvider } from "./autocomplete.js";
+
 // Logger for debugging
 export { logger, type LoggerConfig } from "./logger.js";

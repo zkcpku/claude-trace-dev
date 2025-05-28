@@ -9,6 +9,7 @@ export * from "./generated/models.js";
 export * from "./model-registry.js";
 export * from "./tools/index.js";
 export * from "./types.js";
+export { CONFIG_SCHEMA } from "./generated/config-schema.js";
 
 // Main lemmy object
 export const lemmy = {
