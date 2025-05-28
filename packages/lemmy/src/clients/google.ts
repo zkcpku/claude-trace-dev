@@ -84,28 +84,55 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 				options?.maxOutputTokens || this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
 
 			// Build request parameters
-			const systemMessage = options?.context?.getSystemMessage();
+			const systemMessage = options?.systemInstruction || options?.context?.getSystemMessage();
+			const includeThoughts = options?.includeThoughts ?? this.config.defaults?.includeThoughts ?? false;
+			const thinkingBudget = options?.thinkingBudget ?? this.config.defaults?.thinkingBudget;
+
+			const config: any = {
+				maxOutputTokens: options?.maxOutputTokens || this.config.defaults?.maxOutputTokens || maxOutputTokens,
+				...(systemMessage && {
+					systemInstruction: systemMessage,
+				}),
+				...(googleTools.length > 0 && {
+					tools: [
+						{
+							functionDeclarations: googleTools,
+						},
+					],
+				}),
+				...(includeThoughts && {
+					thinkingConfig: {
+						includeThoughts,
+						...(thinkingBudget && { thinkingBudget }),
+					},
+				}),
+			};
+
+			// Add optional parameters from options and defaults
+			const addParam = (configKey: string, optionKey: keyof GoogleAskOptions) => {
+				const value = (options as any)?.[optionKey] ?? (this.config.defaults as any)?.[optionKey];
+				if (value !== undefined) config[configKey] = value;
+			};
+
+			addParam("temperature", "temperature");
+			addParam("topP", "topP");
+			addParam("topK", "topK");
+			addParam("candidateCount", "candidateCount");
+			addParam("stopSequences", "stopSequences");
+			addParam("responseLogprobs", "responseLogprobs");
+			addParam("logprobs", "logprobs");
+			addParam("presencePenalty", "presencePenalty");
+			addParam("frequencyPenalty", "frequencyPenalty");
+			addParam("seed", "seed");
+			addParam("responseMimeType", "responseMimeType");
+			addParam("responseSchema", "responseSchema");
+			addParam("toolConfig", "toolConfig");
+			addParam("safetySettings", "safetySettings");
+
 			const requestParams: GenerateContentParameters = {
 				model: this.config.model,
 				contents,
-				config: {
-					maxOutputTokens,
-					...(systemMessage && {
-						systemInstruction: systemMessage,
-					}),
-					...(googleTools.length > 0 && {
-						tools: [
-							{
-								functionDeclarations: googleTools,
-							},
-						],
-					}),
-					...((options?.includeThoughts ?? this.config.defaults?.includeThoughts ?? false) && {
-						thinkingConfig: {
-							includeThoughts: options?.includeThoughts ?? this.config.defaults?.includeThoughts ?? false,
-						},
-					}),
-				},
+				config,
 			};
 
 			// Execute streaming request

@@ -81,25 +81,51 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 
 			// Build request parameters
 			const reasoningEffort = options?.reasoningEffort || this.config.defaults?.reasoningEffort;
-			const requestParams: OpenAI.Chat.ChatCompletionCreateParams = {
+			const requestParams: any = {
 				model: this.config.model,
-				max_completion_tokens: maxCompletionTokens,
+				max_completion_tokens:
+					options?.maxCompletionTokens || this.config.defaults?.maxCompletionTokens || maxCompletionTokens,
 				messages,
 				stream: true,
 				stream_options: { include_usage: true },
 				...(openaiTools.length > 0 && {
 					tools: openaiTools,
-					tool_choice: "auto" as const,
+					tool_choice: options?.toolChoice || this.config.defaults?.toolChoice || "auto",
 				}),
 				...(reasoningEffort && {
 					reasoning_effort: reasoningEffort,
 				}),
 			};
 
+			// Add optional parameters from options and defaults
+			const addParam = (key: string, optionKey: keyof OpenAIAskOptions, defaultKey?: string) => {
+				const value = (options as any)?.[optionKey] ?? (this.config.defaults as any)?.[defaultKey || optionKey];
+				if (value !== undefined) requestParams[key] = value;
+			};
+
+			addParam("temperature", "temperature");
+			addParam("top_p", "topP");
+			addParam("frequency_penalty", "frequencyPenalty");
+			addParam("presence_penalty", "presencePenalty");
+			addParam("logit_bias", "logitBias");
+			addParam("logprobs", "logprobs");
+			addParam("top_logprobs", "topLogprobs");
+			addParam("n", "n");
+			addParam("parallel_tool_calls", "parallelToolCalls");
+			addParam("response_format", "responseFormat");
+			addParam("seed", "seed");
+			addParam("service_tier", "serviceTier");
+			addParam("stop", "stop");
+			addParam("store", "store");
+			addParam("user", "user");
+			addParam("audio", "audio");
+			addParam("modalities", "modalities");
+			addParam("prediction", "prediction");
+
 			// Execute streaming request
 			const stream = await this.openai.chat.completions.create(requestParams);
 
-			return await this.processStream(stream as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>, options, startTime);
+			return await this.processStream(stream as any, options, startTime);
 		} catch (error) {
 			return this.handleError(error);
 		}

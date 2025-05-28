@@ -83,7 +83,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 				: defaultMaxTokens;
 
 			// Build request parameters
-			const requestParams = {
+			const requestParams: any = {
 				model: this.config.model,
 				max_tokens: maxTokens,
 				messages,
@@ -96,13 +96,62 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 				}),
 			};
 
+			// Add optional parameters from options
+			if (options?.temperature !== undefined) requestParams.temperature = options.temperature;
+			if (options?.topK !== undefined) requestParams.top_k = options.topK;
+			if (options?.topP !== undefined) requestParams.top_p = options.topP;
+			if (options?.stopSequences !== undefined) requestParams.stop_sequences = options.stopSequences;
+			if (options?.system !== undefined) requestParams.system = options.system;
+			if (options?.toolChoice !== undefined) {
+				if (typeof options.toolChoice === "string") {
+					requestParams.tool_choice = { type: options.toolChoice };
+				} else {
+					requestParams.tool_choice = options.toolChoice;
+				}
+			}
+			if (options?.serviceTier !== undefined) requestParams.service_tier = options.serviceTier;
+			if (options?.userId !== undefined) {
+				requestParams.metadata = { user_id: options.userId };
+			}
+
+			// Add default parameters from config if not overridden in options
+			const defaults = this.config.defaults;
+			if (defaults?.temperature !== undefined && options?.temperature === undefined) {
+				requestParams.temperature = defaults.temperature;
+			}
+			if (defaults?.topK !== undefined && options?.topK === undefined) {
+				requestParams.top_k = defaults.topK;
+			}
+			if (defaults?.topP !== undefined && options?.topP === undefined) {
+				requestParams.top_p = defaults.topP;
+			}
+			if (defaults?.stopSequences !== undefined && options?.stopSequences === undefined) {
+				requestParams.stop_sequences = defaults.stopSequences;
+			}
+			if (defaults?.system !== undefined && options?.system === undefined) {
+				requestParams.system = defaults.system;
+			}
+			if (defaults?.toolChoice !== undefined && options?.toolChoice === undefined) {
+				if (typeof defaults.toolChoice === "string") {
+					requestParams.tool_choice = { type: defaults.toolChoice };
+				} else {
+					requestParams.tool_choice = defaults.toolChoice;
+				}
+			}
+			if (defaults?.serviceTier !== undefined && options?.serviceTier === undefined) {
+				requestParams.service_tier = defaults.serviceTier;
+			}
+			if (defaults?.userId !== undefined && options?.userId === undefined) {
+				requestParams.metadata = { user_id: defaults.userId };
+			}
+
 			// Execute streaming request
 			const stream = await this.anthropic.messages.create({
 				...requestParams,
 				stream: true,
 			});
 
-			return await this.processStream(stream, options, startTime);
+			return await this.processStream(stream as any, options, startTime);
 		} catch (error) {
 			return this.handleError(error);
 		}
