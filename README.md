@@ -199,7 +199,7 @@ node scripts/update-models.js
 node scripts/update-config-schema.js
 ```
 
-The `update-config-schema.js` script uses Claude Sonnet 4.0 to analyze the TypeScript interfaces in `types.ts` and generate a comprehensive schema for CLI tooling. Make sure `ANTHROPIC_API_KEY` is set in your environment.
+The `update-config-schema.js` script uses Claude Sonnet 4 to analyze the TypeScript interfaces in `types.ts` and generate a comprehensive schema for CLI tooling. Make sure `ANTHROPIC_API_KEY` is set in your environment.
 
 ### Debugging
 

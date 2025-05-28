@@ -29,6 +29,13 @@
 		"noPropertyAccessFromIndexSignature": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true
-	}
+		"resolveJsonModule": true,
+		"composite": true
+	},
+	"references": [
+		{ "path": "./packages/lemmy" },
+		{ "path": "./packages/lemmy-tui" },
+		{ "path": "./examples/lemmy-chat" },
+		{ "path": "./examples/red-teaming" }
+	]
 }

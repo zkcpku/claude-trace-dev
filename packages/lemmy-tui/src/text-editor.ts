@@ -1,7 +1,7 @@
 import { Component, ComponentRenderResult } from "./tui.js";
 import { logger } from "./logger.js";
 import chalk from "chalk";
-import { AutocompleteProvider, AutocompleteItem } from "./autocomplete.js";
+import { AutocompleteProvider } from "./autocomplete.js";
 import { SelectList } from "./select-list.js";
 
 interface EditorState {
@@ -173,11 +173,14 @@ export class TextEditor implements Component {
 				return;
 			}
 			// Let the autocomplete list handle navigation and selection
-			else if (data === "\x1b[A" || data === "\x1b[B" || data === "\r") {
-				this.autocompleteList.handleInput(data);
+			else if (data === "\x1b[A" || data === "\x1b[B" || data === "\r" || data === "\t") {
+				// Only pass arrow keys to the list, not Enter/Tab (we handle those directly)
+				if (data === "\x1b[A" || data === "\x1b[B") {
+					this.autocompleteList.handleInput(data);
+				}
 
-				// If Enter was pressed, apply the selection
-				if (data === "\r") {
+				// If Enter or Tab was pressed, apply the selection
+				if (data === "\r" || data === "\t") {
 					const selected = this.autocompleteList.getSelectedItem();
 					if (selected && this.autocompleteProvider) {
 						const result = this.autocompleteProvider.applyCompletion(
@@ -206,13 +209,13 @@ export class TextEditor implements Component {
 			logger.debug("TextEditor", "Autocomplete active but falling through to normal handling");
 		}
 
-		// Tab key - trigger file completion (but not when already autocompleting)
+		// Tab key - context-aware completion (but not when already autocompleting)
 		if (data === "\t" && !this.isAutocompleting) {
-			logger.debug("TextEditor", "Tab key pressed, triggering autocomplete", {
+			logger.debug("TextEditor", "Tab key pressed, determining context", {
 				isAutocompleting: this.isAutocompleting,
 				hasProvider: !!this.autocompleteProvider,
 			});
-			this.tryTriggerAutocomplete(true);
+			this.handleTabCompletion();
 			return;
 		}
 
@@ -412,7 +415,7 @@ export class TextEditor implements Component {
 		const after = line.slice(this.state.cursorCol);
 
 		this.state.lines[this.state.cursorLine] = before + char + after;
-		this.state.cursorCol++;
+		this.state.cursorCol += char.length; // Fix: increment by the length of the inserted string
 
 		if (this.onChange) {
 			this.onChange(this.getText());
@@ -420,7 +423,10 @@ export class TextEditor implements Component {
 
 		// Check if we should trigger or update autocomplete
 		if (!this.isAutocompleting) {
-			this.tryTriggerAutocomplete();
+			// Only auto-trigger for "/" at the start of a line (slash commands)
+			if (char === "/" && this.isAtStartOfMessage()) {
+				this.tryTriggerAutocomplete();
+			}
 		} else {
 			this.updateAutocomplete();
 		}
@@ -684,6 +690,15 @@ export class TextEditor implements Component {
 		}
 	}
 
+	// Helper method to check if cursor is at start of message (for slash command detection)
+	private isAtStartOfMessage(): boolean {
+		const currentLine = this.state.lines[this.state.cursorLine] || "";
+		const beforeCursor = currentLine.slice(0, this.state.cursorCol);
+
+		// At start if line is empty, only contains whitespace, or is just "/"
+		return beforeCursor.trim() === "" || beforeCursor.trim() === "/";
+	}
+
 	// Autocomplete methods
 	private tryTriggerAutocomplete(explicitTab: boolean = false): void {
 		logger.debug("TextEditor", "tryTriggerAutocomplete called", {
@@ -720,6 +735,65 @@ export class TextEditor implements Component {
 		);
 
 		logger.debug("TextEditor", "Autocomplete suggestions", {
+			hasSuggestions: !!suggestions,
+			itemCount: suggestions?.items.length || 0,
+			prefix: suggestions?.prefix,
+		});
+
+		if (suggestions && suggestions.items.length > 0) {
+			this.autocompletePrefix = suggestions.prefix;
+			this.autocompleteList = new SelectList(suggestions.items, 5);
+			this.isAutocompleting = true;
+		} else {
+			this.cancelAutocomplete();
+		}
+	}
+
+	private handleTabCompletion(): void {
+		if (!this.autocompleteProvider) return;
+
+		const currentLine = this.state.lines[this.state.cursorLine] || "";
+		const beforeCursor = currentLine.slice(0, this.state.cursorCol);
+
+		// Check if we're in a slash command context
+		if (beforeCursor.trimStart().startsWith("/")) {
+			logger.debug("TextEditor", "Tab in slash command context", { beforeCursor });
+			this.handleSlashCommandCompletion();
+		} else {
+			logger.debug("TextEditor", "Tab in file completion context", { beforeCursor });
+			this.forceFileAutocomplete();
+		}
+	}
+
+	private handleSlashCommandCompletion(): void {
+		// For now, fall back to regular autocomplete (slash commands)
+		// This can be extended later to handle command-specific argument completion
+		logger.debug("TextEditor", "Handling slash command completion");
+		this.tryTriggerAutocomplete(true);
+	}
+
+	private forceFileAutocomplete(): void {
+		logger.debug("TextEditor", "forceFileAutocomplete called", {
+			hasProvider: !!this.autocompleteProvider,
+		});
+
+		if (!this.autocompleteProvider) return;
+
+		// Check if provider has the force method
+		const provider = this.autocompleteProvider as any;
+		if (!provider.getForceFileSuggestions) {
+			logger.debug("TextEditor", "Provider doesn't support forced file completion, falling back to regular");
+			this.tryTriggerAutocomplete(true);
+			return;
+		}
+
+		const suggestions = provider.getForceFileSuggestions(
+			this.state.lines,
+			this.state.cursorLine,
+			this.state.cursorCol,
+		);
+
+		logger.debug("TextEditor", "Forced file autocomplete suggestions", {
 			hasSuggestions: !!suggestions,
 			itemCount: suggestions?.items.length || 0,
 			prefix: suggestions?.prefix,

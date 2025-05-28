@@ -1,3 +1,3 @@
 - Always read docs/spec.md and packages/lemmy/src/types.ts at the start of a session
 - Test via npm run test:run in packages/lemmy
-- Typecheck via npm run typecheck (includes src and test files, no errors) in packages/lemmy
+- Typecheck via npm run typecheck (includes src and test files, no errors) either in the root dir, or in packages/lemmy, packages/lemmy-tui, examples/lemmy-chat, etc.

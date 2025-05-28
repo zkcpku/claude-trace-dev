@@ -10,16 +10,23 @@
 		"examples/*"
 	],
 	"scripts": {
-		"build": "npm run build --workspaces",
-		"test": "npm run test --workspaces",
-		"dev": "npm run dev -w packages/lemmy -w packages/lemmy-tui",
-		"dev:all": "npm run dev --workspaces",
-		"clean": "npm run clean --workspaces",
+		"dev": "tsc --build --watch --pretty",
+		"dev:parallel": "concurrently --kill-others-on-fail --prefix-colors \"cyan,magenta,yellow,green\" --prefix \"[{name}]\" --names \"lemmy,tui,chat,red-team\" \"cd packages/lemmy && tsc --watch --pretty\" \"cd packages/lemmy-tui && tsc --watch --pretty\" \"cd examples/lemmy-chat && tsc --watch --pretty\" \"cd examples/red-teaming && tsc --watch --pretty\"",
+		"build": "npm run build --workspaces --if-present",
+		"clean": "npm run clean --workspaces --if-present",
+		"typecheck": "npm run typecheck --workspaces --if-present",
+		"test": "npm run test --workspaces --if-present",
+		"test:run": "npm run test:run --workspaces --if-present",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
+		"version:patch": "npm version patch --workspaces && git add . && git commit -m 'Bump versions'",
+		"version:minor": "npm version minor --workspaces && git add . && git commit -m 'Bump versions'",
+		"version:major": "npm version major --workspaces && git add . && git commit -m 'Bump versions'",
+		"publish": "npm run build && npm publish --workspaces --access public",
 		"prepare": "husky"
 	},
 	"devDependencies": {
+		"concurrently": "^9.1.0",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.0.0",
 		"prettier": "^3.5.3",

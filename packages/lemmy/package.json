@@ -3,14 +3,12 @@
 	"version": "0.1.0",
 	"description": "TypeScript API wrapper for multiple LLM providers (Anthropic, OpenAI, Google, Ollama)",
 	"type": "module",
-	"main": "./dist/index.cjs",
-	"module": "./dist/index.js",
+	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"require": "./dist/index.cjs"
+			"import": "./dist/index.js"
 		}
 	},
 	"files": [
@@ -18,13 +16,13 @@
 		"README.md"
 	],
 	"scripts": {
-		"build": "tsup",
-		"dev": "tsup --watch",
+		"dev": "tsc --watch --pretty",
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"typecheck": "tsc --noEmit",
 		"test": "vitest",
 		"test:run": "vitest run",
 		"test:coverage": "vitest run --coverage",
-		"typecheck": "tsc --noEmit",
-		"clean": "rm -rf dist",
 		"generate-schema": "node scripts/generate-options-schema.js"
 	},
 	"dependencies": {
@@ -38,7 +36,6 @@
 	},
 	"devDependencies": {
 		"@types/node": "^20.0.0",
-		"tsup": "^8.5.0",
 		"typescript": "^5.8.3",
 		"vitest": "^3.1.4"
 	},

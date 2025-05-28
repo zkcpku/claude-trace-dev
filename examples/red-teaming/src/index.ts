@@ -1,3 +1,5 @@
+#!/usr/bin/env node --no-deprecation
+
 import chalk from "chalk";
 import { z } from "zod";
 import { AskResult, ChatClient, Context, lemmy, ToolDefinition, toToolResults, AskInput } from "@mariozechner/lemmy";
