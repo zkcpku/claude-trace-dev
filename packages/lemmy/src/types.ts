@@ -115,18 +115,10 @@ export interface OpenAIAskOptions extends AskOptions {
 	stop?: string | string[];
 	/** Store output for model distillation/evals */
 	store?: boolean;
-	/** List of tools the model may call (max 128 functions) */
-	tools?: any[]; // Type will be refined later
 	/** Controls which tool is called */
 	toolChoice?: "none" | "auto" | "required" | { type: "function"; function: { name: string } };
 	/** Stable identifier for end-users */
 	user?: string;
-	/** Parameters for audio output when using modalities: ["audio"] */
-	audio?: any; // Type will be refined later
-	/** Output types (text/audio) */
-	modalities?: ("text" | "audio")[];
-	/** Static predicted output content */
-	prediction?: any; // Type will be refined later
 }
 
 /**
@@ -159,16 +151,8 @@ export interface GoogleAskOptions extends AskOptions {
 	seed?: number;
 	/** Output response mimetype ('text/plain' | 'application/json') */
 	responseMimeType?: string;
-	/** Schema for structured JSON response */
-	responseSchema?: any; // Type will be refined later
 	/** Instructions for the model (system prompt) */
 	systemInstruction?: string;
-	/** List of tools the model may use */
-	tools?: any[]; // Type will be refined later
-	/** Configuration for the tools to use */
-	toolConfig?: any; // Type will be refined later
-	/** Safety settings for content filtering */
-	safetySettings?: any[]; // Type will be refined later
 }
 
 /**

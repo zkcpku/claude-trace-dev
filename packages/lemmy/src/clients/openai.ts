@@ -118,9 +118,6 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 			addParam("stop", "stop");
 			addParam("store", "store");
 			addParam("user", "user");
-			addParam("audio", "audio");
-			addParam("modalities", "modalities");
-			addParam("prediction", "prediction");
 
 			// Execute streaming request
 			const stream = await this.openai.chat.completions.create(requestParams);

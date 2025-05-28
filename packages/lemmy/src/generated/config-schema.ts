@@ -30,12 +30,12 @@ export const CONFIG_SCHEMA = {
 		thinkingEnabled: {
 			type: "boolean",
 			required: false,
-			doc: "Whether to enable extended thinking",
+			doc: "Whether to enable extended thinking for this request",
 		},
 		maxThinkingTokens: {
 			type: "number",
 			required: false,
-			doc: "Maximum number of thinking tokens (must be ≥1024 and less than max_tokens)",
+			doc: "Maximum number of thinking tokens for this request (must be ≥1024 and less than max_tokens)",
 		},
 		temperature: {
 			type: "number",
@@ -53,7 +53,7 @@ export const CONFIG_SCHEMA = {
 			doc: "Use nucleus sampling with specified probability cutoff (0.0-1.0)",
 		},
 		stopSequences: {
-			type: "array",
+			type: "string",
 			required: false,
 			doc: "Custom text sequences that will cause the model to stop generating",
 		},
@@ -62,10 +62,10 @@ export const CONFIG_SCHEMA = {
 			required: false,
 			doc: "System prompt for providing context and instructions",
 		},
-		toolChoice: {
-			type: "string",
+		disableParallelToolUse: {
+			type: "boolean",
 			required: false,
-			doc: "How the model should use the provided tools ('auto', 'any', 'none', or tool name)",
+			doc: "Whether to disable parallel tool use",
 		},
 		serviceTier: {
 			type: "enum",
@@ -153,7 +153,7 @@ export const CONFIG_SCHEMA = {
 			values: ["auto", "default", "flex"],
 		},
 		stop: {
-			type: "array",
+			type: "string",
 			required: false,
 			doc: "Up to 4 stop sequences",
 		},
@@ -182,7 +182,7 @@ export const CONFIG_SCHEMA = {
 		includeThoughts: {
 			type: "boolean",
 			required: false,
-			doc: "Whether to include thinking tokens",
+			doc: "Whether to include thinking tokens for this request",
 		},
 		thinkingBudget: {
 			type: "number",
@@ -210,7 +210,7 @@ export const CONFIG_SCHEMA = {
 			doc: "Number of response variations to return",
 		},
 		stopSequences: {
-			type: "array",
+			type: "string",
 			required: false,
 			doc: "List of strings that tells the model to stop generating text",
 		},

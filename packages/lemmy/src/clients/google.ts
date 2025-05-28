@@ -125,9 +125,6 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 			addParam("frequencyPenalty", "frequencyPenalty");
 			addParam("seed", "seed");
 			addParam("responseMimeType", "responseMimeType");
-			addParam("responseSchema", "responseSchema");
-			addParam("toolConfig", "toolConfig");
-			addParam("safetySettings", "safetySettings");
 
 			const requestParams: GenerateContentParameters = {
 				model: this.config.model,
