@@ -23,6 +23,7 @@ import {
 } from "@mariozechner/lemmy-tui";
 import { CONFIG_SCHEMA } from "@mariozechner/lemmy";
 import { loadDefaults, loadDefaultsConfig, getProviderConfig } from "./defaults.js";
+import { loadFileAttachment } from "./images.js";
 import chalk from "chalk";
 
 function formatModelInfo(modelId: string, modelData: any): string {
@@ -56,6 +57,62 @@ function formatModelInfo(modelId: string, modelData: any): string {
 
 	return info;
 }
+
+function parseMessageWithAttachments(message: string): {
+	content: string;
+	attachments: any[];
+	textFiles: Array<{ name: string; content: string }>;
+} {
+	const attachments: any[] = [];
+	const textFiles: Array<{ name: string; content: string }> = [];
+
+	// Find all @path patterns
+	const filePattern = /@([^\s]+)/g;
+	let match;
+	const processedPaths = new Set<string>();
+
+	while ((match = filePattern.exec(message)) !== null) {
+		const filePath = match[1];
+
+		// Skip if already processed or if filePath is undefined
+		if (!filePath || processedPaths.has(filePath)) continue;
+		processedPaths.add(filePath);
+
+		try {
+			const fileResult = loadFileAttachment(filePath);
+
+			if (fileResult.type === "image") {
+				attachments.push(fileResult.content);
+			} else if (fileResult.type === "text") {
+				const fileName = filePath.split("/").pop() || filePath;
+				textFiles.push({
+					name: fileName,
+					content: fileResult.content as string,
+				});
+			}
+		} catch (error) {
+			logger.error("File attachment", `Failed to load ${filePath}`, error);
+		}
+	}
+
+	// Remove file references from the message content
+	const cleanContent = message.replace(/@[^\s]+/g, "").trim();
+
+	return { content: cleanContent, attachments, textFiles };
+}
+
+const FILE_SYSTEM_INSTRUCTION = `Some user messages may contain attached files in the following format:
+
+<attached-files>
+<file name="filename.ext">
+file content here
+</file>
+<file name="another.txt">
+more content
+</file>
+</attached-files>
+
+When you see this format, treat the file contents as part of the user's context and refer to them by filename when discussing them.`;
 
 export async function runTUIChat(options: any): Promise<void> {
 	// Determine provider and model
@@ -402,12 +459,43 @@ export async function runTUIChat(options: any): Promise<void> {
 		startLoadingAnimation();
 
 		try {
-			// Add user message
+			// Parse message for file attachments
+			const { content, attachments, textFiles } = parseMessageWithAttachments(message);
+
+			// Build final message content
+			let finalContent = content;
+			if (textFiles.length > 0) {
+				finalContent += "\n\n<attached-files>\n";
+				for (const file of textFiles) {
+					finalContent += `<file name="${file.name}">\n${file.content}\n</file>\n`;
+				}
+				finalContent += "</attached-files>";
+			}
+
+			// Add user message (show original message with @files in UI)
 			addMessage({
 				role: "user",
 				content: message,
 				timestamp: new Date(),
 			});
+
+			// Show attachment info if any
+			if (attachments.length > 0 || textFiles.length > 0) {
+				const attachmentInfo = [];
+				if (attachments.length > 0) {
+					attachmentInfo.push(`🖼️ ${attachments.length} image(s)`);
+				}
+				if (textFiles.length > 0) {
+					attachmentInfo.push(`📄 ${textFiles.length} text file(s)`);
+				}
+
+				const attachmentComponent = new TextComponent(chalk.dim(`📎 Attached: ${attachmentInfo.join(", ")}`), {
+					bottom: 1,
+					left: 1,
+					right: 1,
+				});
+				messagesContainer.addChild(attachmentComponent);
+			}
 
 			// Make the API call with current options
 			// Strip provider: prefix from option keys
@@ -419,7 +507,17 @@ export async function runTUIChat(options: any): Promise<void> {
 				askOptions[optionKey] = value;
 			}
 
-			const result = await client.ask(message, askOptions);
+			// Add system instruction about file format if we have text files
+			if (textFiles.length > 0) {
+				askOptions.system = askOptions.system
+					? `${askOptions.system}\n\n${FILE_SYSTEM_INSTRUCTION}`
+					: FILE_SYSTEM_INSTRUCTION;
+			}
+
+			// Use AskInput format if we have attachments, otherwise use string
+			const askInput = attachments.length > 0 ? { content: finalContent, attachments } : finalContent;
+
+			const result = await client.ask(askInput, askOptions);
 
 			if (result.type === "success") {
 				addMessage(result.message);
