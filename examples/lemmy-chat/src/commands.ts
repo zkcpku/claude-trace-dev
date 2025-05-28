@@ -12,7 +12,14 @@ import {
 	GoogleModelData,
 	ModelToProvider,
 } from "@mariozechner/lemmy";
-import { saveDefaults, loadDefaults, DEFAULTS_FILE } from "./defaults.js";
+import {
+	saveDefaults,
+	loadDefaults,
+	loadDefaultsConfig,
+	saveDefaultsConfig,
+	setDefaultProvider,
+	DEFAULTS_FILE,
+} from "./defaults.js";
 import { runSimpleChat } from "./chat.js";
 import { runTUIChat } from "./tui-chat.js";
 
@@ -222,29 +229,56 @@ export function createDefaultsCommand(): Command {
 
 	command.option("-s, --show", "Show current defaults");
 	command.option("-c, --clear", "Clear saved defaults");
+	command.option("--default-provider <provider>", "Set the default provider");
 
 	// Allow unknown options to be captured as arguments
 	command.allowUnknownOption();
 
 	command.action((args: string[], options: any) => {
 		if (options.show) {
-			const defaults = loadDefaults();
-			if (defaults.length === 0) {
+			const config = loadDefaultsConfig();
+			if (Object.keys(config.providers).length === 0) {
 				console.log("No defaults set.");
 				console.log("\nSet defaults with:");
 				console.log("  lemmy-chat defaults anthropic -m claude-sonnet-4-20250514 --thinkingEnabled");
 				console.log("  lemmy-chat defaults openai -m o4-mini --reasoningEffort medium");
+				console.log("  lemmy-chat defaults --default-provider anthropic");
 			} else {
 				console.log("Current defaults:");
-				console.log(`  lemmy-chat ${defaults.join(" ")}`);
-				console.log(`\nStored in: ${DEFAULTS_FILE}`);
+				console.log(`Default provider: ${config.defaultProvider || "none"}`);
+				console.log();
+
+				for (const [provider, settings] of Object.entries(config.providers)) {
+					console.log(`📋 ${provider.toUpperCase()}:`);
+					if (settings.model) {
+						console.log(`  Model: ${settings.model}`);
+					}
+					for (const [key, value] of Object.entries(settings)) {
+						if (key === "model") continue;
+						console.log(`  ${key}: ${value}`);
+					}
+					console.log();
+				}
+				console.log(`Stored in: ${DEFAULTS_FILE}`);
 			}
+			return;
+		}
+
+		if (options.defaultProvider) {
+			if (!getProviders().includes(options.defaultProvider)) {
+				console.error(
+					`❌ Invalid provider: ${options.defaultProvider}. Valid providers: ${getProviders().join(", ")}`,
+				);
+				process.exit(1);
+			}
+			setDefaultProvider(options.defaultProvider);
+			console.log(`✅ Set default provider to: ${options.defaultProvider}`);
 			return;
 		}
 
 		if (options.clear) {
 			if (existsSync(DEFAULTS_FILE)) {
-				writeFileSync(DEFAULTS_FILE, JSON.stringify([], null, 2));
+				saveDefaultsConfig({ providers: {} });
 				console.log("✅ Defaults cleared");
 			} else {
 				console.log("No defaults to clear");
@@ -254,13 +288,15 @@ export function createDefaultsCommand(): Command {
 
 		if (args.length === 0) {
 			console.log("Usage:");
-			console.log("  lemmy-chat defaults <provider> [options...]  # Set defaults");
-			console.log("  lemmy-chat defaults --show                   # Show current defaults");
-			console.log("  lemmy-chat defaults --clear                  # Clear defaults");
+			console.log("  lemmy-chat defaults <provider> [options...]           # Set provider defaults");
+			console.log("  lemmy-chat defaults --default-provider <provider>    # Set default provider");
+			console.log("  lemmy-chat defaults --show                           # Show current defaults");
+			console.log("  lemmy-chat defaults --clear                          # Clear all defaults");
 			console.log("\nExamples:");
 			console.log("  lemmy-chat defaults anthropic -m claude-3-5-sonnet-latest --thinkingEnabled");
 			console.log("  lemmy-chat defaults openai -m o4-mini --reasoningEffort medium");
 			console.log("  lemmy-chat defaults google -m gemini-2.0-flash --projectId my-project");
+			console.log("  lemmy-chat defaults --default-provider anthropic");
 			return;
 		}
 
@@ -288,6 +324,10 @@ export function createChatCommand(): Command {
 	command.option("-p, --provider <provider>", "Provider to use (anthropic, openai, google)");
 	command.option("-m, --model <model>", "Model to use");
 	command.option("--apiKey <key>", "API key (or use environment variables)");
+	command.option(
+		"--simulate-input <inputs...>",
+		"Simulate input sequences for testing (e.g., '/' 'model' ' ' 'cl' 'TAB')",
+	);
 
 	// Add provider-specific options (collect unique fields)
 	const allFields = new Set<string>();

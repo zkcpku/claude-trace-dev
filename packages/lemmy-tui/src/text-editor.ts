@@ -17,7 +17,7 @@ interface LayoutLine {
 }
 
 export interface TextEditorConfig {
-	submitTrigger?: string; // Special string that triggers submit when pasted (useful for command input)
+	// Configuration options for text editor
 }
 
 export class TextEditor implements Component {
@@ -179,8 +179,8 @@ export class TextEditor implements Component {
 					this.autocompleteList.handleInput(data);
 				}
 
-				// If Enter or Tab was pressed, apply the selection
-				if (data === "\r" || data === "\t") {
+				// If Tab was pressed, apply the selection
+				if (data === "\t") {
 					const selected = this.autocompleteList.getSelectedItem();
 					if (selected && this.autocompleteProvider) {
 						const result = this.autocompleteProvider.applyCompletion(
@@ -201,8 +201,16 @@ export class TextEditor implements Component {
 							this.onChange(this.getText());
 						}
 					}
+					return;
 				}
-				return;
+				// If Enter was pressed, cancel autocomplete and let it fall through to submission
+				else if (data === "\r") {
+					this.cancelAutocomplete();
+					// Don't return here - let Enter fall through to normal submission handling
+				} else {
+					// For other keys, handle normally within autocomplete
+					return;
+				}
 			}
 			// For other keys (like regular typing), DON'T return here
 			// Let them fall through to normal character handling
@@ -423,9 +431,18 @@ export class TextEditor implements Component {
 
 		// Check if we should trigger or update autocomplete
 		if (!this.isAutocompleting) {
-			// Only auto-trigger for "/" at the start of a line (slash commands)
+			// Auto-trigger for "/" at the start of a line (slash commands)
 			if (char === "/" && this.isAtStartOfMessage()) {
 				this.tryTriggerAutocomplete();
+			}
+			// Also auto-trigger when typing letters in a slash command context
+			else if (/[a-zA-Z0-9]/.test(char)) {
+				const currentLine = this.state.lines[this.state.cursorLine] || "";
+				const textBeforeCursor = currentLine.slice(0, this.state.cursorCol);
+				// Check if we're in a slash command with a space (i.e., typing arguments)
+				if (textBeforeCursor.startsWith("/") && textBeforeCursor.includes(" ")) {
+					this.tryTriggerAutocomplete();
+				}
 			}
 		} else {
 			this.updateAutocomplete();
@@ -439,23 +456,8 @@ export class TextEditor implements Component {
 			tabCount: (pastedText.match(/\t/g) || []).length,
 		});
 
-		// Check if paste contains submit trigger
-		const shouldSubmit = this.config.submitTrigger && pastedText.includes(this.config.submitTrigger);
-		let processedText = pastedText;
-
-		// If submit trigger found, remove it and everything after it
-		if (shouldSubmit && this.config.submitTrigger) {
-			const triggerIndex = pastedText.indexOf(this.config.submitTrigger);
-			processedText = pastedText.substring(0, triggerIndex);
-			logger.info("TextEditor", "Submit trigger found in paste", {
-				trigger: this.config.submitTrigger,
-				originalLength: pastedText.length,
-				processedLength: processedText.length,
-			});
-		}
-
-		// Clean the processed text
-		const cleanText = processedText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+		// Clean the pasted text
+		const cleanText = pastedText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
 		// Convert tabs to spaces (4 spaces per tab)
 		const tabExpandedText = cleanText.replace(/\t/g, "    ");
@@ -476,25 +478,6 @@ export class TextEditor implements Component {
 				this.insertCharacter(char);
 			}
 
-			// If submit trigger was found, trigger submit
-			if (shouldSubmit) {
-				logger.info("TextEditor", "Triggering submit after single line paste");
-				const result = this.state.lines.join("\n").trim();
-
-				// Reset editor
-				this.state = {
-					lines: [""],
-					cursorLine: 0,
-					cursorCol: 0,
-				};
-
-				if (this.onSubmit) {
-					logger.info("TextEditor", "Calling onSubmit from paste trigger", { result });
-					this.onSubmit(result);
-				} else {
-					logger.warn("TextEditor", "No onSubmit callback set for paste submit");
-				}
-			}
 			return;
 		}
 
@@ -537,31 +520,6 @@ export class TextEditor implements Component {
 		// Notify of change
 		if (this.onChange) {
 			this.onChange(this.getText());
-		}
-
-		// If submit trigger was found, trigger submit
-		if (shouldSubmit) {
-			logger.info("TextEditor", "Triggering submit after multi-line paste");
-			const result = this.state.lines.join("\n").trim();
-
-			// Reset editor
-			this.state = {
-				lines: [""],
-				cursorLine: 0,
-				cursorCol: 0,
-			};
-
-			// Notify that editor is now empty
-			if (this.onChange) {
-				this.onChange("");
-			}
-
-			if (this.onSubmit) {
-				logger.info("TextEditor", "Calling onSubmit from paste trigger", { result });
-				this.onSubmit(result);
-			} else {
-				logger.warn("TextEditor", "No onSubmit callback set for paste submit");
-			}
 		}
 	}
 

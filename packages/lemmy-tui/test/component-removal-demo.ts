@@ -27,9 +27,8 @@ instructionsContainer.addChild(new TextComponent("  • Type 'clear' to remove a
 instructionsContainer.addChild(new TextComponent("  • Type 'list' to see all components"));
 instructionsContainer.addChild(new TextComponent("  • Type 'exit' to quit"));
 
-// Use a special submit trigger for command input - very unlikely to appear in real text
-const SUBMIT_TRIGGER = "|||SUBMIT|||";
-const editor = new TextEditor({ submitTrigger: SUBMIT_TRIGGER });
+// Use a special submit trigger for command input - very unlikely to appear in real text;
+const editor = new TextEditor();
 
 // Add components to UI
 ui.addChild(header);
