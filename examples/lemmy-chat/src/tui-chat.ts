@@ -686,28 +686,50 @@ export async function runTUIChat(options: any): Promise<void> {
 		setTimeout(() => {
 			console.log("\n🧪 Simulating input sequence:", options.simulateInput);
 
-			let delay = 100; // ms between inputs
-			options.simulateInput.forEach((input: string, index: number) => {
-				setTimeout(
-					() => {
-						// Convert special keywords to actual characters
-						let actualInput = input;
-						if (input === "TAB") actualInput = "\t";
-						else if (input === "ENTER") actualInput = "\r";
-						else if (input === "SPACE") actualInput = " ";
-						else if (input === "ESC") actualInput = "\x1b";
+			let currentIndex = 0;
 
-						console.log(`🧪 Step ${index + 1}: Sending "${input}" (${JSON.stringify(actualInput)})`);
+			const sendNextInput = () => {
+				if (currentIndex >= options.simulateInput.length) {
+					return;
+				}
 
-						// Send input to the focused component
-						if (inputEditor.handleInput) {
-							inputEditor.handleInput(actualInput);
-							tui.requestRender();
+				const input = options.simulateInput[currentIndex];
+
+				// Convert special keywords to actual characters
+				let actualInput = input;
+				if (input === "TAB") actualInput = "\t";
+				else if (input === "ENTER") actualInput = "\r";
+				else if (input === "SPACE") actualInput = " ";
+				else if (input === "ESC") actualInput = "\x1b";
+
+				console.log(`🧪 Step ${currentIndex + 1}: Sending "${input}" (${JSON.stringify(actualInput)})`);
+
+				// Send input to the focused component
+				if (inputEditor.handleInput) {
+					inputEditor.handleInput(actualInput);
+					tui.requestRender();
+				}
+
+				currentIndex++;
+
+				// If this was ENTER, wait for processing to complete before sending next input
+				if (input === "ENTER") {
+					const waitForProcessing = () => {
+						if (isProcessing) {
+							setTimeout(waitForProcessing, 100);
+						} else {
+							// Wait a bit more after processing completes, then send next input
+							setTimeout(sendNextInput, 500);
 						}
-					},
-					delay * (index + 1),
-				);
-			});
+					};
+					waitForProcessing();
+				} else {
+					// For non-ENTER inputs, send next input after a short delay
+					setTimeout(sendNextInput, 200);
+				}
+			};
+
+			sendNextInput();
 		}, 500); // Wait a bit for TUI to be ready
 	}
 }

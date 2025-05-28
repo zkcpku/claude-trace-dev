@@ -390,10 +390,6 @@ export class TUI extends Container {
 				output += `${line}\n`;
 			}
 
-			// Position cursor at the bottom of all content
-			// This ensures consistent cursor position for next render
-			output += `\x1b[${result.lines.length}A\x1b[${result.lines.length}B`;
-
 			// Write everything at once - use synchronous write to prevent race conditions
 			writeSync(process.stdout.fd, output);
 		}

@@ -13,7 +13,7 @@
    - `test/` - Comprehensive test suite
 
 - **packages/lemmy-tui/**: Terminal UI components
-   - `src/tui.ts` - Main TUI framework
+   - `src/tui.ts` - Main TUI framework with differential rendering
    - `src/text-editor.ts` - Text editing component
    - `src/markdown-component.ts` - Markdown rendering
    - `src/select-list.ts` - Selection lists
@@ -25,6 +25,28 @@
 
 - **examples/lemmy-chat/**: Chat application example
 - **examples/red-teaming/**: Red teaming utilities
+
+# TUI Differential Rendering
+
+The TUI framework uses differential rendering for performance - only redrawing parts of the screen that have changed.
+
+## How it works:
+
+1. Each component returns `{lines: string[], changed: boolean}`
+2. Containers also return `keepLines: number` - the count of unchanged lines from the beginning
+3. On render, the TUI calculates how many lines from the top are unchanged (`keepLines`)
+4. It moves the cursor up by `(totalLines - keepLines)` positions from the bottom
+5. Clears from that position down with `\x1b[0J`
+6. Prints only the changing lines: `result.lines.slice(keepLines)`
+7. Each line ends with `\n` so cursor naturally ends up at the bottom for next render
+
+**Important:** Don't add extra cursor positioning after printing - it interferes with terminal scrolling and causes rendering artifacts.
+
+## Component behavior:
+
+- **Components**: Return `{lines, changed}` only
+- **Containers**: Return `{lines, changed, keepLines}` and aggregate child components
+- **TextEditor**: Always returns `changed: true` to ensure cursor updates are reflected
 
 # General Guidelines
 
