@@ -6,6 +6,9 @@ import {
 	getDefaultApiKeyEnvVar,
 	getProviders,
 	UserMessage,
+	AnthropicModelData,
+	OpenAIModelData,
+	GoogleModelData,
 } from "@mariozechner/lemmy";
 import {
 	TUI,
@@ -14,16 +17,17 @@ import {
 	TextEditor,
 	CombinedAutocompleteProvider,
 	type AutocompleteItem,
+	type SlashCommand,
 	logger,
 } from "@mariozechner/lemmy-tui";
 import { CONFIG_SCHEMA } from "@mariozechner/lemmy";
-import { loadDefaults } from "./defaults.js";
+import { loadDefaults, getProviderDefaults } from "./defaults.js";
 import chalk from "chalk";
 
 export async function runTUIChat(options: any): Promise<void> {
 	// Determine provider and model
-	let provider: string | undefined = options.provider;
-	let model: string | undefined = options.model;
+	let provider: string = options.provider;
+	let model: string = options.model;
 
 	// If no provider/model specified, try to use defaults
 	if (!provider || !model) {
@@ -36,10 +40,10 @@ export async function runTUIChat(options: any): Promise<void> {
 		}
 
 		// Parse defaults to extract provider and model
-		provider = defaults[0];
+		provider = defaults[0] || "";
 		const modelIndex = defaults.indexOf("-m");
 		if (modelIndex !== -1 && modelIndex + 1 < defaults.length) {
-			model = defaults[modelIndex + 1];
+			model = defaults[modelIndex + 1] || "";
 		}
 
 		if (!provider || !model) {
@@ -107,7 +111,7 @@ export async function runTUIChat(options: any): Promise<void> {
 	config.apiKey = apiKey;
 
 	// Create client and context
-	const client = createClientForModel(model, config);
+	let client = createClientForModel(model, config);
 	const context = new Context();
 
 	// Create TUI components
@@ -149,63 +153,87 @@ export async function runTUIChat(options: any): Promise<void> {
 	// Input editor
 	const inputEditor = new TextEditor();
 
-	// Define available slash commands
-	const commands: AutocompleteItem[] = [
-		{ value: "exit", label: "exit", description: "Exit the chat" },
-		{ value: "clear", label: "clear", description: "Clear the conversation" },
-		{ value: "model", label: "model", description: "Show current model" },
-		{ value: "usage", label: "usage", description: "Show token usage and costs" },
-		{ value: "system", label: "system", description: "Set system prompt" },
-		{ value: "temperature", label: "temperature", description: "Set temperature (0-2)" },
-		{ value: "help", label: "help", description: "Show available commands" },
-	];
+	// Function to build commands for a specific provider
+	function buildCommands(currentProvider: string): SlashCommand[] {
+		// Get all available models for model command completions
+		const allModels = {
+			...AnthropicModelData,
+			...OpenAIModelData,
+			...GoogleModelData,
+		};
 
-	// Add provider-specific options from config schema
-	const providerSchema = CONFIG_SCHEMA[provider as keyof typeof CONFIG_SCHEMA] as any;
-	if (providerSchema && typeof providerSchema === "object") {
-		for (const [key, config] of Object.entries(providerSchema)) {
-			// Skip the model field as it's already set
-			if (key === "model") continue;
+		const commands: SlashCommand[] = [
+			{ name: "exit", description: "Exit the chat" },
+			{ name: "clear", description: "Clear the conversation" },
+			{
+				name: "model",
+				description: "Show or set current model",
+				getArgumentCompletions: (prefix: string) => {
+					return Object.keys(allModels)
+						.filter((modelName) => modelName.toLowerCase().includes(prefix.toLowerCase()))
+						.map((modelName) => ({
+							value: modelName,
+							label: modelName,
+							description: `Switch to ${modelName}`,
+						}));
+				},
+			},
+			{ name: "usage", description: "Show token usage and costs" },
+			{ name: "system", description: "Set system prompt" },
+			{ name: "temperature", description: "Set temperature (0-2)" },
+			{ name: "help", description: "Show available commands" },
+		];
+
+		// Add provider-specific options from config schema
+		const providerSchema = CONFIG_SCHEMA[currentProvider as keyof typeof CONFIG_SCHEMA] as any;
+		if (providerSchema && typeof providerSchema === "object") {
+			for (const [key, config] of Object.entries(providerSchema)) {
+				// Skip the model field as it's already set
+				if (key === "model") continue;
+
+				const configObj = config as any;
+				const commandName = `${currentProvider}:${key}`;
+				let description = configObj.doc || "";
+
+				// Add type/value hints to description
+				if (configObj.type === "boolean") {
+					description += " (true/false)";
+				} else if (configObj.type === "enum" && "values" in configObj) {
+					description += ` (${configObj.values.join("/")})`;
+				} else if (configObj.type === "number") {
+					description += " (number)";
+				}
+
+				commands.push({
+					name: commandName,
+					description,
+				});
+			}
+		}
+
+		// Add base options that apply to all providers
+		const baseSchema = CONFIG_SCHEMA.base;
+		for (const [key, config] of Object.entries(baseSchema)) {
+			// Skip apiKey and baseURL as they're not typically changed at runtime
+			if (key === "apiKey" || key === "baseURL") continue;
 
 			const configObj = config as any;
-			const commandName = `${provider}:${key}`;
 			let description = configObj.doc || "";
-
-			// Add type/value hints to description
-			if (configObj.type === "boolean") {
-				description += " (true/false)";
-			} else if (configObj.type === "enum" && "values" in configObj) {
-				description += ` (${configObj.values.join("/")})`;
-			} else if (configObj.type === "number") {
+			if (configObj.type === "number") {
 				description += " (number)";
 			}
 
 			commands.push({
-				value: commandName,
-				label: commandName,
+				name: key,
 				description,
 			});
 		}
+
+		return commands;
 	}
 
-	// Add base options that apply to all providers
-	const baseSchema = CONFIG_SCHEMA.base;
-	for (const [key, config] of Object.entries(baseSchema)) {
-		// Skip apiKey and baseURL as they're not typically changed at runtime
-		if (key === "apiKey" || key === "baseURL") continue;
-
-		const configObj = config as any;
-		let description = configObj.doc || "";
-		if (configObj.type === "number") {
-			description += " (number)";
-		}
-
-		commands.push({
-			value: key,
-			label: key,
-			description,
-		});
-	}
+	// Define available slash commands
+	let commands = buildCommands(provider);
 
 	// Set up autocomplete provider
 	const autocompleteProvider = new CombinedAutocompleteProvider(commands);
@@ -225,8 +253,9 @@ export async function runTUIChat(options: any): Promise<void> {
 	let totalCost = 0;
 	let isProcessing = false;
 
-	// Store current ask options
-	const currentOptions: Record<string, any> = {};
+	// Store current ask options - initialize with current config
+	let currentOptions: Record<string, any> = { ...config };
+	delete currentOptions["apiKey"]; // Don't expose API key in options
 	let animationInterval: NodeJS.Timeout | null = null;
 
 	function startLoadingAnimation() {
@@ -341,33 +370,7 @@ export async function runTUIChat(options: any): Promise<void> {
 			const commandValue = parts.slice(1).join(" ");
 
 			if (commandName) {
-				// Check if we're setting a value for an option
-				if (commandValue && (commandName.includes(":") || CONFIG_SCHEMA.base.hasOwnProperty(commandName))) {
-					// Parse and store the value
-					let parsedValue: any = commandValue;
-
-					// Try to parse as boolean
-					if (commandValue.toLowerCase() === "true") {
-						parsedValue = true;
-					} else if (commandValue.toLowerCase() === "false") {
-						parsedValue = false;
-					}
-					// Try to parse as number
-					else if (!isNaN(Number(commandValue))) {
-						parsedValue = Number(commandValue);
-					}
-
-					currentOptions[commandName] = parsedValue;
-
-					const confirmComponent = new TextComponent(chalk.green(`✓ Set ${commandName} to: ${parsedValue}`), {
-						bottom: 1,
-						left: 1,
-						right: 1,
-					});
-					messagesContainer.addChild(confirmComponent);
-				} else {
-					executeCommand(commandName);
-				}
+				executeCommand(commandName, commandValue);
 			}
 			return;
 		}
@@ -425,7 +428,7 @@ export async function runTUIChat(options: any): Promise<void> {
 		}
 	};
 
-	function executeCommand(command: string) {
+	async function executeCommand(command: string, value?: string) {
 		switch (command) {
 			case "exit":
 				console.log("\n👋 Goodbye!");
@@ -443,12 +446,138 @@ export async function runTUIChat(options: any): Promise<void> {
 				break;
 
 			case "model":
-				const infoComponent = new TextComponent(chalk.cyan(`Current model: ${provider}/${model}`), {
-					bottom: 1,
-					left: 1,
-					right: 1,
-				});
-				messagesContainer.addChild(infoComponent);
+				if (value) {
+					// User wants to set a new model
+					const newModel = value.trim();
+					const allModels = {
+						...AnthropicModelData,
+						...OpenAIModelData,
+						...GoogleModelData,
+					};
+
+					if (allModels[newModel as keyof typeof allModels]) {
+						try {
+							// Determine new provider
+							const { ModelToProvider } = await import("@mariozechner/lemmy");
+							const newProvider = ModelToProvider[newModel as keyof typeof ModelToProvider];
+
+							if (!newProvider) {
+								throw new Error(`Could not determine provider for model: ${newModel}`);
+							}
+
+							// Get the correct API key for the new provider
+							const newApiKey = process.env[getDefaultApiKeyEnvVar(newProvider as any)];
+							if (!newApiKey) {
+								throw new Error(
+									`No API key found for ${newProvider}. Set ${getDefaultApiKeyEnvVar(newProvider as any)} environment variable.`,
+								);
+							}
+
+							// Get provider-specific defaults
+							const providerDefaults = getProviderDefaults(newProvider);
+
+							// Start with provider defaults, then add current compatible options
+							const newConfig: any = {
+								...providerDefaults,
+								model: newModel,
+								apiKey: newApiKey,
+							};
+							const newProviderSchema = CONFIG_SCHEMA[newProvider as keyof typeof CONFIG_SCHEMA];
+							const baseSchema = CONFIG_SCHEMA.base;
+
+							// Add compatible provider-specific options
+							if (newProviderSchema && typeof newProviderSchema === "object") {
+								for (const [key, value] of Object.entries(currentOptions)) {
+									if (key.startsWith(`${newProvider}:`)) {
+										const optionKey = key.split(":")[1];
+										if (optionKey && (newProviderSchema as any).hasOwnProperty(optionKey)) {
+											newConfig[optionKey] = value;
+										}
+									}
+								}
+							}
+
+							// Add compatible base options
+							for (const [key, value] of Object.entries(currentOptions)) {
+								if (baseSchema.hasOwnProperty(key)) {
+									newConfig[key] = value;
+								}
+							}
+
+							// Create new client
+							const newClient = createClientForModel(newModel, newConfig);
+
+							// Update variables
+							client = newClient;
+							model = newModel;
+							provider = newProvider;
+							currentOptions = newConfig;
+
+							// Update header
+							header.setText(chalk.yellow(`Chat with ${provider}/${model} | Type 'exit' to quit`));
+
+							// Update commands for new provider
+							commands = buildCommands(provider);
+							const newAutocompleteProvider = new CombinedAutocompleteProvider(commands);
+							inputEditor.setAutocompleteProvider(newAutocompleteProvider);
+
+							const confirmComponent = new TextComponent(
+								chalk.green(`✓ Switched to model: ${provider}/${model}`),
+								{
+									bottom: 1,
+									left: 1,
+									right: 1,
+								},
+							);
+							messagesContainer.addChild(confirmComponent);
+
+							// Show any options that were removed due to incompatibility
+							const removedOptions = Object.keys(currentOptions).filter(
+								(key) =>
+									!baseSchema.hasOwnProperty(key) &&
+									(!key.startsWith(`${newProvider}:`) ||
+										!(newProviderSchema as any)?.hasOwnProperty(key.split(":")[1])),
+							);
+
+							if (removedOptions.length > 0) {
+								const warningComponent = new TextComponent(
+									chalk.yellow(`⚠️  Removed incompatible options: ${removedOptions.join(", ")}`),
+									{ bottom: 1, left: 1, right: 1 },
+								);
+								messagesContainer.addChild(warningComponent);
+
+								// Remove them from currentOptions
+								for (const key of removedOptions) {
+									delete currentOptions[key];
+								}
+							}
+						} catch (error) {
+							const errorComponent = new TextComponent(
+								chalk.red(
+									`❌ Failed to switch model: ${error instanceof Error ? error.message : String(error)}`,
+								),
+								{ bottom: 1, left: 1, right: 1 },
+							);
+							messagesContainer.addChild(errorComponent);
+						}
+					} else {
+						// Invalid model
+						const errorComponent = new TextComponent(chalk.red(`❌ Unknown model: ${newModel}`), {
+							bottom: 1,
+							left: 1,
+							right: 1,
+						});
+						messagesContainer.addChild(errorComponent);
+					}
+				} else {
+					// Show current model
+					const infoComponent = new TextComponent(chalk.cyan(`Current model: ${provider}/${model}`), {
+						bottom: 1,
+						left: 1,
+						right: 1,
+					});
+					messagesContainer.addChild(infoComponent);
+				}
 				break;
 
 			case "usage":
@@ -470,7 +599,7 @@ export async function runTUIChat(options: any): Promise<void> {
 				break;
 
 			case "help":
-				const helpText = commands.map((cmd) => `  /${cmd.value} - ${cmd.description}`).join("\n");
+				const helpText = commands.map((cmd) => `  /${cmd.name} - ${cmd.description}`).join("\n");
 				const helpComponent = new TextComponent(chalk.cyan("Available commands:\n" + helpText), {
 					bottom: 1,
 					left: 1,
@@ -479,18 +608,83 @@ export async function runTUIChat(options: any): Promise<void> {
 				messagesContainer.addChild(helpComponent);
 				break;
 
+			case "system":
+				if (value) {
+					// Set new system prompt
+					const newSystemMessage = value.trim();
+					context.setSystemMessage(newSystemMessage);
+
+					const confirmComponent = new TextComponent(chalk.green(`✓ System prompt set`), {
+						bottom: 1,
+						left: 1,
+						right: 1,
+					});
+					messagesContainer.addChild(confirmComponent);
+
+					// Show the new system message
+					const previewComponent = new TextComponent(chalk.gray(`Preview: ${newSystemMessage}`), {
+						bottom: 1,
+						left: 1,
+						right: 1,
+					});
+					messagesContainer.addChild(previewComponent);
+				} else {
+					// Show current system prompt
+					const currentSystemMessage = context.getSystemMessage();
+					let systemText = chalk.cyan("Current system prompt:");
+					if (currentSystemMessage) {
+						systemText += chalk.gray(`\n\n${currentSystemMessage}`);
+					} else {
+						systemText += chalk.gray("\n\n(No system prompt set)");
+					}
+					systemText += chalk.yellow("\n\nTo set a new system prompt, use: /system <prompt>");
+
+					const systemComponent = new TextComponent(systemText, {
+						bottom: 1,
+						left: 1,
+						right: 1,
+					});
+					messagesContainer.addChild(systemComponent);
+				}
+				break;
+
 			default:
 				// Check if it's a provider-specific option or base option
 				if (command.includes(":") || CONFIG_SCHEMA.base.hasOwnProperty(command)) {
-					// Show current value and prompt for new value
-					const currentValue = currentOptions[command];
-					const promptComponent = new TextComponent(
-						chalk.yellow(
-							`Current ${command}: ${currentValue ?? "not set"}\nUse /${command} <value> to set a new value`,
-						),
-						{ bottom: 1, left: 1, right: 1 },
-					);
-					messagesContainer.addChild(promptComponent);
+					if (value) {
+						// Parse and store the value
+						let parsedValue: any = value;
+
+						// Try to parse as boolean
+						if (value.toLowerCase() === "true") {
+							parsedValue = true;
+						} else if (value.toLowerCase() === "false") {
+							parsedValue = false;
+						}
+						// Try to parse as number
+						else if (!isNaN(Number(value))) {
+							parsedValue = Number(value);
+						}
+
+						currentOptions[command] = parsedValue;
+
+						const confirmComponent = new TextComponent(chalk.green(`✓ Set ${command} to: ${parsedValue}`), {
+							bottom: 1,
+							left: 1,
+							right: 1,
+						});
+						messagesContainer.addChild(confirmComponent);
+					} else {
+						// Show current value and prompt for new value
+						const currentValue = currentOptions[command];
+						const promptComponent = new TextComponent(
+							chalk.yellow(
+								`Current ${command}: ${currentValue ?? "not set"}\nUse /${command} <value> to set a new value`,
+							),
+							{ bottom: 1, left: 1, right: 1 },
+						);
+						messagesContainer.addChild(promptComponent);
+					}
 				} else {
 					const errorComponent = new TextComponent(chalk.red(`Unknown command: /${command}`), {
 						bottom: 1,
@@ -504,4 +698,34 @@ export async function runTUIChat(options: any): Promise<void> {
 
 	// Start the TUI
 	tui.start();
+
+	// Handle input simulation for testing
+	if (options.simulateInput && Array.isArray(options.simulateInput)) {
+		setTimeout(() => {
+			console.log("\n🧪 Simulating input sequence:", options.simulateInput);
+
+			let delay = 100; // ms between inputs
+			options.simulateInput.forEach((input: string, index: number) => {
+				setTimeout(
+					() => {
+						// Convert special keywords to actual characters
+						let actualInput = input;
+						if (input === "TAB") actualInput = "\t";
+						else if (input === "ENTER") actualInput = "\r";
+						else if (input === "SPACE") actualInput = " ";
+						else if (input === "ESC") actualInput = "\x1b";
+
+						console.log(`🧪 Step ${index + 1}: Sending "${input}" (${JSON.stringify(actualInput)})`);
+
+						// Send input to the focused component
+						if (inputEditor.handleInput) {
+							inputEditor.handleInput(actualInput);
+							tui.requestRender();
+						}
+					},
+					delay * (index + 1),
+				);
+			});
+		}, 500); // Wait a bit for TUI to be ready
+	}
 }
