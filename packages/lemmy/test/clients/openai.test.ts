@@ -16,13 +16,19 @@ describe("OpenAIClient", () => {
 
 	const createClient = (withThinking = false, apiKey?: string, withImageInput = false) => {
 		let model = testConfig.model;
-		let config: OpenAIConfig = { ...testConfig };
+		let config: OpenAIConfig = {
+			...testConfig,
+			defaults: {
+				temperature: 0,
+			},
+		};
 
 		if (withThinking) {
 			// o4-mini supports reasoning (thinking)
 			model = "o4-mini";
 			config.model = model;
 			config.defaults = {
+				...config.defaults,
 				reasoningEffort: "medium" as const,
 			};
 		} else if (withImageInput) {

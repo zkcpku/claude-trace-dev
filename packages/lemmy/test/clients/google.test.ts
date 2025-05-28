@@ -17,7 +17,12 @@ describe("GoogleClient", () => {
 
 	const createClient = (withThinking = false, apiKey?: string, withImageInput = false) => {
 		let model = testConfig.model;
-		let config: GoogleConfig = { ...testConfig };
+		let config: GoogleConfig = {
+			...testConfig,
+			defaults: {
+				temperature: 0,
+			},
+		};
 
 		if (withThinking || withImageInput) {
 			// gemini-2.5-flash-preview-05-20 supports both thinking and image input
@@ -31,6 +36,7 @@ describe("GoogleClient", () => {
 
 		if (withThinking) {
 			config.defaults = {
+				...config.defaults,
 				includeThoughts: withThinking,
 			};
 		}

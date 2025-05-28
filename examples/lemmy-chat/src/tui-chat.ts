@@ -291,8 +291,8 @@ export async function runTUIChat(options: any): Promise<void> {
 
 	function addMessage(message: UserMessage | AssistantMessage) {
 		if (message.role === "assistant") {
-			if (message.thinking && config.thinkingEnabled) {
-				const thinkingComponent = new TextComponent(chalk.dim.italic(`Thinking: ${message.thinking}`), {
+			if (message.thinking) {
+				const thinkingComponent = new TextComponent(chalk.dim.italic(`Thinking: ${message.thinking.trim()}`), {
 					bottom: 1,
 					left: 1,
 					right: 1,
@@ -300,7 +300,7 @@ export async function runTUIChat(options: any): Promise<void> {
 				messagesContainer.addChild(thinkingComponent);
 			}
 
-			const messageComponent = new TextComponent(`Assistant: ${message.content}`, {
+			const messageComponent = new TextComponent(`Assistant: ${message.content?.trim() || ""}`, {
 				bottom: 1,
 				left: 1,
 				right: 1,

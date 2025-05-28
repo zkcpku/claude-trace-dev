@@ -4,6 +4,8 @@ import {
 	type Part,
 	type FunctionCall,
 	type FunctionResponse,
+	type GenerateContentConfig,
+	type ThinkingConfig,
 	GenerateContentResponse,
 	GenerateContentParameters,
 } from "@google/genai";
@@ -88,7 +90,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 			const includeThoughts = options?.includeThoughts ?? this.config.defaults?.includeThoughts ?? false;
 			const thinkingBudget = options?.thinkingBudget ?? this.config.defaults?.thinkingBudget;
 
-			const config: any = {
+			const config: GenerateContentConfig = {
 				maxOutputTokens: options?.maxOutputTokens || this.config.defaults?.maxOutputTokens || maxOutputTokens,
 				...(systemMessage && {
 					systemInstruction: systemMessage,
@@ -104,14 +106,16 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 					thinkingConfig: {
 						includeThoughts,
 						...(thinkingBudget && { thinkingBudget }),
-					},
+					} as ThinkingConfig,
 				}),
 			};
 
 			// Add optional parameters from options and defaults
-			const addParam = (configKey: string, optionKey: keyof GoogleAskOptions) => {
+			const addParam = <K extends keyof GenerateContentConfig>(configKey: K, optionKey: keyof GoogleAskOptions) => {
 				const value = (options as any)?.[optionKey] ?? (this.config.defaults as any)?.[optionKey];
-				if (value !== undefined) config[configKey] = value;
+				if (value !== undefined) {
+					(config as any)[configKey] = value;
+				}
 			};
 
 			addParam("temperature", "temperature");

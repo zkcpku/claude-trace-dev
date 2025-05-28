@@ -17,7 +17,12 @@ describe("AnthropicClient", () => {
 
 	const createClient = (withThinking = false, apiKey?: string, withImageInput = false) => {
 		let model = testConfig.model;
-		let config: AnthropicConfig = { ...testConfig };
+		let config: AnthropicConfig = {
+			...testConfig,
+			defaults: {
+				temperature: 0,
+			},
+		};
 
 		if (withThinking || withImageInput) {
 			// claude-sonnet-4-20250514 supports both thinking and image input
@@ -27,6 +32,7 @@ describe("AnthropicClient", () => {
 
 		if (withThinking) {
 			config.defaults = {
+				...config.defaults,
 				thinkingEnabled: true,
 				maxThinkingTokens: 3000,
 			};
@@ -59,6 +65,7 @@ describe("AnthropicClient", () => {
 			const nonThinkingClient = new AnthropicClient({
 				...testConfig, // Uses claude-3-5-sonnet-20241022 which doesn't support thinking
 				defaults: {
+					temperature: 0,
 					thinkingEnabled: true,
 					maxThinkingTokens: 2000,
 				},
