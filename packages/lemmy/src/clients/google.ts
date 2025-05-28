@@ -100,9 +100,9 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 							},
 						],
 					}),
-					...((options?.includeThoughts ?? this.config.includeThoughts ?? false) && {
+					...((options?.includeThoughts ?? this.config.defaults?.includeThoughts ?? false) && {
 						thinkingConfig: {
-							includeThoughts: options?.includeThoughts ?? this.config.includeThoughts ?? false,
+							includeThoughts: options?.includeThoughts ?? this.config.defaults?.includeThoughts ?? false,
 						},
 					}),
 				},

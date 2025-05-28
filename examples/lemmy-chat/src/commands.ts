@@ -255,7 +255,14 @@ export function createDefaultsCommand(): Command {
 					}
 					for (const [key, value] of Object.entries(settings)) {
 						if (key === "model") continue;
-						console.log(`  ${key}: ${value}`);
+						if (key === "defaults" && typeof value === "object" && value !== null) {
+							// Show defaults in a nested format
+							for (const [defaultKey, defaultValue] of Object.entries(value)) {
+								console.log(`  ${defaultKey}: ${defaultValue}`);
+							}
+						} else {
+							console.log(`  ${key}: ${value}`);
+						}
 					}
 					console.log();
 				}

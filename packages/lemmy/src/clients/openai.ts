@@ -80,6 +80,7 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 				options?.maxOutputTokens || this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
 
 			// Build request parameters
+			const reasoningEffort = options?.reasoningEffort || this.config.defaults?.reasoningEffort;
 			const requestParams: OpenAI.Chat.ChatCompletionCreateParams = {
 				model: this.config.model,
 				max_completion_tokens: maxCompletionTokens,
@@ -90,8 +91,8 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 					tools: openaiTools,
 					tool_choice: "auto" as const,
 				}),
-				...((options?.reasoningEffort || this.config.reasoningEffort) && {
-					reasoning_effort: options?.reasoningEffort || this.config.reasoningEffort,
+				...(reasoningEffort && {
+					reasoning_effort: reasoningEffort,
 				}),
 			};
 

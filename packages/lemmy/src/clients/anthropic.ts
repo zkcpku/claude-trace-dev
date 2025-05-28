@@ -76,8 +76,8 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 			const modelData = findModelData(this.config.model);
 			const defaultMaxTokens =
 				options?.maxOutputTokens || this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
-			const maxThinkingTokens = options?.maxThinkingTokens || this.config.maxThinkingTokens || 3000;
-			const thinkingEnabled = options?.thinkingEnabled ?? this.config.thinkingEnabled ?? false;
+			const maxThinkingTokens = options?.maxThinkingTokens || this.config.defaults?.maxThinkingTokens || 3000;
+			const thinkingEnabled = options?.thinkingEnabled ?? this.config.defaults?.thinkingEnabled ?? false;
 			const maxTokens = thinkingEnabled
 				? Math.max(defaultMaxTokens, maxThinkingTokens + 1000) // Ensure max_tokens > budget_tokens
 				: defaultMaxTokens;

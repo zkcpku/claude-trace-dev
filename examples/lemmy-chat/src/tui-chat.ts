@@ -21,7 +21,7 @@ import {
 	logger,
 } from "@mariozechner/lemmy-tui";
 import { CONFIG_SCHEMA } from "@mariozechner/lemmy";
-import { loadDefaults, getProviderDefaults } from "./defaults.js";
+import { loadDefaults, loadDefaultsConfig, getProviderConfig } from "./defaults.js";
 import chalk from "chalk";
 
 export async function runTUIChat(options: any): Promise<void> {
@@ -31,52 +31,39 @@ export async function runTUIChat(options: any): Promise<void> {
 
 	// If no provider/model specified, try to use defaults
 	if (!provider || !model) {
-		const defaults = loadDefaults();
-		if (defaults.length === 0) {
+		const config = loadDefaultsConfig();
+		if (!config.defaultProvider || Object.keys(config.providers).length === 0) {
 			console.error("❌ No provider/model specified and no defaults set.");
 			console.error("Either provide --provider and --model, or set defaults first:");
 			console.error("  lemmy-chat defaults anthropic -m claude-sonnet-4-20250514 --thinkingEnabled");
 			process.exit(1);
 		}
 
-		// Parse defaults to extract provider and model
-		provider = defaults[0] || "";
-		const modelIndex = defaults.indexOf("-m");
-		if (modelIndex !== -1 && modelIndex + 1 < defaults.length) {
-			model = defaults[modelIndex + 1] || "";
-		}
+		// Use default provider and its model
+		provider = config.defaultProvider;
+		const providerDefaults = config.providers[provider];
+		model = providerDefaults?.model || "";
 
 		if (!provider || !model) {
 			console.error("❌ Could not determine provider/model from defaults");
 			process.exit(1);
 		}
 
-		// Parse defaults manually for chat mode
-		const parsedDefaults: any = { provider, model };
+		// Merge provider defaults with explicit options (explicit options take precedence)
+		const providerConfig = getProviderConfig(
+			provider,
+			options.apiKey || process.env[getDefaultApiKeyEnvVar(provider as any)] || "",
+		);
 
-		// Simple parsing of defaults for common options
-		for (let i = 0; i < defaults.length; i++) {
-			const arg = defaults[i];
+		// Create merged options: provider defaults + explicit options (explicit takes precedence)
+		const mergedOptions: any = {
+			provider,
+			model,
+			...providerConfig,
+			...options, // Explicit options override defaults
+		};
 
-			if (arg && arg.startsWith("--") && !arg.includes("=")) {
-				const optName = arg.slice(2);
-
-				// Check if it's a boolean flag
-				const nextArg = defaults[i + 1];
-				if (i + 1 >= defaults.length || (nextArg && nextArg.startsWith("-"))) {
-					// Boolean flag
-					parsedDefaults[optName] = true;
-				} else {
-					// Value option
-					parsedDefaults[optName] = nextArg;
-					i++; // Skip the value
-				}
-			}
-		}
-
-		// Merge parsed defaults with explicit options (explicit options take precedence)
-		Object.assign(parsedDefaults, options);
-		options = parsedDefaults;
+		options = mergedOptions;
 	}
 
 	// TypeScript type guards - at this point we know they are defined
@@ -472,15 +459,11 @@ export async function runTUIChat(options: any): Promise<void> {
 								);
 							}
 
-							// Get provider-specific defaults
-							const providerDefaults = getProviderDefaults(newProvider);
+							// Get provider-specific configuration in new structured format
+							const newConfig: any = getProviderConfig(newProvider, newApiKey);
 
-							// Start with provider defaults, then add current compatible options
-							const newConfig: any = {
-								...providerDefaults,
-								model: newModel,
-								apiKey: newApiKey,
-							};
+							// Override with the new model
+							newConfig.model = newModel;
 							const newProviderSchema = CONFIG_SCHEMA[newProvider as keyof typeof CONFIG_SCHEMA];
 							const baseSchema = CONFIG_SCHEMA.base;
 

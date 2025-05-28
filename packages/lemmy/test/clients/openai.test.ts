@@ -22,7 +22,9 @@ describe("OpenAIClient", () => {
 			// o4-mini supports reasoning (thinking)
 			model = "o4-mini";
 			config.model = model;
-			config.reasoningEffort = "medium" as const;
+			config.defaults = {
+				reasoningEffort: "medium" as const,
+			};
 		} else if (withImageInput) {
 			// o4-mini supports image input
 			model = "o4-mini";

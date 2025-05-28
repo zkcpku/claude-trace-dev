@@ -29,7 +29,11 @@ describe("GoogleClient", () => {
 			config.apiKey = apiKey;
 		}
 
-		config.includeThoughts = withThinking;
+		if (withThinking) {
+			config.defaults = {
+				includeThoughts: withThinking,
+			};
+		}
 
 		return new GoogleClient(config);
 	};
