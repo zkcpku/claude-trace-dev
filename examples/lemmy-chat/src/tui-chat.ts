@@ -9,6 +9,7 @@ import {
 	AnthropicModelData,
 	OpenAIModelData,
 	GoogleModelData,
+	findModelData,
 } from "@mariozechner/lemmy";
 import {
 	TUI,
@@ -23,6 +24,38 @@ import {
 import { CONFIG_SCHEMA } from "@mariozechner/lemmy";
 import { loadDefaults, loadDefaultsConfig, getProviderConfig } from "./defaults.js";
 import chalk from "chalk";
+
+function formatModelInfo(modelId: string, modelData: any): string {
+	const contextWindow = modelData.contextWindow || 0;
+	const maxOutput = modelData.maxOutputTokens || 0;
+	const pricing = modelData.pricing;
+
+	let info = `${modelId}`;
+
+	// Add capability indicators
+	const capabilities: string[] = [];
+	if (modelData.supportsTools) capabilities.push("🔧 tools");
+	if (modelData.supportsImageInput) capabilities.push("🖼️  images");
+	if (capabilities.length > 0) {
+		info += ` (${capabilities.join(", ")})`;
+	}
+
+	// Add context/output info
+	if (contextWindow > 0 || maxOutput > 0) {
+		const contextStr = contextWindow > 0 ? `${contextWindow.toLocaleString()}` : "?";
+		const outputStr = maxOutput > 0 ? `${maxOutput.toLocaleString()}` : "?";
+		info += `\n    Context: ${contextStr} tokens, Max output: ${outputStr} tokens`;
+	}
+
+	// Add pricing info
+	if (pricing) {
+		const inputPrice = pricing.inputPerMillion;
+		const outputPrice = pricing.outputPerMillion;
+		info += `\n    Pricing: $${inputPrice}/M input, $${outputPrice}/M output`;
+	}
+
+	return info;
+}
 
 export async function runTUIChat(options: any): Promise<void> {
 	// Determine provider and model
@@ -552,13 +585,25 @@ export async function runTUIChat(options: any): Promise<void> {
 						messagesContainer.addChild(errorComponent);
 					}
 				} else {
-					// Show current model
-					const infoComponent = new TextComponent(chalk.cyan(`Current model: ${provider}/${model}`), {
-						bottom: 1,
-						left: 1,
-						right: 1,
-					});
-					messagesContainer.addChild(infoComponent);
+					// Show current model with full details
+					const modelData = findModelData(model);
+					if (modelData) {
+						const fullInfo = formatModelInfo(model, modelData);
+						const infoComponent = new TextComponent(chalk.cyan(`Current model:\n${fullInfo}`), {
+							bottom: 1,
+							left: 1,
+							right: 1,
+						});
+						messagesContainer.addChild(infoComponent);
+					} else {
+						// Fallback if model data is not found
+						const infoComponent = new TextComponent(chalk.cyan(`Current model: ${provider}/${model}`), {
+							bottom: 1,
+							left: 1,
+							right: 1,
+						});
+						messagesContainer.addChild(infoComponent);
+					}
 				}
 				break;
 
