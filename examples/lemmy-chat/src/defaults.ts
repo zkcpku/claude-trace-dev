@@ -5,7 +5,55 @@ import { homedir } from "os";
 export const DEFAULTS_DIR = join(homedir(), ".lemmy-chat");
 export const DEFAULTS_FILE = join(DEFAULTS_DIR, "defaults.json");
 
-export interface ProviderDefaults {
+// Provider-specific configuration types that match the core types
+interface AnthropicProviderDefaults {
+	model?: string;
+	defaults?: {
+		thinkingEnabled?: boolean;
+		maxThinkingTokens?: number;
+		temperature?: number;
+		maxOutputTokens?: number;
+		context?: any; // Context type
+		onChunk?: any; // Function type
+		onThinkingChunk?: any; // Function type
+	};
+}
+
+interface OpenAIProviderDefaults {
+	model?: string;
+	organization?: string;
+	defaults?: {
+		reasoningEffort?: "low" | "medium" | "high";
+		temperature?: number;
+		topP?: number;
+		presencePenalty?: number;
+		frequencyPenalty?: number;
+		maxOutputTokens?: number;
+		context?: any; // Context type
+		onChunk?: any; // Function type
+		onThinkingChunk?: any; // Function type
+	};
+}
+
+interface GoogleProviderDefaults {
+	model?: string;
+	projectId?: string;
+	defaults?: {
+		includeThoughts?: boolean;
+		temperature?: number;
+		topP?: number;
+		topK?: number;
+		maxOutputTokens?: number;
+		context?: any; // Context type
+		onChunk?: any; // Function type
+		onThinkingChunk?: any; // Function type
+	};
+}
+
+export type ProviderDefaults = AnthropicProviderDefaults | OpenAIProviderDefaults | GoogleProviderDefaults;
+
+// For backward compatibility, also export a generic interface
+export interface GenericProviderDefaults {
 	model?: string;
 	[key: string]: any; // Provider-specific options
 }
@@ -13,7 +61,7 @@ export interface ProviderDefaults {
 export interface DefaultsConfig {
 	defaultProvider?: string;
 	providers: {
-		[provider: string]: ProviderDefaults;
+		[provider: string]: GenericProviderDefaults;
 	};
 }
 

@@ -180,7 +180,6 @@ export async function runTUIChat(options: any): Promise<void> {
 			},
 			{ name: "usage", description: "Show token usage and costs" },
 			{ name: "system", description: "Set system prompt" },
-			{ name: "temperature", description: "Set temperature (0-2)" },
 			{ name: "help", description: "Show available commands" },
 		];
 

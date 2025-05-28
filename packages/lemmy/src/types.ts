@@ -53,26 +53,42 @@ export interface AskOptions {
  * Options for the ask method for AnthropicClient
  */
 export interface AnthropicAskOptions extends AskOptions {
-	/** Whether to enable extended thinking for this request (overrides config default) */
+	/** Whether to enable extended thinking for this request */
 	thinkingEnabled?: boolean;
-	/** Maximum number of thinking tokens for this request (overrides config default) */
+	/** Maximum number of thinking tokens for this request */
 	maxThinkingTokens?: number;
+	/** Temperature for sampling (0.0-1.0) */
+	temperature?: number;
 }
 
 /**
  * Options for the ask method for OpenAIClient
  */
 export interface OpenAIAskOptions extends AskOptions {
-	/** Optional reasoning effort (default: 'low') */
+	/** Reasoning effort level - only supported by reasoning models (o1-mini, o1-preview) */
 	reasoningEffort?: "low" | "medium" | "high";
+	/** Temperature for sampling (0.0-2.0) */
+	temperature?: number;
+	/** Top-p sampling parameter (0.0-1.0) */
+	topP?: number;
+	/** Presence penalty (-2.0 to 2.0) */
+	presencePenalty?: number;
+	/** Frequency penalty (-2.0 to 2.0) */
+	frequencyPenalty?: number;
 }
 
 /**
  * Options for the ask method for GoogleClient
  */
 export interface GoogleAskOptions extends AskOptions {
-	/** Whether to include thinking tokens for this request (overrides config default) */
+	/** Whether to include thinking tokens for this request */
 	includeThoughts?: boolean;
+	/** Temperature for sampling (0.0-2.0) */
+	temperature?: number;
+	/** Top-p sampling parameter (0.0-1.0) */
+	topP?: number;
+	/** Top-k sampling parameter (positive integer) */
+	topK?: number;
 }
 
 /**
@@ -293,10 +309,8 @@ export interface BaseConfig {
 export interface AnthropicConfig extends BaseConfig {
 	/** Model name (e.g. 'claude-3-5-sonnet-20241022') */
 	model: AnthropicModels;
-	/** Whether to enable extended thinking */
-	thinkingEnabled?: boolean;
-	/** Maximum number of thinking tokens (default: reasonable model-specific limit) */
-	maxThinkingTokens?: number;
+	/** Default options for ask requests */
+	defaults?: AnthropicAskOptions;
 }
 
 /**
@@ -307,8 +321,8 @@ export interface OpenAIConfig extends BaseConfig {
 	model: OpenAIModels;
 	/** Optional OpenAI organization ID */
 	organization?: string;
-	/** Reasoning effort level - only supported by reasoning models (o1-mini, o1-preview) */
-	reasoningEffort?: "low" | "medium" | "high";
+	/** Default options for ask requests */
+	defaults?: OpenAIAskOptions;
 }
 
 /**
@@ -319,8 +333,8 @@ export interface GoogleConfig extends BaseConfig {
 	model: GoogleModels;
 	/** Optional Google Cloud project ID */
 	projectId?: string;
-	/** Whether to include thinking tokens */
-	includeThoughts?: boolean;
+	/** Default options for ask requests */
+	defaults?: GoogleAskOptions;
 }
 
 /**
