@@ -1,5 +1,4 @@
 import { Command, Option } from "commander";
-import { existsSync, writeFileSync } from "fs";
 import {
 	getAllFields,
 	getFieldType,
@@ -16,11 +15,11 @@ import {
 	saveDefaults,
 	loadDefaults,
 	loadDefaultsConfig,
-	saveDefaultsConfig,
 	setDefaultProvider,
+	clearDefaults,
 	DEFAULTS_FILE,
 } from "./defaults.js";
-import { runSimpleChat } from "./chat.js";
+import { runOneShot } from "./one-shot.js";
 import { runTUIChat } from "./tui-chat.js";
 
 function formatModelInfo(modelId: string, modelData: any): string {
@@ -55,7 +54,7 @@ function formatModelInfo(modelId: string, modelData: any): string {
 	return info;
 }
 
-export function createProviderCommand(provider: string): Command {
+export function createOneShotCommand(provider: string): Command {
 	const command = new Command(provider);
 	command.description(`Chat using ${provider} models`);
 
@@ -109,6 +108,15 @@ export function createProviderCommand(provider: string): Command {
 
 		command.addOption(option);
 	}
+
+	command.action(async (message: string, options: any) => {
+		try {
+			await runOneShot(provider, message, options);
+		} catch (error) {
+			console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+			process.exit(1);
+		}
+	});
 
 	return command;
 }
@@ -284,12 +292,8 @@ export function createDefaultsCommand(): Command {
 		}
 
 		if (options.clear) {
-			if (existsSync(DEFAULTS_FILE)) {
-				saveDefaultsConfig({ providers: {} });
-				console.log("✅ Defaults cleared");
-			} else {
-				console.log("No defaults to clear");
-			}
+			clearDefaults();
+			console.log("✅ Defaults cleared");
 			return;
 		}
 
@@ -396,14 +400,4 @@ export function createChatCommand(): Command {
 	});
 
 	return command;
-}
-
-// Provider command actions
-export async function handleProviderCommand(provider: string, message: string, options: any): Promise<void> {
-	try {
-		await runSimpleChat(provider, message, options);
-	} catch (error) {
-		console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
-		process.exit(1);
-	}
 }

@@ -1,67 +1,52 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
+import { z } from "zod";
+import { CLIENT_CONFIG_SCHEMAS, type AnthropicConfig, type OpenAIConfig, type GoogleConfig } from "@mariozechner/lemmy";
 
 export const DEFAULTS_DIR = join(homedir(), ".lemmy-chat");
 export const DEFAULTS_FILE = join(DEFAULTS_DIR, "defaults.json");
 
-// Provider-specific configuration types that match the core types
-interface AnthropicProviderDefaults {
-	model?: string;
-	defaults?: {
-		thinkingEnabled?: boolean;
-		maxThinkingTokens?: number;
-		temperature?: number;
-		maxOutputTokens?: number;
-		context?: any; // Context type
-		onChunk?: any; // Function type
-		onThinkingChunk?: any; // Function type
-	};
+// Get provider schemas dynamically from CLIENT_CONFIG_SCHEMAS
+const BASE_SCHEMA = CLIENT_CONFIG_SCHEMAS.base;
+const PROVIDER_SCHEMAS = Object.fromEntries(
+	Object.entries(CLIENT_CONFIG_SCHEMAS).filter(([key]) => key !== "base"),
+) as Omit<typeof CLIENT_CONFIG_SCHEMAS, "base">;
+
+// Get the full config schemas by merging base + provider + adding back apiKey
+function getFullConfigSchemas() {
+	const schemas: Record<string, z.ZodObject<any>> = {};
+
+	for (const [provider, providerSchema] of Object.entries(PROVIDER_SCHEMAS)) {
+		// Create a schema that includes apiKey (optional), model (required), and all other fields
+		const baseWithApiKey = BASE_SCHEMA.extend({
+			apiKey: z.string().optional(),
+			model: z.string(),
+		});
+
+		schemas[provider] = baseWithApiKey.merge(
+			providerSchema.extend({
+				defaults: providerSchema.optional(),
+			}),
+		);
+	}
+
+	return schemas;
 }
 
-interface OpenAIProviderDefaults {
-	model?: string;
-	organization?: string;
-	defaults?: {
-		reasoningEffort?: "low" | "medium" | "high";
-		temperature?: number;
-		topP?: number;
-		presencePenalty?: number;
-		frequencyPenalty?: number;
-		maxOutputTokens?: number;
-		context?: any; // Context type
-		onChunk?: any; // Function type
-		onThinkingChunk?: any; // Function type
-	};
-}
+const FULL_CONFIG_SCHEMAS = getFullConfigSchemas();
 
-interface GoogleProviderDefaults {
-	model?: string;
-	projectId?: string;
-	defaults?: {
-		includeThoughts?: boolean;
-		temperature?: number;
-		topP?: number;
-		topK?: number;
-		maxOutputTokens?: number;
-		context?: any; // Context type
-		onChunk?: any; // Function type
-		onThinkingChunk?: any; // Function type
-	};
-}
+// Types inferred from schemas
+export type ProviderConfigMap = {
+	[K in keyof typeof PROVIDER_SCHEMAS]: z.infer<(typeof FULL_CONFIG_SCHEMAS)[K]>;
+};
 
-export type ProviderDefaults = AnthropicProviderDefaults | OpenAIProviderDefaults | GoogleProviderDefaults;
-
-// For backward compatibility, also export a generic interface
-export interface GenericProviderDefaults {
-	model?: string;
-	[key: string]: any; // Provider-specific options
-}
+export type AnyProviderConfig = ProviderConfigMap[keyof ProviderConfigMap];
 
 export interface DefaultsConfig {
 	defaultProvider?: string;
 	providers: {
-		[provider: string]: GenericProviderDefaults;
+		[provider: string]: any; // We'll validate with schemas instead of types
 	};
 }
 
@@ -69,38 +54,6 @@ export function ensureDefaultsDir(): void {
 	if (!existsSync(DEFAULTS_DIR)) {
 		mkdirSync(DEFAULTS_DIR, { recursive: true });
 	}
-}
-
-// Legacy function to maintain compatibility - converts old format to new format
-export function loadDefaults(): string[] {
-	const config = loadDefaultsConfig();
-	if (!config.defaultProvider || !config.providers[config.defaultProvider]) {
-		return [];
-	}
-
-	const providerDefaults = config.providers[config.defaultProvider];
-	if (!providerDefaults) {
-		return [];
-	}
-
-	const args: string[] = [config.defaultProvider];
-
-	if (providerDefaults.model) {
-		args.push("-m", providerDefaults.model);
-	}
-
-	// Add other options
-	for (const [key, value] of Object.entries(providerDefaults)) {
-		if (key === "model") continue; // Already handled
-
-		if (typeof value === "boolean" && value) {
-			args.push(`--${key}`);
-		} else if (value !== undefined && value !== null) {
-			args.push(`--${key}`, String(value));
-		}
-	}
-
-	return args;
 }
 
 export function loadDefaultsConfig(): DefaultsConfig {
@@ -112,88 +65,13 @@ export function loadDefaultsConfig(): DefaultsConfig {
 		const content = readFileSync(DEFAULTS_FILE, "utf8");
 		const parsed = JSON.parse(content);
 
-		// Handle legacy format (array of strings)
-		if (Array.isArray(parsed)) {
-			return migrateLegacyDefaults(parsed);
-		}
-
-		// Ensure proper structure
 		return {
 			defaultProvider: parsed.defaultProvider,
 			providers: parsed.providers || {},
 		};
 	} catch (error) {
-		console.warn(
-			`Warning: Could not load defaults from ${DEFAULTS_FILE}: ${error instanceof Error ? error.message : String(error)}`,
-		);
+		console.warn(`Warning: Could not load defaults from ${DEFAULTS_FILE}:`, error);
 		return { providers: {} };
-	}
-}
-
-function migrateLegacyDefaults(legacyDefaults: string[]): DefaultsConfig {
-	if (legacyDefaults.length === 0) {
-		return { providers: {} };
-	}
-
-	const provider = legacyDefaults[0];
-	if (!provider) {
-		return { providers: {} };
-	}
-
-	// Parse legacy defaults into new structured format
-	const legacyParams: GenericProviderDefaults = {};
-
-	// Parse legacy args
-	for (let i = 1; i < legacyDefaults.length; i++) {
-		const arg = legacyDefaults[i];
-		if (!arg) continue;
-
-		if (arg === "-m" && i + 1 < legacyDefaults.length) {
-			const model = legacyDefaults[i + 1];
-			if (model) {
-				legacyParams.model = model;
-			}
-			i++; // Skip the value
-		} else if (arg.startsWith("--")) {
-			const optName = arg.slice(2);
-
-			if (i + 1 < legacyDefaults.length && !legacyDefaults[i + 1]?.startsWith("-")) {
-				// Has a value
-				const value = legacyDefaults[i + 1];
-				if (value) {
-					legacyParams[optName] = value;
-				}
-				i++; // Skip the value
-			} else {
-				// Boolean flag
-				legacyParams[optName] = true;
-			}
-		}
-	}
-
-	// Use saveProviderDefaults to properly structure the data
-	const config: DefaultsConfig = {
-		defaultProvider: provider,
-		providers: {},
-	};
-
-	// Create a temporary config and use our structured save function
-	const originalFile = existsSync(DEFAULTS_FILE) ? readFileSync(DEFAULTS_FILE, "utf8") : null;
-
-	// Save empty config first
-	writeFileSync(DEFAULTS_FILE, JSON.stringify(config, null, 2));
-
-	// Use our structured save function
-	try {
-		saveProviderDefaults(provider, legacyParams);
-		const result = loadDefaultsConfig();
-		return result;
-	} catch (error) {
-		// Restore original file if something went wrong
-		if (originalFile) {
-			writeFileSync(DEFAULTS_FILE, originalFile);
-		}
-		throw error;
 	}
 }
 
@@ -202,42 +80,48 @@ export function saveDefaultsConfig(config: DefaultsConfig): void {
 	writeFileSync(DEFAULTS_FILE, JSON.stringify(config, null, 2));
 }
 
-export function saveProviderDefaults(provider: string, defaults: GenericProviderDefaults): void {
-	const config = loadDefaultsConfig();
-
-	if (!config.providers) {
-		config.providers = {};
+export function saveProviderConfig(provider: string, rawConfig: Record<string, any>): void {
+	if (!(provider in FULL_CONFIG_SCHEMAS)) {
+		throw new Error(
+			`Invalid provider: ${provider}. Available providers: ${Object.keys(FULL_CONFIG_SCHEMAS).join(", ")}`,
+		);
 	}
 
-	// Separate client creation fields from ask defaults
-	const providerConfig: GenericProviderDefaults = {};
+	const schema = FULL_CONFIG_SCHEMAS[provider]!;
 
-	if (defaults.model) {
-		providerConfig.model = defaults.model;
+	// Separate client config from ask options
+	// Client fields: model, apiKey, baseURL, maxRetries, organization, projectId
+	const clientFields = new Set(["model", "apiKey", "baseURL", "maxRetries", "organization", "projectId"]);
+
+	const clientConfig: Record<string, any> = {};
+	const askDefaults: Record<string, any> = {};
+
+	for (const [key, value] of Object.entries(rawConfig)) {
+		if (clientFields.has(key)) {
+			clientConfig[key] = value;
+		} else {
+			askDefaults[key] = value;
+		}
 	}
 
-	const askDefaults: any = {};
-
-	// Client-specific fields (kept at top level)
-	if (provider === "openai" && defaults["organization"]) {
-		providerConfig["organization"] = defaults["organization"];
-	}
-	if (provider === "google" && defaults["projectId"]) {
-		providerConfig["projectId"] = defaults["projectId"];
-	}
-
-	// Move ask options to defaults field
-	for (const [key, value] of Object.entries(defaults)) {
-		if (key === "model" || key === "organization" || key === "projectId") continue;
-		askDefaults[key] = value;
-	}
-
-	// Only add defaults field if we have ask options
+	// Add defaults field if we have ask options
 	if (Object.keys(askDefaults).length > 0) {
-		providerConfig["defaults"] = askDefaults;
+		clientConfig["defaults"] = askDefaults;
 	}
 
-	config.providers[provider] = providerConfig;
+	// Validate the structured config
+	const result = schema.safeParse(clientConfig);
+
+	if (!result.success) {
+		console.error(`❌ Configuration validation errors for ${provider}:`);
+		for (const issue of result.error.issues) {
+			console.error(`  ${issue.path.join(".")}: ${issue.message}`);
+		}
+		throw new Error(`Invalid configuration for ${provider}`);
+	}
+
+	const config = loadDefaultsConfig();
+	config.providers[provider] = result.data;
 
 	// Set as default provider if no default is set
 	if (!config.defaultProvider) {
@@ -247,52 +131,60 @@ export function saveProviderDefaults(provider: string, defaults: GenericProvider
 	saveDefaultsConfig(config);
 }
 
+export function getProviderConfig(
+	provider: string,
+	runtimeApiKey?: string,
+): AnthropicConfig | OpenAIConfig | GoogleConfig {
+	if (!(provider in FULL_CONFIG_SCHEMAS)) {
+		throw new Error(
+			`Invalid provider: ${provider}. Available providers: ${Object.keys(FULL_CONFIG_SCHEMAS).join(", ")}`,
+		);
+	}
+
+	const config = loadDefaultsConfig();
+	const providerDefaults = config.providers[provider] || {};
+
+	// Build the full client config, preferring runtime API key over stored one
+	const clientConfig = {
+		...providerDefaults,
+		...(runtimeApiKey && { apiKey: runtimeApiKey }),
+	};
+
+	return clientConfig as any;
+}
+
 export function setDefaultProvider(provider: string): void {
+	if (!(provider in FULL_CONFIG_SCHEMAS)) {
+		throw new Error(
+			`Invalid provider: ${provider}. Available providers: ${Object.keys(FULL_CONFIG_SCHEMAS).join(", ")}`,
+		);
+	}
 	const config = loadDefaultsConfig();
 	config.defaultProvider = provider;
 	saveDefaultsConfig(config);
 }
 
-export function getProviderDefaults(provider: string): GenericProviderDefaults {
+export function getProviderDefaults(provider: string): any {
 	const config = loadDefaultsConfig();
-	return config.providers[provider] || {};
+	return config.providers[provider];
 }
 
-export function getProviderConfig(provider: string, apiKey: string): any {
-	const defaults = getProviderDefaults(provider);
-
-	// Build the client config in the new structured format
-	const clientConfig: any = {
-		apiKey,
-		model: defaults.model,
-	};
-
-	// Add provider-specific client fields
-	if (provider === "openai" && defaults["organization"]) {
-		clientConfig.organization = defaults["organization"];
+// Parse CLI arguments into structured config
+export function parseArgsToConfig(args: string[]): { provider: string; config: Record<string, any> } {
+	if (args.length === 0) {
+		throw new Error("No arguments provided");
 	}
-	if (provider === "google" && defaults["projectId"]) {
-		clientConfig.projectId = defaults["projectId"];
-	}
-
-	// Add the ask defaults if they exist
-	if (defaults["defaults"]) {
-		clientConfig.defaults = defaults["defaults"];
-	}
-
-	return clientConfig;
-}
-
-// Legacy function to maintain compatibility
-export function saveDefaults(args: string[]): void {
-	if (args.length === 0) return;
 
 	const provider = args[0];
-	if (!provider) return;
+	if (!provider || !(provider in FULL_CONFIG_SCHEMAS)) {
+		throw new Error(
+			`Invalid provider: ${provider}. Available providers: ${Object.keys(FULL_CONFIG_SCHEMAS).join(", ")}`,
+		);
+	}
 
-	const defaults: GenericProviderDefaults = {};
+	const rawConfig: Record<string, any> = {};
 
-	// Parse args
+	// Parse CLI args
 	for (let i = 1; i < args.length; i++) {
 		const arg = args[i];
 		if (!arg) continue;
@@ -300,25 +192,86 @@ export function saveDefaults(args: string[]): void {
 		if (arg === "-m" && i + 1 < args.length) {
 			const model = args[i + 1];
 			if (model) {
-				defaults.model = model;
+				rawConfig["model"] = model;
 			}
-			i++; // Skip the value
+			i++;
 		} else if (arg.startsWith("--")) {
 			const optName = arg.slice(2);
 
 			if (i + 1 < args.length && !args[i + 1]?.startsWith("-")) {
-				// Has a value
 				const value = args[i + 1];
 				if (value) {
-					defaults[optName] = value;
+					rawConfig[optName] = parseValue(value);
 				}
-				i++; // Skip the value
+				i++;
 			} else {
-				// Boolean flag
-				defaults[optName] = true;
+				rawConfig[optName] = true;
 			}
 		}
 	}
 
-	saveProviderDefaults(provider, defaults);
+	return { provider, config: rawConfig };
+}
+
+// Convert stored config back to CLI args format (for legacy compatibility)
+export function configToArgs(provider: string, config: any): string[] {
+	const args: string[] = [provider];
+
+	if (config.model) {
+		args.push("-m", config.model);
+	}
+
+	// Add other config options
+	for (const [key, value] of Object.entries(config)) {
+		if (key === "model") continue;
+
+		if (key === "defaults" && typeof value === "object" && value) {
+			// Flatten defaults
+			for (const [defaultKey, defaultValue] of Object.entries(value)) {
+				if (typeof defaultValue === "boolean" && defaultValue) {
+					args.push(`--${defaultKey}`);
+				} else if (defaultValue !== undefined && defaultValue !== null) {
+					args.push(`--${defaultKey}`, String(defaultValue));
+				}
+			}
+		} else if (typeof value === "boolean" && value) {
+			args.push(`--${key}`);
+		} else if (value !== undefined && value !== null) {
+			args.push(`--${key}`, String(value));
+		}
+	}
+
+	return args;
+}
+
+// Helper to parse string values to appropriate types
+function parseValue(value: string): any {
+	if (value.toLowerCase() === "true") return true;
+	if (value.toLowerCase() === "false") return false;
+	const num = Number(value);
+	if (!isNaN(num)) return num;
+	return value;
+}
+
+// Legacy compatibility functions
+export function loadDefaults(): string[] {
+	const config = loadDefaultsConfig();
+	if (!config.defaultProvider || !config.providers[config.defaultProvider]) {
+		return [];
+	}
+
+	const providerConfig = config.providers[config.defaultProvider]!;
+	return configToArgs(config.defaultProvider, providerConfig);
+}
+
+export function saveDefaults(args: string[]): void {
+	const { provider, config } = parseArgsToConfig(args);
+	saveProviderConfig(provider, config);
+}
+
+// Clear all defaults
+export function clearDefaults(): void {
+	if (existsSync(DEFAULTS_FILE)) {
+		saveDefaultsConfig({ providers: {} });
+	}
 }

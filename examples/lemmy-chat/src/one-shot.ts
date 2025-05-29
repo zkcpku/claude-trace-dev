@@ -1,7 +1,7 @@
 import { Context, createClientForModel, getDefaultApiKeyEnvVar, Attachment } from "@mariozechner/lemmy";
 import { loadImageAttachment } from "./images.js";
 
-export async function runSimpleChat(provider: string, message: string, options: any): Promise<void> {
+export async function runOneShot(provider: string, message: string, options: any): Promise<void> {
 	// Get API key from options or environment
 	const apiKey = options.apiKey || process.env[getDefaultApiKeyEnvVar(provider as any)];
 	if (!apiKey) {

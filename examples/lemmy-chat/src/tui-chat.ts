@@ -236,16 +236,21 @@ export async function runTUIChat(options: any): Promise<void> {
 			process.exit(1);
 		}
 
-		// Merge provider defaults with explicit options (explicit options take precedence)
+		// Get provider config (which may include stored API key)
 		const providerConfig = getProviderConfig(
 			provider,
-			options.apiKey || process.env[getDefaultApiKeyEnvVar(provider as any)] || "",
+			options.apiKey || process.env[getDefaultApiKeyEnvVar(provider as any)],
 		);
+
+		// Check if we have an API key from any source
+		if (!providerConfig.apiKey) {
+			console.error(`❌ No API key provided. Set ${getDefaultApiKeyEnvVar(provider as any)} or use --apiKey flag.`);
+			process.exit(1);
+		}
 
 		// Create merged options: provider defaults + explicit options (explicit takes precedence)
 		const mergedOptions: any = {
 			provider,
-			model,
 			...providerConfig,
 			...options, // Explicit options override defaults
 		};
@@ -265,8 +270,8 @@ export async function runTUIChat(options: any): Promise<void> {
 		process.exit(1);
 	}
 
-	// Get API key
-	const apiKey = options.apiKey || process.env[getDefaultApiKeyEnvVar(provider as any)];
+	// API key should already be set from defaults or provided explicitly
+	const apiKey = options.apiKey;
 	if (!apiKey) {
 		console.error(`❌ No API key provided. Set ${getDefaultApiKeyEnvVar(provider as any)} or use --apiKey flag.`);
 		process.exit(1);

@@ -3,13 +3,7 @@
 import { Command } from "commander";
 import { getProviders } from "@mariozechner/lemmy";
 import { loadDefaults } from "./defaults.js";
-import {
-	createModelsCommand,
-	createDefaultsCommand,
-	createChatCommand,
-	createProviderCommand,
-	handleProviderCommand,
-} from "./commands.js";
+import { createModelsCommand, createDefaultsCommand, createChatCommand, createOneShotCommand } from "./commands.js";
 
 function setupProgram(): Command {
 	const program = new Command();
@@ -23,14 +17,9 @@ function setupProgram(): Command {
 	// Add chat commands
 	program.addCommand(createChatCommand());
 
-	// Add provider subcommands
+	// Add one-shot subcommands, one per provider
 	for (const provider of getProviders()) {
-		const providerCommand = createProviderCommand(provider);
-
-		providerCommand.action(async (message: string, options: any) => {
-			await handleProviderCommand(provider, message, options);
-		});
-
+		const providerCommand = createOneShotCommand(provider);
 		program.addCommand(providerCommand);
 	}
 
