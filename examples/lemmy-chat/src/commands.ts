@@ -1,16 +1,18 @@
 import { Command, Option } from "commander";
 import {
+	AnthropicModelData,
+	OpenAIModelData,
+	GoogleModelData,
+	ModelToProvider,
 	getAllFields,
 	getFieldType,
 	getFieldDoc,
 	isRequired,
 	getEnumValues,
 	getProviders,
-	AnthropicModelData,
-	OpenAIModelData,
-	GoogleModelData,
-	ModelToProvider,
+	Attachment,
 } from "@mariozechner/lemmy";
+import type { ProviderConfigMap as CoreProviderConfigMap } from "@mariozechner/lemmy";
 import {
 	saveDefaults,
 	loadDefaults,
@@ -18,9 +20,12 @@ import {
 	setDefaultProvider,
 	clearDefaults,
 	DEFAULTS_FILE,
+	getProviderConfig,
+	getDefaultProviderConfig,
 } from "./defaults.js";
 import { runOneShot } from "./one-shot.js";
-import { runTUIChat } from "./tui-chat.js";
+import { loadImageAttachment } from "./images.js";
+import { runTUIChat } from "./chat.js";
 
 function formatModelInfo(modelId: string, modelData: any): string {
 	const contextWindow = modelData.contextWindow || 0;
@@ -58,8 +63,8 @@ export function createOneShotCommand(provider: string): Command {
 	const command = new Command(provider);
 	command.description(`Chat using ${provider} models`);
 
-	// Add model option (required)
-	command.requiredOption("-m, --model <model>", `${getFieldDoc(provider, "model") || `${provider} model to use`}`);
+	// Add model option (optional if defaults exist)
+	command.option("-m, --model <model>", `${getFieldDoc(provider, "model") || `${provider} model to use`}`);
 
 	// Add message argument
 	command.argument("<message>", "Message to send to the model");
@@ -111,7 +116,40 @@ export function createOneShotCommand(provider: string): Command {
 
 	command.action(async (message: string, options: any) => {
 		try {
-			await runOneShot(provider, message, options);
+			// Use centralized config building
+			const config = getProviderConfig(provider as keyof CoreProviderConfigMap, options);
+
+			// Handle image attachments
+			const attachments: Attachment[] = [];
+			if (options.image) {
+				try {
+					const attachment = loadImageAttachment(options.image);
+					attachments.push(attachment);
+				} catch (error) {
+					console.error(
+						`❌ Failed to load image ${options.image}:`,
+						error instanceof Error ? error.message : String(error),
+					);
+					process.exit(1);
+				}
+			}
+
+			if (options.images && Array.isArray(options.images)) {
+				for (const imagePath of options.images) {
+					try {
+						const attachment = loadImageAttachment(imagePath);
+						attachments.push(attachment);
+					} catch (error) {
+						console.error(
+							`❌ Failed to load image ${imagePath}:`,
+							error instanceof Error ? error.message : String(error),
+						);
+						process.exit(1);
+					}
+				}
+			}
+
+			await runOneShot(provider, message, config, attachments);
 		} catch (error) {
 			console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
 			process.exit(1);
@@ -335,64 +373,35 @@ export function createChatCommand(): Command {
 	command.option("-p, --provider <provider>", "Provider to use (anthropic, openai, google)");
 	command.option("-m, --model <model>", "Model to use");
 	command.option("--apiKey <key>", "API key (or use environment variables)");
-	command.option(
-		"--simulate-input <inputs...>",
-		"Simulate input sequences for testing (e.g., '/' 'model' ' ' 'cl' 'TAB')",
-	);
+	command.option("--simulate-input <inputs...>", "Simulate input sequences for testing");
 
-	// Add provider-specific options (collect unique fields)
-	const allFields = new Set<string>();
-	const fieldInfo = new Map<string, { type: string; doc?: string; enumValues?: string[] }>();
-
-	for (const provider of getProviders()) {
-		const fields = getAllFields(provider);
-
-		for (const field of fields) {
-			if (["model", "apiKey"].includes(field)) continue; // Already added
-
-			if (!allFields.has(field)) {
-				allFields.add(field);
-				const doc = getFieldDoc(provider, field);
-				const enumValues = getEnumValues(provider, field);
-				const info: { type: string; doc?: string; enumValues?: string[] } = {
-					type: getFieldType(provider, field) || "string",
-				};
-				if (doc) info.doc = doc;
-				if (enumValues) info.enumValues = enumValues;
-				fieldInfo.set(field, info);
-			}
-		}
-	}
-
-	// Add unique options
-	for (const field of allFields) {
-		const info = fieldInfo.get(field)!;
-		let flagName = `--${field}`;
-
-		let option: Option;
-
-		if (info.type === "boolean") {
-			option = new Option(flagName, info.doc || `Enable ${field}`);
-		} else if (info.type === "enum" && info.enumValues) {
-			option = new Option(`${flagName} <value>`, info.doc || `${field} value`).choices(info.enumValues);
-		} else if (info.type === "number") {
-			option = new Option(`${flagName} <number>`, info.doc || `${field} value`).argParser((value) => {
-				const parsed = parseInt(value, 10);
-				if (isNaN(parsed)) {
-					throw new Error(`${field} must be a number`);
-				}
-				return parsed;
-			});
-		} else {
-			option = new Option(`${flagName} <value>`, info.doc || `${field} value`);
-		}
-
-		command.addOption(option);
-	}
+	// Add common options that work across providers
+	command.option("--thinkingEnabled", "Enable thinking for supported models");
+	command.option("--temperature <number>", "Temperature for generation", parseFloat);
+	command.option("--maxOutputTokens <number>", "Maximum output tokens", parseInt);
+	command.option("--maxThinkingTokens <number>", "Maximum thinking tokens", parseInt);
 
 	command.action(async (options) => {
 		try {
-			await runTUIChat(options);
+			// Determine provider - use from options or defaults
+			let provider = options.provider;
+			if (!provider) {
+				const defaultConfig = getDefaultProviderConfig();
+				if (defaultConfig) {
+					provider = defaultConfig.provider;
+				} else {
+					console.error("❌ No provider specified and no defaults set.");
+					console.error("Either use -p/--provider flag or set defaults first:");
+					console.error("  lemmy-chat defaults anthropic -m claude-sonnet-4-20250514");
+					process.exit(1);
+				}
+			}
+
+			// Use centralized config building
+			const config = getProviderConfig(provider as keyof CoreProviderConfigMap, options, options.apiKey);
+
+			// Pass the built config to TUI chat
+			await runTUIChat(provider, config, options.simulateInput);
 		} catch (error) {
 			console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
 			process.exit(1);

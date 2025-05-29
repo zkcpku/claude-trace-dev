@@ -1,11 +1,12 @@
 // Core type definitions for lemmy
 
-import type { BaseAskOptions } from "./configs.js";
+import type { z } from "zod";
+import type { BaseAskOptions, ProviderSchema } from "./configs.js";
 
 /**
  * Supported LLM providers
  */
-export type Provider = "anthropic" | "openai" | "google";
+export type Provider = z.infer<typeof ProviderSchema>;
 
 export type AskOptions<TChatClientAskOptions extends BaseAskOptions = BaseAskOptions> = {
 	context?: Context;

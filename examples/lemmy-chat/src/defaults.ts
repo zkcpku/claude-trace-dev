@@ -2,7 +2,12 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { z } from "zod";
-import { CLIENT_CONFIG_SCHEMAS, type AnthropicConfig, type OpenAIConfig, type GoogleConfig } from "@mariozechner/lemmy";
+import {
+	CLIENT_CONFIG_SCHEMAS,
+	ProviderSchema,
+	getDefaultApiKeyEnvVar,
+	type ProviderConfigMap as CoreProviderConfigMap,
+} from "@mariozechner/lemmy";
 
 export const DEFAULTS_DIR = join(homedir(), ".lemmy-chat");
 export const DEFAULTS_FILE = join(DEFAULTS_DIR, "defaults.json");
@@ -18,9 +23,9 @@ function getFullConfigSchemas() {
 	const schemas: Record<string, z.ZodObject<any>> = {};
 
 	for (const [provider, providerSchema] of Object.entries(PROVIDER_SCHEMAS)) {
-		// Create a schema that includes apiKey (optional), model (required), and all other fields
+		// Create a schema that includes apiKey (required), model (required), and all other fields
 		const baseWithApiKey = BASE_SCHEMA.extend({
-			apiKey: z.string().optional(),
+			apiKey: z.string(),
 			model: z.string(),
 		});
 
@@ -131,26 +136,61 @@ export function saveProviderConfig(provider: string, rawConfig: Record<string, a
 	saveDefaultsConfig(config);
 }
 
-export function getProviderConfig(
-	provider: string,
+export function getProviderConfig<T extends keyof CoreProviderConfigMap>(
+	provider: T,
+	cliOptions: Record<string, unknown> = {},
 	runtimeApiKey?: string,
-): AnthropicConfig | OpenAIConfig | GoogleConfig {
-	if (!(provider in FULL_CONFIG_SCHEMAS)) {
-		throw new Error(
-			`Invalid provider: ${provider}. Available providers: ${Object.keys(FULL_CONFIG_SCHEMAS).join(", ")}`,
-		);
+): CoreProviderConfigMap[T] {
+	// Validate provider
+	const providerResult = ProviderSchema.safeParse(provider);
+	if (!providerResult.success) {
+		throw new Error(`Invalid provider: ${provider}. Valid providers: ${ProviderSchema.options.join(", ")}`);
 	}
+	const validatedProvider = providerResult.data;
 
+	// Load default config
 	const config = loadDefaultsConfig();
 	const providerDefaults = config.providers[provider] || {};
 
-	// Build the full client config, preferring runtime API key over stored one
-	const clientConfig = {
-		...providerDefaults,
-		...(runtimeApiKey && { apiKey: runtimeApiKey }),
+	// Merge CLI options into defaults.defaults (CLI takes precedence)
+	const defaults = providerDefaults.defaults || {};
+	const mergedDefaults = {
+		...defaults,
+		...cliOptions, // CLI options override defaults
 	};
 
-	return clientConfig as any;
+	// Build the client config with merged defaults
+	const clientConfig = {
+		...providerDefaults,
+		defaults: mergedDefaults,
+	};
+
+	// Handle API key priority: runtime > stored > environment
+	if (runtimeApiKey) {
+		clientConfig.apiKey = runtimeApiKey;
+	} else if (!clientConfig.apiKey) {
+		const envApiKey = process.env[getDefaultApiKeyEnvVar(validatedProvider)];
+		if (envApiKey) {
+			clientConfig.apiKey = envApiKey;
+		}
+	}
+
+	// Validate the final config against the schema
+	const schema = FULL_CONFIG_SCHEMAS[provider];
+	if (!schema) {
+		throw new Error(`No schema found for provider: ${provider}`);
+	}
+	const result = schema.safeParse(clientConfig);
+
+	if (!result.success) {
+		console.error(`❌ Configuration validation errors for ${provider}:`);
+		for (const issue of result.error.issues) {
+			console.error(`  ${issue.path.join(".")}: ${issue.message}`);
+		}
+		throw new Error(`Invalid configuration for ${provider}`);
+	}
+
+	return result.data as CoreProviderConfigMap[T];
 }
 
 export function setDefaultProvider(provider: string): void {
@@ -253,15 +293,46 @@ function parseValue(value: string): any {
 	return value;
 }
 
-// Legacy compatibility functions
-export function loadDefaults(): string[] {
+// Get default provider and config in structured format
+export function getDefaultProviderConfig(): {
+	provider: keyof CoreProviderConfigMap;
+	config: CoreProviderConfigMap[keyof CoreProviderConfigMap];
+} | null {
 	const config = loadDefaultsConfig();
 	if (!config.defaultProvider || !config.providers[config.defaultProvider]) {
+		return null;
+	}
+
+	// Validate provider is known
+	const providerResult = ProviderSchema.safeParse(config.defaultProvider);
+	if (!providerResult.success) {
+		console.warn(`Warning: Unknown provider ${config.defaultProvider}`);
+		return null;
+	}
+
+	const provider = providerResult.data;
+
+	try {
+		// Use getProviderConfig which handles API key injection and validation
+		const providerConfig = getProviderConfig(provider);
+		return {
+			provider,
+			config: providerConfig,
+		};
+	} catch (error) {
+		console.warn(`Warning: Invalid config for ${provider}:`, error instanceof Error ? error.message : String(error));
+		return null;
+	}
+}
+
+// Legacy compatibility functions
+export function loadDefaults(): string[] {
+	const defaultConfig = getDefaultProviderConfig();
+	if (!defaultConfig) {
 		return [];
 	}
 
-	const providerConfig = config.providers[config.defaultProvider]!;
-	return configToArgs(config.defaultProvider, providerConfig);
+	return configToArgs(defaultConfig.provider, defaultConfig.config);
 }
 
 export function saveDefaults(args: string[]): void {
@@ -274,4 +345,41 @@ export function clearDefaults(): void {
 	if (existsSync(DEFAULTS_FILE)) {
 		saveDefaultsConfig({ providers: {} });
 	}
+}
+
+// Shared utility for provider validation and config building
+export function buildProviderConfig(
+	provider: string,
+	options: Record<string, unknown>,
+): {
+	provider: keyof CoreProviderConfigMap;
+	config: CoreProviderConfigMap[keyof CoreProviderConfigMap];
+} {
+	// Validate provider with schema
+	const providerResult = ProviderSchema.safeParse(provider);
+	if (!providerResult.success) {
+		throw new Error(`Invalid provider: ${provider}. Valid providers: ${ProviderSchema.options.join(", ")}`);
+	}
+
+	const validatedProvider = providerResult.data;
+
+	// Get API key from options or environment
+	const apiKey = (options["apiKey"] as string) || process.env[getDefaultApiKeyEnvVar(validatedProvider)];
+	if (!apiKey) {
+		throw new Error(`No API key provided. Set ${getDefaultApiKeyEnvVar(validatedProvider)} or use --apiKey flag.`);
+	}
+
+	// Build config - separate client config from ask options
+	const { image, images, ...cleanOptions } = options;
+
+	const config: CoreProviderConfigMap[keyof CoreProviderConfigMap] = {
+		model: options["model"] as string,
+		apiKey,
+		...cleanOptions,
+	} as CoreProviderConfigMap[keyof CoreProviderConfigMap];
+
+	return {
+		provider: validatedProvider,
+		config,
+	};
 }

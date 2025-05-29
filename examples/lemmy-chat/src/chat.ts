@@ -15,7 +15,9 @@ import {
 	GoogleAskOptions,
 	AskOptions,
 	Provider,
+	ModelToProvider,
 } from "@mariozechner/lemmy";
+import type { ProviderConfigMap } from "@mariozechner/lemmy";
 import {
 	TUI,
 	Container,
@@ -26,7 +28,7 @@ import {
 	logger,
 } from "@mariozechner/lemmy-tui";
 import { CLIENT_CONFIG_SCHEMAS } from "@mariozechner/lemmy";
-import { loadDefaultsConfig, getProviderConfig } from "./defaults.js";
+import { getProviderConfig } from "./defaults.js";
 import { loadFileAttachment } from "./images.js";
 import chalk from "chalk";
 
@@ -211,83 +213,13 @@ function parseAskOptions<T extends Provider>(
 	}
 }
 
-export async function runTUIChat(options: any): Promise<void> {
-	// Determine provider and model
-	let provider: string = options.provider;
-	let model: string = options.model;
-
-	// If no provider/model specified, try to use defaults
-	if (!provider || !model) {
-		const config = loadDefaultsConfig();
-		if (!config.defaultProvider || Object.keys(config.providers).length === 0) {
-			console.error("❌ No provider/model specified and no defaults set.");
-			console.error("Either provide --provider and --model, or set defaults first:");
-			console.error("  lemmy-chat defaults anthropic -m claude-sonnet-4-20250514 --thinkingEnabled");
-			process.exit(1);
-		}
-
-		// Use default provider and its model
-		provider = config.defaultProvider;
-		const providerDefaults = config.providers[provider];
-		model = providerDefaults?.model || "";
-
-		if (!provider || !model) {
-			console.error("❌ Could not determine provider/model from defaults");
-			process.exit(1);
-		}
-
-		// Get provider config (which may include stored API key)
-		const providerConfig = getProviderConfig(
-			provider,
-			options.apiKey || process.env[getDefaultApiKeyEnvVar(provider as any)],
-		);
-
-		// Check if we have an API key from any source
-		if (!providerConfig.apiKey) {
-			console.error(`❌ No API key provided. Set ${getDefaultApiKeyEnvVar(provider as any)} or use --apiKey flag.`);
-			process.exit(1);
-		}
-
-		// Create merged options: provider defaults + explicit options (explicit takes precedence)
-		const mergedOptions: any = {
-			provider,
-			...providerConfig,
-			...options, // Explicit options override defaults
-		};
-
-		options = mergedOptions;
-	}
-
-	// TypeScript type guards - at this point we know they are defined
-	if (!provider || !model) {
-		console.error("❌ Provider and model are required");
-		process.exit(1);
-	}
-
-	// Validate provider
-	if (!getProviders().includes(provider)) {
-		console.error(`❌ Invalid provider: ${provider}. Valid providers: ${getProviders().join(", ")}`);
-		process.exit(1);
-	}
-
-	// API key should already be set from defaults or provided explicitly
-	const apiKey = options.apiKey;
-	if (!apiKey) {
-		console.error(`❌ No API key provided. Set ${getDefaultApiKeyEnvVar(provider as any)} or use --apiKey flag.`);
-		process.exit(1);
-	}
-
-	// Build config
-	const config: any = {
-		model,
-		apiKey,
-		...options,
-	};
-
-	// Clean up config
-	delete config.provider;
-	delete config.apiKey;
-	config.apiKey = apiKey;
+export async function runTUIChat(
+	provider: string,
+	config: ProviderConfigMap[keyof ProviderConfigMap],
+	simulateInput?: string[],
+): Promise<void> {
+	// Config is already validated and built by the caller
+	let model = config.model;
 
 	// Create client and context
 	let client = createClientForModel(model, config);
@@ -672,7 +604,6 @@ export async function runTUIChat(options: any): Promise<void> {
 					if (allModels[newModel as keyof typeof allModels]) {
 						try {
 							// Determine new provider
-							const { ModelToProvider } = await import("@mariozechner/lemmy");
 							const newProvider = ModelToProvider[newModel as keyof typeof ModelToProvider];
 
 							if (!newProvider) {
@@ -688,7 +619,7 @@ export async function runTUIChat(options: any): Promise<void> {
 							}
 
 							// Get provider-specific configuration in new structured format
-							const newConfig: any = getProviderConfig(newProvider, newApiKey);
+							const newConfig: any = getProviderConfig(newProvider, {}, newApiKey);
 
 							// Override with the new model
 							newConfig.model = newModel;
@@ -923,18 +854,17 @@ export async function runTUIChat(options: any): Promise<void> {
 	tui.start();
 
 	// Handle input simulation for testing
-	if (options.simulateInput && Array.isArray(options.simulateInput)) {
+	if (simulateInput && Array.isArray(simulateInput)) {
 		setTimeout(() => {
-			console.log("\n🧪 Simulating input sequence:", options.simulateInput);
-
 			let currentIndex = 0;
 
 			const sendNextInput = () => {
-				if (currentIndex >= options.simulateInput.length) {
+				if (currentIndex >= simulateInput.length) {
 					return;
 				}
 
-				const input = options.simulateInput[currentIndex];
+				const input = simulateInput[currentIndex];
+				if (!input) return;
 
 				// Convert special keywords to actual characters
 				let actualInput = input;
@@ -942,8 +872,6 @@ export async function runTUIChat(options: any): Promise<void> {
 				else if (input === "ENTER") actualInput = "\r";
 				else if (input === "SPACE") actualInput = " ";
 				else if (input === "ESC") actualInput = "\x1b";
-
-				console.log(`🧪 Step ${currentIndex + 1}: Sending "${input}" (${JSON.stringify(actualInput)})`);
 
 				// Send input to the focused component
 				if (inputEditor.handleInput) {

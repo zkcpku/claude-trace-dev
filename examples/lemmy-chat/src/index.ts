@@ -2,7 +2,8 @@
 
 import { Command } from "commander";
 import { getProviders } from "@mariozechner/lemmy";
-import { loadDefaults } from "./defaults.js";
+import { getDefaultProviderConfig, getProviderConfig } from "./defaults.js";
+import { runOneShot } from "./one-shot.js";
 import { createModelsCommand, createDefaultsCommand, createChatCommand, createOneShotCommand } from "./commands.js";
 
 function setupProgram(): Command {
@@ -76,8 +77,8 @@ You can also pass API keys via --apiKey flag.
 async function main() {
 	// Check if no arguments provided (just "lemmy-chat")
 	if (process.argv.length === 2) {
-		const defaults = loadDefaults();
-		if (defaults.length === 0) {
+		const defaultConfig = getDefaultProviderConfig();
+		if (!defaultConfig) {
 			// No defaults set, show help
 			const program = setupProgram();
 			program.help();
@@ -85,7 +86,8 @@ async function main() {
 		} else {
 			// Show defaults and prompt for message
 			console.log("No message provided. Current defaults:");
-			console.log(`  lemmy-chat ${defaults.join(" ")}`);
+			console.log(`  Provider: ${defaultConfig.provider}`);
+			console.log(`  Model: ${defaultConfig.config.model}`);
 			console.log("\nUsage:");
 			console.log('  lemmy-chat "your message"              # Use defaults');
 			console.log("  lemmy-chat defaults --show             # Show current defaults");
@@ -103,25 +105,20 @@ async function main() {
 
 	if (!isCommand && !isProvider && firstArg) {
 		// First argument looks like a message, try to use defaults
-		const defaults = loadDefaults();
-		if (defaults.length === 0) {
+		const defaultConfig = getDefaultProviderConfig();
+		if (!defaultConfig) {
 			console.error("❌ No defaults set. Set defaults first:");
 			console.error("  lemmy-chat defaults anthropic -m claude-3-5-sonnet-latest");
 			console.error("  lemmy-chat defaults openai -m o4-mini");
 			process.exit(1);
 		}
 
-		// Prepend defaults to argv and re-parse
-		const newArgv = [
-			process.argv[0] || "node", // node
-			process.argv[1] || "lemmy-chat", // script path
-			...defaults, // default args
-			...process.argv.slice(2).filter((arg): arg is string => arg !== undefined), // user message
-		];
-
-		const program = setupProgram();
+		// Extract message from args
+		const message = process.argv.slice(2).join(" ");
 		try {
-			await program.parseAsync(newArgv);
+			// Get the provider config with API key from environment
+			const providerConfig = getProviderConfig(defaultConfig.provider);
+			await runOneShot(defaultConfig.provider, message, providerConfig, []);
 		} catch (error) {
 			console.error(`❌ Fatal error: ${error instanceof Error ? error.message : String(error)}`);
 			process.exit(1);
