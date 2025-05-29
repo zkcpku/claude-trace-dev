@@ -2,8 +2,6 @@ import OpenAI from "openai";
 import type {
 	ChatClient,
 	AskResult,
-	OpenAIConfig,
-	OpenAIAskOptions,
 	Message,
 	UserMessage,
 	AssistantMessage,
@@ -13,8 +11,10 @@ import type {
 	ToolCall,
 	StopReason,
 } from "../types.js";
+import type { OpenAIConfig, OpenAIAskOptions } from "../configs.js";
 import { zodToOpenAI } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
+import type { ToolDefinition } from "../types.js";
 
 export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 	private openai: OpenAI;
@@ -36,6 +36,50 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 
 	getProvider(): string {
 		return "openai";
+	}
+
+	private buildOpenAIParams(options: OpenAIAskOptions): OpenAI.Chat.ChatCompletionCreateParams {
+		const params: OpenAI.Chat.ChatCompletionCreateParams = {
+			model: this.config.model,
+			stream: true,
+			stream_options: { include_usage: true },
+			messages: [], // Will be set later
+		};
+
+		const modelData = findModelData(this.config.model);
+		params.max_completion_tokens =
+			options?.maxOutputTokens || this.config.defaults?.maxOutputTokens || modelData?.maxOutputTokens || 4096;
+		if (options.temperature !== undefined) params.temperature = options.temperature;
+		if (options.topP !== undefined) params.top_p = options.topP;
+		if (options.presencePenalty !== undefined) params.presence_penalty = options.presencePenalty;
+		if (options.frequencyPenalty !== undefined) params.frequency_penalty = options.frequencyPenalty;
+		if (options.logprobs !== undefined) params.logprobs = options.logprobs;
+		if (options.topLogprobs !== undefined) params.top_logprobs = options.topLogprobs;
+		if (options.maxCompletionTokens !== undefined) params.max_completion_tokens = options.maxCompletionTokens;
+		if (options.n !== undefined) params.n = options.n;
+		if (options.parallelToolCalls !== undefined) params.parallel_tool_calls = options.parallelToolCalls;
+		if (options.responseFormat !== undefined) {
+			if (options.responseFormat === "text") {
+				params.response_format = { type: "text" };
+			} else if (options.responseFormat === "json_object") {
+				params.response_format = { type: "json_object" };
+			}
+		}
+		if (options.seed !== undefined) params.seed = options.seed;
+		if (options.serviceTier !== undefined) params.service_tier = options.serviceTier;
+		if (options.stop !== undefined) params.stop = options.stop;
+		if (options.store !== undefined) params.store = options.store;
+		if (options.toolChoice !== undefined) params.tool_choice = options.toolChoice;
+		if (options.user !== undefined) params.user = options.user;
+		if (options.reasoningEffort !== undefined) params.reasoning_effort = options.reasoningEffort;
+
+		const tools = options?.context?.listTools() || [];
+		const openaiTools = tools.map((tool: ToolDefinition) => zodToOpenAI(tool));
+		if (openaiTools && openaiTools.length > 0) {
+			params.tools = openaiTools;
+			params.tool_choice = options.toolChoice || "auto";
+		}
+		return params;
 	}
 
 	async ask(input: string | AskInput, options?: OpenAIAskOptions): Promise<AskResult> {
@@ -69,60 +113,16 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 			if (systemMessage) {
 				messages.unshift({ role: "system", content: systemMessage });
 			}
-			const tools = options?.context?.listTools() || [];
-
-			// Convert tools to OpenAI format
-			const openaiTools = tools.map((tool: any) => zodToOpenAI(tool));
-
-			// Calculate appropriate token limits
-			const modelData = findModelData(this.config.model);
-			const maxCompletionTokens =
-				options?.maxOutputTokens || this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
 
 			// Build request parameters
-			const reasoningEffort = options?.reasoningEffort || this.config.defaults?.reasoningEffort;
-			const requestParams: any = {
-				model: this.config.model,
-				max_completion_tokens:
-					options?.maxCompletionTokens || this.config.defaults?.maxCompletionTokens || maxCompletionTokens,
-				messages,
-				stream: true,
-				stream_options: { include_usage: true },
-				...(openaiTools.length > 0 && {
-					tools: openaiTools,
-					tool_choice: options?.toolChoice || this.config.defaults?.toolChoice || "auto",
-				}),
-				...(reasoningEffort && {
-					reasoning_effort: reasoningEffort,
-				}),
-			};
-
-			// Add optional parameters from options and defaults
-			const addParam = (key: string, optionKey: keyof OpenAIAskOptions, defaultKey?: string) => {
-				const value = (options as any)?.[optionKey] ?? (this.config.defaults as any)?.[defaultKey || optionKey];
-				if (value !== undefined) requestParams[key] = value;
-			};
-
-			addParam("temperature", "temperature");
-			addParam("top_p", "topP");
-			addParam("frequency_penalty", "frequencyPenalty");
-			addParam("presence_penalty", "presencePenalty");
-			addParam("logit_bias", "logitBias");
-			addParam("logprobs", "logprobs");
-			addParam("top_logprobs", "topLogprobs");
-			addParam("n", "n");
-			addParam("parallel_tool_calls", "parallelToolCalls");
-			addParam("response_format", "responseFormat");
-			addParam("seed", "seed");
-			addParam("service_tier", "serviceTier");
-			addParam("stop", "stop");
-			addParam("store", "store");
-			addParam("user", "user");
+			const mergedOptions = { ...this.config.defaults, ...options };
+			const requestParams = this.buildOpenAIParams(mergedOptions);
+			requestParams.messages = messages;
 
 			// Execute streaming request
 			const stream = await this.openai.chat.completions.create(requestParams);
 
-			return await this.processStream(stream as any, options, startTime);
+			return await this.processStream(stream as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>, options, startTime);
 		} catch (error) {
 			return this.handleError(error);
 		}
@@ -366,7 +366,7 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 	private handleError(error: unknown): AskResult {
 		// Convert various error types to ModelError
 		if (error instanceof Error && "status" in error) {
-			const apiError = error as any; // Type assertion for OpenAI API error
+			const apiError = error as Error & { status: number; headers?: Record<string, string> };
 			const modelError: ModelError = {
 				type: this.getErrorType(apiError.status),
 				message: apiError.message,
@@ -406,7 +406,7 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 		return status === 429 || (status !== undefined && status >= 500);
 	}
 
-	private getRetryAfter(error: any): number | undefined {
+	private getRetryAfter(error: Error & { headers?: Record<string, string> }): number | undefined {
 		// Extract retry-after header if available
 		const retryAfter = error.headers?.["retry-after"];
 		if (retryAfter) {

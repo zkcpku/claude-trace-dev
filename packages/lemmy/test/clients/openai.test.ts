@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { OpenAIClient } from "../../src/clients/openai.js";
 import { Context } from "../../src/context.js";
-import type { OpenAIConfig } from "../../src/types.js";
+import type { OpenAIConfig } from "../../src/configs.js";
 import { sharedClientTests } from "./shared-client-tests.js";
 
 describe("OpenAIClient", () => {
@@ -28,7 +28,7 @@ describe("OpenAIClient", () => {
 			model = "o4-mini";
 			config.model = model;
 			config.defaults = {
-				...config.defaults,
+				// Remove temperature for reasoning models - they only support default (1)
 				reasoningEffort: "medium" as const,
 			};
 		} else if (withImageInput) {

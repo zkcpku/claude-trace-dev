@@ -2,8 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import type {
 	ChatClient,
 	AskResult,
-	AnthropicConfig,
-	AnthropicAskOptions,
 	Message,
 	UserMessage,
 	AssistantMessage,
@@ -13,8 +11,10 @@ import type {
 	ToolCall,
 	StopReason,
 } from "../types.js";
+import type { AnthropicConfig, AnthropicAskOptions } from "../configs.js";
 import { zodToAnthropic } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
+import type { ToolDefinition } from "../types.js";
 
 export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 	private anthropic: Anthropic;
@@ -35,6 +35,62 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 
 	getProvider(): string {
 		return "anthropic";
+	}
+
+	private buildAnthropicParams(options: AnthropicAskOptions): Anthropic.MessageCreateParams {
+		const modelData = findModelData(this.config.model);
+		const defaultMaxTokens = options?.maxOutputTokens || modelData?.maxOutputTokens || 4096;
+		const maxThinkingTokens = options?.maxThinkingTokens || this.config.defaults?.maxThinkingTokens || 3000;
+		const thinkingEnabled = options?.thinkingEnabled ?? this.config.defaults?.thinkingEnabled ?? false;
+		const maxTokens = thinkingEnabled
+			? Math.max(defaultMaxTokens, maxThinkingTokens + 1000) // Ensure max_tokens > budget_tokens
+			: defaultMaxTokens;
+
+		const params: Anthropic.MessageCreateParams = {
+			model: this.config.model,
+			max_tokens: maxTokens,
+			messages: [], // Will be set later
+		};
+
+		params.system = options.context?.getSystemMessage();
+
+		if (options.temperature !== undefined) params.temperature = options.temperature;
+		if (options.topK !== undefined) params.top_k = options.topK;
+		if (options.topP !== undefined) params.top_p = options.topP;
+		if (options.stopSequences !== undefined) params.stop_sequences = [options.stopSequences];
+		if (options.serviceTier !== undefined) params.service_tier = options.serviceTier;
+		if (options.userId !== undefined) params.metadata = { user_id: options.userId };
+
+		if (thinkingEnabled) {
+			params.thinking = {
+				type: "enabled" as const,
+				budget_tokens: maxThinkingTokens,
+			};
+			params.temperature = 1;
+		}
+
+		if (options.toolChoice !== undefined) {
+			params.tool_choice = {
+				type: options.toolChoice,
+				...(options.disableParallelToolUse !== undefined && {
+					disable_parallel_tool_use: options.disableParallelToolUse,
+				}),
+			};
+		} else if (options.disableParallelToolUse !== undefined) {
+			// If only disableParallelToolUse is set, default to "auto"
+			params.tool_choice = {
+				type: "auto",
+				disable_parallel_tool_use: options.disableParallelToolUse,
+			};
+		}
+
+		const tools = options?.context?.listTools() || [];
+		const anthropicTools = tools.map((tool: ToolDefinition) => zodToAnthropic(tool));
+		if (anthropicTools.length > 0) {
+			params.tools = anthropicTools;
+		}
+
+		return params;
 	}
 
 	async ask(input: string | AskInput, options?: AnthropicAskOptions): Promise<AskResult> {
@@ -63,87 +119,12 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 			}
 
 			// Convert context messages to Anthropic format
-			const messages = this.convertMessagesToAnthropic(
-				options?.context?.getMessages() || [userMessage],
-				options?.context?.getSystemMessage(),
-			);
-			const tools = options?.context?.listTools() || [];
-
-			// Convert tools to Anthropic format
-			const anthropicTools = tools.map((tool: any) => zodToAnthropic(tool));
-
-			// Calculate appropriate token limits
-			const modelData = findModelData(this.config.model);
-			const defaultMaxTokens =
-				options?.maxOutputTokens || this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
-			const maxThinkingTokens = options?.maxThinkingTokens || this.config.defaults?.maxThinkingTokens || 3000;
-			const thinkingEnabled = options?.thinkingEnabled ?? this.config.defaults?.thinkingEnabled ?? false;
-			const maxTokens = thinkingEnabled
-				? Math.max(defaultMaxTokens, maxThinkingTokens + 1000) // Ensure max_tokens > budget_tokens
-				: defaultMaxTokens;
+			const messages = this.convertMessagesToAnthropic(options?.context?.getMessages() || [userMessage]);
 
 			// Build request parameters
-			const requestParams: any = {
-				model: this.config.model,
-				max_tokens: maxTokens,
-				messages,
-				...(anthropicTools.length > 0 && { tools: anthropicTools }),
-				...(thinkingEnabled && {
-					thinking: {
-						type: "enabled" as const,
-						budget_tokens: maxThinkingTokens,
-					},
-				}),
-			};
-
-			// Add optional parameters from options
-			if (options?.temperature !== undefined) requestParams.temperature = options.temperature;
-			if (options?.topK !== undefined) requestParams.top_k = options.topK;
-			if (options?.topP !== undefined) requestParams.top_p = options.topP;
-			if (options?.stopSequences !== undefined) requestParams.stop_sequences = options.stopSequences;
-			if (options?.system !== undefined) requestParams.system = options.system;
-			if (options?.toolChoice !== undefined) {
-				if (typeof options.toolChoice === "string") {
-					requestParams.tool_choice = { type: options.toolChoice };
-				} else {
-					requestParams.tool_choice = options.toolChoice;
-				}
-			}
-			if (options?.serviceTier !== undefined) requestParams.service_tier = options.serviceTier;
-			if (options?.userId !== undefined) {
-				requestParams.metadata = { user_id: options.userId };
-			}
-
-			// Add default parameters from config if not overridden in options
-			const defaults = this.config.defaults;
-			if (defaults?.temperature !== undefined && options?.temperature === undefined) {
-				requestParams.temperature = defaults.temperature;
-			}
-			if (defaults?.topK !== undefined && options?.topK === undefined) {
-				requestParams.top_k = defaults.topK;
-			}
-			if (defaults?.topP !== undefined && options?.topP === undefined) {
-				requestParams.top_p = defaults.topP;
-			}
-			if (defaults?.stopSequences !== undefined && options?.stopSequences === undefined) {
-				requestParams.stop_sequences = defaults.stopSequences;
-			}
-			if (defaults?.system !== undefined && options?.system === undefined) {
-				requestParams.system = defaults.system;
-			}
-			if (defaults?.toolChoice !== undefined && options?.toolChoice === undefined) {
-				if (typeof defaults.toolChoice === "string") {
-					requestParams.tool_choice = { type: defaults.toolChoice };
-				} else {
-					requestParams.tool_choice = defaults.toolChoice;
-				}
-			}
-			if (defaults?.serviceTier !== undefined && options?.serviceTier === undefined) {
-				requestParams.service_tier = defaults.serviceTier;
-			}
-			if (defaults?.userId !== undefined && options?.userId === undefined) {
-				requestParams.metadata = { user_id: defaults.userId };
-			}
+			const mergedOptions = { ...this.config.defaults, ...options };
+			const requestParams = this.buildAnthropicParams(mergedOptions);
+			requestParams.messages = messages;
 
 			// Execute streaming request
 			const stream = await this.anthropic.messages.create({
@@ -151,21 +132,14 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 				stream: true,
 			});
 
-			return await this.processStream(stream as any, options, startTime);
+			return await this.processStream(stream, options, startTime);
 		} catch (error) {
 			return this.handleError(error);
 		}
 	}
 
-	private convertMessagesToAnthropic(
-		contextMessages: readonly Message[],
-		systemMessage?: string,
-	): Anthropic.MessageParam[] {
+	private convertMessagesToAnthropic(contextMessages: readonly Message[]): Anthropic.MessageParam[] {
 		const messages: Anthropic.MessageParam[] = [];
-
-		if (systemMessage) {
-			messages.push({ role: "user", content: systemMessage });
-		}
 
 		// Add context messages first
 		for (const msg of contextMessages) {
@@ -481,7 +455,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 	private handleError(error: unknown): AskResult {
 		// Convert various error types to ModelError
 		if (error instanceof Error && "status" in error) {
-			const apiError = error as any; // Type assertion for Anthropic API error
+			const apiError = error as Error & { status: number; headers?: Record<string, string> };
 			const modelError: ModelError = {
 				type: this.getErrorType(apiError.status),
 				message: apiError.message,
@@ -521,7 +495,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 		return status === 429 || (status !== undefined && status >= 500);
 	}
 
-	private getRetryAfter(error: any): number | undefined {
+	private getRetryAfter(error: Error & { headers?: Record<string, string> }): number | undefined {
 		// Extract retry-after header if available
 		const retryAfter = error.headers?.["retry-after"];
 		if (retryAfter) {

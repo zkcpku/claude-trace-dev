@@ -1,7 +1,7 @@
 import { AnthropicClient } from "./clients/anthropic.js";
 import { GoogleClient } from "./clients/google.js";
 import { OpenAIClient } from "./clients/openai.js";
-import { AnthropicConfig, GoogleConfig, OpenAIConfig } from "./types.js";
+import { AnthropicConfig, GoogleConfig, OpenAIConfig } from "./configs.js";
 
 // Main entry point for lemmy
 export { Context } from "./context.js";
@@ -9,7 +9,7 @@ export * from "./generated/models.js";
 export * from "./model-registry.js";
 export * from "./tools/index.js";
 export * from "./types.js";
-export { CONFIG_SCHEMA } from "./generated/config-schema.js";
+export * from "./configs.js";
 
 // Main lemmy object
 export const lemmy = {

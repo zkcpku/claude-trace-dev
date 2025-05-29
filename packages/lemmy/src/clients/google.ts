@@ -5,15 +5,12 @@ import {
 	type FunctionCall,
 	type FunctionResponse,
 	type GenerateContentConfig,
-	type ThinkingConfig,
 	GenerateContentResponse,
 	GenerateContentParameters,
 } from "@google/genai";
 import type {
 	ChatClient,
 	AskResult,
-	GoogleConfig,
-	GoogleAskOptions,
 	Message,
 	UserMessage,
 	AssistantMessage,
@@ -22,7 +19,9 @@ import type {
 	ModelError,
 	ToolCall,
 	StopReason,
+	ToolDefinition,
 } from "../types.js";
+import type { GoogleConfig, GoogleAskOptions } from "../configs.js";
 import { zodToGoogle } from "../tools/zod-converter.js";
 import { calculateTokenCost, findModelData } from "../index.js";
 
@@ -46,6 +45,59 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 
 	getProvider(): string {
 		return "google";
+	}
+
+	private buildGoogleParams(options: GoogleAskOptions): GenerateContentParameters {
+		const modelData = findModelData(this.config.model);
+		const maxOutputTokens =
+			options.maxOutputTokens || this.config.defaults?.maxOutputTokens || modelData?.maxOutputTokens || 4096;
+		const config: GenerateContentConfig = {
+			maxOutputTokens: options.maxOutputTokens || maxOutputTokens,
+		};
+
+		if (options.temperature !== undefined) config.temperature = options.temperature;
+		if (options.topP !== undefined) config.topP = options.topP;
+		if (options.topK !== undefined) config.topK = options.topK;
+		if (options.candidateCount !== undefined) config.candidateCount = options.candidateCount;
+		if (options.stopSequences !== undefined)
+			config.stopSequences = Array.isArray(options.stopSequences) ? options.stopSequences : [options.stopSequences];
+		if (options.responseLogprobs !== undefined) config.responseLogprobs = options.responseLogprobs;
+		if (options.logprobs !== undefined) config.logprobs = options.logprobs;
+		if (options.presencePenalty !== undefined) config.presencePenalty = options.presencePenalty;
+		if (options.frequencyPenalty !== undefined) config.frequencyPenalty = options.frequencyPenalty;
+		if (options.seed !== undefined) config.seed = options.seed;
+		if (options.responseMimeType !== undefined) config.responseMimeType = options.responseMimeType;
+
+		// Handle system instruction
+		if (options.context?.getSystemMessage()) {
+			config.systemInstruction = options.context.getSystemMessage();
+		}
+
+		// Handle tools
+		const tools = options?.context?.listTools() || [];
+		const googleTools = tools.map((tool: ToolDefinition) => zodToGoogle(tool));
+		if (googleTools && googleTools.length > 0) {
+			config.tools = [
+				{
+					functionDeclarations: googleTools,
+				},
+			];
+		}
+
+		// Handle thinking configuration
+		const includeThoughts = options.includeThoughts ?? false;
+		if (includeThoughts) {
+			config.thinkingConfig = {
+				includeThoughts,
+				...(options.thinkingBudget && { thinkingBudget: options.thinkingBudget }),
+			};
+		}
+
+		return {
+			model: this.config.model,
+			contents: [],
+			config,
+		};
 	}
 
 	async ask(input: string | AskInput, options?: GoogleAskOptions): Promise<AskResult> {
@@ -75,66 +127,11 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 
 			// Convert context messages to Google format
 			const contents = this.convertMessagesToGoogle(options?.context?.getMessages() || [userMessage]);
-			const tools = options?.context?.listTools() || [];
-
-			// Convert tools to Google format
-			const googleTools = tools.map((tool: any) => zodToGoogle(tool));
-
-			// Calculate appropriate token limits
-			const modelData = findModelData(this.config.model);
-			const maxOutputTokens =
-				options?.maxOutputTokens || this.config.maxOutputTokens || modelData?.maxOutputTokens || 4096;
 
 			// Build request parameters
-			const systemMessage = options?.systemInstruction || options?.context?.getSystemMessage();
-			const includeThoughts = options?.includeThoughts ?? this.config.defaults?.includeThoughts ?? false;
-			const thinkingBudget = options?.thinkingBudget ?? this.config.defaults?.thinkingBudget;
-
-			const config: GenerateContentConfig = {
-				maxOutputTokens: options?.maxOutputTokens || this.config.defaults?.maxOutputTokens || maxOutputTokens,
-				...(systemMessage && {
-					systemInstruction: systemMessage,
-				}),
-				...(googleTools.length > 0 && {
-					tools: [
-						{
-							functionDeclarations: googleTools,
-						},
-					],
-				}),
-				...(includeThoughts && {
-					thinkingConfig: {
-						includeThoughts,
-						...(thinkingBudget && { thinkingBudget }),
-					} as ThinkingConfig,
-				}),
-			};
-
-			// Add optional parameters from options and defaults
-			const addParam = <K extends keyof GenerateContentConfig>(configKey: K, optionKey: keyof GoogleAskOptions) => {
-				const value = (options as any)?.[optionKey] ?? (this.config.defaults as any)?.[optionKey];
-				if (value !== undefined) {
-					(config as any)[configKey] = value;
-				}
-			};
-
-			addParam("temperature", "temperature");
-			addParam("topP", "topP");
-			addParam("topK", "topK");
-			addParam("candidateCount", "candidateCount");
-			addParam("stopSequences", "stopSequences");
-			addParam("responseLogprobs", "responseLogprobs");
-			addParam("logprobs", "logprobs");
-			addParam("presencePenalty", "presencePenalty");
-			addParam("frequencyPenalty", "frequencyPenalty");
-			addParam("seed", "seed");
-			addParam("responseMimeType", "responseMimeType");
-
-			const requestParams: GenerateContentParameters = {
-				model: this.config.model,
-				contents,
-				config,
-			};
+			const mergedOptions = { ...this.config.defaults, ...options };
+			const requestParams = this.buildGoogleParams(mergedOptions);
+			requestParams.contents = contents;
 
 			// Execute streaming request
 			const stream = await this.google.models.generateContentStream(requestParams);
@@ -391,7 +388,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 	private handleError(error: unknown): AskResult {
 		// Convert various error types to ModelError
 		if (error && typeof error === "object") {
-			const apiError = error as any;
+			const apiError = error as Error & { status?: number; headers?: Record<string, string> };
 
 			// Check for Google API specific error structure
 			let status = apiError.status;
@@ -444,7 +441,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 		return status === 429 || (status !== undefined && status >= 500);
 	}
 
-	private getRetryAfter(error: any): number | undefined {
+	private getRetryAfter(error: Error & { headers?: Record<string, string> }): number | undefined {
 		// Extract retry-after header if available
 		const retryAfter = error.headers?.["retry-after"];
 		if (retryAfter) {

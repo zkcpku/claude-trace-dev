@@ -1,6 +1,11 @@
 // Core type definitions for lemmy
 
-import { OpenAIModels, AnthropicModels, GoogleModels } from "./model-registry.js";
+import type { AskOptions } from "./configs.js";
+
+/**
+ * Supported LLM providers
+ */
+export type Provider = "anthropic" | "openai" | "google";
 
 /**
  * Common interface implemented by all LLM provider clients
@@ -33,126 +38,6 @@ export interface ChatClient<TOptions extends AskOptions = AskOptions> {
 	 * @returns The provider name (e.g., 'anthropic', 'openai')
 	 */
 	getProvider(): string;
-}
-
-/**
- * Options for the ask method
- */
-export interface AskOptions {
-	/** Optional context to maintain conversation state */
-	context?: Context;
-	/** Optional maximum number of tokens to generate */
-	maxOutputTokens?: number;
-	/** Optional callback for streaming content chunks */
-	onChunk?: (content: string) => void;
-	/** Optional callback for streaming thinking chunks (if supported by provider) */
-	onThinkingChunk?: (thinking: string) => void;
-}
-
-/**
- * Options for the ask method for AnthropicClient
- */
-export interface AnthropicAskOptions extends AskOptions {
-	/** Whether to enable extended thinking for this request */
-	thinkingEnabled?: boolean;
-	/** Maximum number of thinking tokens for this request (must be ≥1024 and less than max_tokens) */
-	maxThinkingTokens?: number;
-	/** Temperature for sampling (0.0-1.0, defaults to 1.0) */
-	temperature?: number;
-	/** Only sample from the top K options for each token */
-	topK?: number;
-	/** Use nucleus sampling with specified probability cutoff (0.0-1.0) */
-	topP?: number;
-	/** Custom text sequences that will cause the model to stop generating */
-	stopSequences?: string[];
-	/** System prompt for providing context and instructions */
-	system?: string;
-	/** Definitions of tools that the model may use */
-	tools?: any[]; // Type will be refined later
-	/** How the model should use the provided tools */
-	toolChoice?: "auto" | "any" | "none" | { type: "tool"; name: string; disable_parallel_tool_use?: boolean };
-	/** Whether to disable parallel tool use */
-	disableParallelToolUse?: boolean;
-	/** Priority tier for the request ('auto' | 'standard_only') */
-	serviceTier?: "auto" | "standard_only";
-	/** External identifier for the user (uuid/hash) */
-	userId?: string;
-}
-
-/**
- * Options for the ask method for OpenAIClient
- */
-export interface OpenAIAskOptions extends AskOptions {
-	/** Reasoning effort level - only supported by reasoning models (o1-mini, o1-preview) */
-	reasoningEffort?: "low" | "medium" | "high";
-	/** Temperature for sampling (0.0-2.0) */
-	temperature?: number;
-	/** Top-p sampling parameter (0.0-1.0) */
-	topP?: number;
-	/** Presence penalty (-2.0 to 2.0) - penalizes tokens based on presence */
-	presencePenalty?: number;
-	/** Frequency penalty (-2.0 to 2.0) - penalizes tokens based on frequency */
-	frequencyPenalty?: number;
-	/** Modify likelihood of specific tokens appearing (-100 to 100) */
-	logitBias?: Record<string, number>;
-	/** Whether to return log probabilities of output tokens */
-	logprobs?: boolean;
-	/** Number of most likely tokens to return at each position (0-20) */
-	topLogprobs?: number;
-	/** Upper bound for tokens in completion (including reasoning tokens) */
-	maxCompletionTokens?: number;
-	/** Number of chat completion choices to generate (1-128) */
-	n?: number;
-	/** Enable parallel function calling during tool use */
-	parallelToolCalls?: boolean;
-	/** Output format specification */
-	responseFormat?: { type: "text" } | { type: "json_object" } | { type: "json_schema"; json_schema: any };
-	/** For deterministic sampling (beta feature) */
-	seed?: number;
-	/** Latency tier for scale tier customers */
-	serviceTier?: "auto" | "default" | "flex";
-	/** Up to 4 stop sequences */
-	stop?: string | string[];
-	/** Store output for model distillation/evals */
-	store?: boolean;
-	/** Controls which tool is called */
-	toolChoice?: "none" | "auto" | "required" | { type: "function"; function: { name: string } };
-	/** Stable identifier for end-users */
-	user?: string;
-}
-
-/**
- * Options for the ask method for GoogleClient
- */
-export interface GoogleAskOptions extends AskOptions {
-	/** Whether to include thinking tokens for this request */
-	includeThoughts?: boolean;
-	/** Thinking budget in tokens */
-	thinkingBudget?: number;
-	/** Temperature for sampling (0.0-2.0) */
-	temperature?: number;
-	/** Top-p sampling parameter (0.0-1.0) */
-	topP?: number;
-	/** Top-k sampling parameter (positive integer) */
-	topK?: number;
-	/** Number of response variations to return */
-	candidateCount?: number;
-	/** List of strings that tells the model to stop generating text */
-	stopSequences?: string[];
-	/** Whether to return the log probabilities of chosen tokens */
-	responseLogprobs?: boolean;
-	/** Number of top candidate tokens to return log probabilities for */
-	logprobs?: number;
-	/** Positive values penalize tokens that already appear (presence penalty) */
-	presencePenalty?: number;
-	/** Positive values penalize tokens that repeatedly appear (frequency penalty) */
-	frequencyPenalty?: number;
-	/** Fixed seed for deterministic responses */
-	seed?: number;
-	/** Output response mimetype ('text/plain' | 'application/json') */
-	responseMimeType?: string;
-	/** Instructions for the model (system prompt) */
-	systemInstruction?: string;
 }
 
 /**
@@ -350,56 +235,6 @@ export type ExecuteToolResult =
 			/** Error information */
 			error: ToolError;
 	  };
-
-// Provider-specific configuration interfaces
-
-/**
- * Base configuration shared by all providers
- */
-export interface BaseConfig {
-	/** API key for the provider */
-	apiKey: string;
-	/** Optional custom API base URL */
-	baseURL?: string;
-	/** Maximum number of retries for failed requests */
-	maxRetries?: number;
-	/** Maximum number of output tokens to generate (default: 4096) */
-	maxOutputTokens?: number;
-}
-
-/**
- * Configuration for Anthropic/Claude clients
- */
-export interface AnthropicConfig extends BaseConfig {
-	/** Model name (e.g. 'claude-3-5-sonnet-20241022') */
-	model: AnthropicModels;
-	/** Default options for ask requests */
-	defaults?: AnthropicAskOptions;
-}
-
-/**
- * Configuration for OpenAI clients
- */
-export interface OpenAIConfig extends BaseConfig {
-	/** Model name (e.g. 'gpt-4o') */
-	model: OpenAIModels;
-	/** Optional OpenAI organization ID */
-	organization?: string;
-	/** Default options for ask requests */
-	defaults?: OpenAIAskOptions;
-}
-
-/**
- * Configuration for Google/Gemini clients
- */
-export interface GoogleConfig extends BaseConfig {
-	/** Model name (e.g. 'gemini-1.5-pro') */
-	model: GoogleModels;
-	/** Optional Google Cloud project ID */
-	projectId?: string;
-	/** Default options for ask requests */
-	defaults?: GoogleAskOptions;
-}
 
 /**
  * Context for managing conversation state across providers

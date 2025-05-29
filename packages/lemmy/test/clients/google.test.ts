@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { GoogleClient } from "../../src/clients/google.js";
 import { Context } from "../../src/context.js";
-import type { GoogleConfig } from "../../src/types.js";
+import type { GoogleConfig } from "../../src/configs.js";
 import { sharedClientTests } from "./shared-client-tests.js";
 import { GoogleModels } from "../../src/model-registry.js";
 
