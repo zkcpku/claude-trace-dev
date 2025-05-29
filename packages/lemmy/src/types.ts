@@ -1,16 +1,20 @@
 // Core type definitions for lemmy
 
-import type { AskOptions } from "./configs.js";
+import type { BaseAskOptions } from "./configs.js";
 
 /**
  * Supported LLM providers
  */
 export type Provider = "anthropic" | "openai" | "google";
 
+export type AskOptions<TChatClientAskOptions extends BaseAskOptions = BaseAskOptions> = {
+	context?: Context;
+} & TChatClientAskOptions;
+
 /**
  * Common interface implemented by all LLM provider clients
  */
-export interface ChatClient<TOptions extends AskOptions = AskOptions> {
+export interface ChatClient<TChatClientAskOptions extends BaseAskOptions = BaseAskOptions> {
 	/**
 	 * Send input to the LLM and get a response
 	 * Supports text, tool results, and multimodal attachments
@@ -23,7 +27,7 @@ export interface ChatClient<TOptions extends AskOptions = AskOptions> {
 	 * @param options - Optional configuration including context and streaming callback
 	 * @returns Promise resolving to the result (success, tool call, or error)
 	 */
-	ask(input: string | AskInput, options?: TOptions): Promise<AskResult>;
+	ask(input: string | AskInput, options?: AskOptions<TChatClientAskOptions>): Promise<AskResult>;
 
 	/**
 	 * Get the model name/identifier used by this client

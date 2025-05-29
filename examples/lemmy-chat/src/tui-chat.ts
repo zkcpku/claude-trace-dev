@@ -13,6 +13,7 @@ import {
 	AnthropicAskOptions,
 	OpenAIAskOptions,
 	GoogleAskOptions,
+	AskOptions,
 	Provider,
 } from "@mariozechner/lemmy";
 import {
@@ -21,12 +22,11 @@ import {
 	TextComponent,
 	TextEditor,
 	CombinedAutocompleteProvider,
-	type AutocompleteItem,
 	type SlashCommand,
 	logger,
 } from "@mariozechner/lemmy-tui";
 import { CLIENT_CONFIG_SCHEMAS } from "@mariozechner/lemmy";
-import { loadDefaults, loadDefaultsConfig, getProviderConfig } from "./defaults.js";
+import { loadDefaultsConfig, getProviderConfig } from "./defaults.js";
 import { loadFileAttachment } from "./images.js";
 import chalk from "chalk";
 
@@ -120,9 +120,9 @@ When you see this format, treat the file contents as part of the user's context 
 
 // Type mapping for provider-specific AskOptions
 type ProviderAskOptions = {
-	anthropic: AnthropicAskOptions;
-	openai: OpenAIAskOptions;
-	google: GoogleAskOptions;
+	anthropic: AskOptions<AnthropicAskOptions>;
+	openai: AskOptions<OpenAIAskOptions>;
+	google: AskOptions<GoogleAskOptions>;
 };
 
 // Helper functions to extract schema information from Zod schemas

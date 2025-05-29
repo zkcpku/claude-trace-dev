@@ -20,6 +20,7 @@ import type {
 	ToolCall,
 	StopReason,
 	ToolDefinition,
+	AskOptions,
 } from "../types.js";
 import type { GoogleConfig, GoogleAskOptions } from "../configs.js";
 import { zodToGoogle } from "../tools/zod-converter.js";
@@ -47,7 +48,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 		return "google";
 	}
 
-	private buildGoogleParams(options: GoogleAskOptions): GenerateContentParameters {
+	private buildGoogleParams(options: AskOptions<GoogleAskOptions>): GenerateContentParameters {
 		const modelData = findModelData(this.config.model);
 		const maxOutputTokens =
 			options.maxOutputTokens || this.config.defaults?.maxOutputTokens || modelData?.maxOutputTokens || 4096;
@@ -69,8 +70,9 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 		if (options.responseMimeType !== undefined) config.responseMimeType = options.responseMimeType;
 
 		// Handle system instruction
-		if (options.context?.getSystemMessage()) {
-			config.systemInstruction = options.context.getSystemMessage();
+		const systemMessage = options.context?.getSystemMessage();
+		if (systemMessage) {
+			config.systemInstruction = systemMessage;
 		}
 
 		// Handle tools
@@ -100,7 +102,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 		};
 	}
 
-	async ask(input: string | AskInput, options?: GoogleAskOptions): Promise<AskResult> {
+	async ask(input: string | AskInput, options?: AskOptions<GoogleAskOptions>): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
 			// Convert input to AskInput format
@@ -260,7 +262,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 
 	private async processStream(
 		stream: AsyncGenerator<GenerateContentResponse, any, any>,
-		options?: GoogleAskOptions,
+		options?: AskOptions<GoogleAskOptions>,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";

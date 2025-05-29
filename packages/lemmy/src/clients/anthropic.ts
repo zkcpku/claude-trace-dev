@@ -10,6 +10,7 @@ import type {
 	ModelError,
 	ToolCall,
 	StopReason,
+	AskOptions,
 } from "../types.js";
 import type { AnthropicConfig, AnthropicAskOptions } from "../configs.js";
 import { zodToAnthropic } from "../tools/zod-converter.js";
@@ -37,7 +38,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 		return "anthropic";
 	}
 
-	private buildAnthropicParams(options: AnthropicAskOptions): Anthropic.MessageCreateParams {
+	private buildAnthropicParams(options: AskOptions<AnthropicAskOptions>): Anthropic.MessageCreateParams {
 		const modelData = findModelData(this.config.model);
 		const defaultMaxTokens = options?.maxOutputTokens || modelData?.maxOutputTokens || 4096;
 		const maxThinkingTokens = options?.maxThinkingTokens || this.config.defaults?.maxThinkingTokens || 3000;
@@ -52,7 +53,10 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 			messages: [], // Will be set later
 		};
 
-		params.system = options.context?.getSystemMessage();
+		const systemMessage = options.context?.getSystemMessage();
+		if (systemMessage) {
+			params.system = systemMessage;
+		}
 
 		if (options.temperature !== undefined) params.temperature = options.temperature;
 		if (options.topK !== undefined) params.top_k = options.topK;
@@ -93,7 +97,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 		return params;
 	}
 
-	async ask(input: string | AskInput, options?: AnthropicAskOptions): Promise<AskResult> {
+	async ask(input: string | AskInput, options?: AskOptions<AnthropicAskOptions>): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
 			// Convert input to AskInput format
@@ -269,7 +273,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 
 	private async processStream(
 		stream: AsyncIterable<Anthropic.MessageStreamEvent>,
-		options?: AnthropicAskOptions,
+		options?: AskOptions<AnthropicAskOptions>,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";

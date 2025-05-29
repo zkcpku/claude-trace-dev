@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ChatClient, AskResult } from "../src/types.js";
-import type { AskOptions } from "../src/configs.js";
+import type { AskOptions } from "../src/types.js";
 
 describe("types", () => {
 	it("should have proper type definitions", () => {

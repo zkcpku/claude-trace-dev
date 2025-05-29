@@ -5,7 +5,6 @@ import { z } from "zod";
 // =============================================================================
 
 export const BaseAskOptionsSchema = z.object({
-	context: z.any().optional().describe("Context object for conversation state"),
 	maxOutputTokens: z.coerce.number().min(1).optional().describe("Maximum number of output tokens to generate"),
 	onChunk: z
 		.function()
@@ -129,19 +128,19 @@ export const BaseClientConfigSchema = z.object({
 
 export const AnthropicConfigSchema = BaseClientConfigSchema.extend({
 	model: z.string().describe("Model name (e.g. 'claude-3-5-sonnet-20241022')"),
-	defaults: AnthropicAskOptionsSchema.omit({ context: true }).optional().describe("Default options for ask requests"),
+	defaults: AnthropicAskOptionsSchema.optional().describe("Default options for ask requests"),
 });
 
 export const OpenAIConfigSchema = BaseClientConfigSchema.extend({
 	model: z.string().describe("Model name (e.g. 'gpt-4o')"),
 	organization: z.string().optional().describe("Optional OpenAI organization ID"),
-	defaults: OpenAIAskOptionsSchema.omit({ context: true }).optional().describe("Default options for ask requests"),
+	defaults: OpenAIAskOptionsSchema.optional().describe("Default options for ask requests"),
 });
 
 export const GoogleConfigSchema = BaseClientConfigSchema.extend({
 	model: z.string().describe("Model name (e.g. 'gemini-1.5-pro')"),
 	projectId: z.string().optional().describe("Optional Google Cloud project ID"),
-	defaults: GoogleAskOptionsSchema.omit({ context: true }).optional().describe("Default options for ask requests"),
+	defaults: GoogleAskOptionsSchema.optional().describe("Default options for ask requests"),
 });
 
 // =============================================================================
@@ -150,9 +149,9 @@ export const GoogleConfigSchema = BaseClientConfigSchema.extend({
 
 export const CLIENT_CONFIG_SCHEMAS = {
 	base: BaseClientConfigSchema.omit({ apiKey: true }), // Remove apiKey for CLI options
-	anthropic: AnthropicAskOptionsSchema.omit({ context: true }),
-	openai: OpenAIAskOptionsSchema.omit({ context: true }),
-	google: GoogleAskOptionsSchema.omit({ context: true }),
+	anthropic: AnthropicAskOptionsSchema,
+	openai: OpenAIAskOptionsSchema,
+	google: GoogleAskOptionsSchema,
 } as const;
 
 // =============================================================================
@@ -167,4 +166,3 @@ export type BaseAskOptions = z.infer<typeof BaseAskOptionsSchema>;
 export type AnthropicAskOptions = z.infer<typeof AnthropicAskOptionsSchema>;
 export type OpenAIAskOptions = z.infer<typeof OpenAIAskOptionsSchema>;
 export type GoogleAskOptions = z.infer<typeof GoogleAskOptionsSchema>;
-export type AskOptions = AnthropicAskOptions | OpenAIAskOptions | GoogleAskOptions;
