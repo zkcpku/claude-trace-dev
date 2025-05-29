@@ -21,10 +21,10 @@
    - `src/text-component.ts` - Text display component
    - `src/logger.ts` - Logging utilities
 
-## Examples
+## Apps
 
-- **examples/lemmy-chat/**: Chat application example
-- **examples/red-teaming/**: Red teaming utilities
+- **apps/lemmy-chat/**: Chat application example
+- **apps/red-teaming/**: Red teaming utilities
 
 # TUI Differential Rendering
 
@@ -51,7 +51,7 @@ The TUI framework uses differential rendering for performance - only redrawing p
 # General Guidelines
 
 - Read the types in packages/lemmy/src/types.ts, and the types in packages/lemmy-tui/src/\*.ts to understand the API
-- Typecheck via npm run typecheck (includes src and test files, no errors) either in the root dir, or in a specific package or example directory.
+- Typecheck via npm run typecheck (includes src and test files, no errors) either in the root dir, or in a specific package or app directory.
 - To test the lemmy package, run `npm run test:run`
 - The lemmy-tui package has no tests.
 - To test the lemmy-tui package, use: `npx tsx --no-deprecation src/index.ts chat --simulate-input "Hello world" "ENTER"` to simulate user input. You can then look at the tui-debug.log file to see logs in addition to the output in the terminal.

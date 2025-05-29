@@ -23,8 +23,11 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 
 	constructor(config: AnthropicConfig) {
 		this.config = config;
+
+		// OAuth tokens (sk-ant-oat) use authToken, regular API keys use apiKey
+		const isOAuthToken = config.apiKey.startsWith("sk-ant-oat");
 		this.anthropic = new Anthropic({
-			apiKey: config.apiKey,
+			...(isOAuthToken ? { authToken: config.apiKey } : { apiKey: config.apiKey }),
 			baseURL: config.baseURL,
 			maxRetries: config.maxRetries ?? 3,
 		});

@@ -24,7 +24,7 @@ function setupProgram(): Command {
 		program.addCommand(providerCommand);
 	}
 
-	// Add global help with examples
+	// Add global help with apps
 	program.addHelpText(
 		"after",
 		`
