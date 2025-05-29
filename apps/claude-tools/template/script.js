@@ -446,7 +446,7 @@ class ClaudeViewer {
 
 		const mergedConv = {
 			model: compactConv.model,
-			system: compactConv.system,
+			system: currentConv.system, // Use original system message
 			messages: mergedMessages,
 			latestResponse: compactConv.latestResponse,
 			pairs: allPairs,
