@@ -11,7 +11,7 @@ from mitmproxy import http
 class ClaudeTrafficLogger:
     def __init__(self):
         self.log_file = f"claude-traffic-{int(time.time())}.log"
-        print(f"Logging Claude Code traffic to: {self.log_file}")
+        # Don't print to stdout as it interferes with Claude's TUI
     
     def log_request(self, flow: http.HTTPFlow):
         """Log HTTP request details"""
