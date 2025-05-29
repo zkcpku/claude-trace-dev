@@ -1,8 +1,16 @@
 #!/bin/bash
 # Claude Code Traffic Logger Shell Script
 # Starts mitmproxy with claude-logger.py script and then runs Claude CLI interactively
+# Usage: ./claude-logger.sh [claude-command]
 
 set -e
+
+# Parse command line arguments
+if [ $# -eq 0 ]; then
+    CLAUDE_CMD="claude"
+else
+    CLAUDE_CMD="$*"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,8 +29,10 @@ if ! command -v mitmdump &> /dev/null; then
     exit 1
 fi
 
-if ! command -v claude &> /dev/null; then
-    echo -e "${RED}❌ Claude CLI not found. Please install Claude Code first${NC}"
+# Extract first word from command to check if it exists
+CLAUDE_EXECUTABLE=$(echo "$CLAUDE_CMD" | cut -d' ' -f1)
+if ! command -v "$CLAUDE_EXECUTABLE" &> /dev/null; then
+    echo -e "${RED}❌ Command not found: '$CLAUDE_EXECUTABLE'. Please check the path or install required dependencies${NC}"
     exit 1
 fi
 
@@ -55,4 +65,4 @@ echo ""
 HTTP_PROXY=http://localhost:8080 \
 HTTPS_PROXY=http://localhost:8080 \
 NODE_TLS_REJECT_UNAUTHORIZED=0 \
-claude
+eval "$CLAUDE_CMD"
