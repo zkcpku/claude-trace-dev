@@ -79,13 +79,7 @@ class ClaudeViewRenderer {
 	}
 
 	renderSystemMessage(system) {
-		let content = typeof system === "string" ? system : JSON.stringify(system);
-
-		// Truncate long system messages to first 200 characters
-		if (content.length > 200) {
-			content = content.substring(0, 200) + "...";
-		}
-
+		const content = typeof system === "string" ? system : JSON.stringify(system);
 		return `
             <div class="message system">
                 <div class="message-role">System</div>
@@ -129,11 +123,7 @@ class ClaudeViewRenderer {
 
 	formatMessageContent(content) {
 		if (typeof content === "string") {
-			let text = content;
-			if (text.length > 200) {
-				text = text.substring(0, 200) + "...";
-			}
-			return this.escapeHtml(text).replace(/\n/g, "<br>");
+			return this.escapeHtml(content).replace(/\n/g, "<br>");
 		}
 
 		if (Array.isArray(content)) {
@@ -148,10 +138,7 @@ class ClaudeViewRenderer {
 
 		switch (type) {
 			case "text":
-				let text = block.text || "";
-				if (text.length > 200) {
-					text = text.substring(0, 200) + "...";
-				}
+				const text = block.text || "";
 				return `<div class="content-block text">${this.escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
 
 			case "thinking":
