@@ -33,7 +33,8 @@ def generate_html_from_pairs(pairs, output_file="claude-traffic.html"):
         # Load template files
         html_template = load_template_file('index.html')
         css_content = load_template_file('styles.css')
-        js_content = load_template_file('script.js')
+        views_js_content = load_template_file('views.js')
+        main_js_content = load_template_file('script.js')
         
         # Prepare data for injection - use a safer approach
         # Convert to JSON and then encode for safe embedding in JavaScript
@@ -48,7 +49,8 @@ def generate_html_from_pairs(pairs, output_file="claude-traffic.html"):
         
         # Replace template placeholders
         html_content = html_template.replace('{{CSS_CONTENT}}', css_content)
-        html_content = html_content.replace('{{JS_CONTENT}}', js_content)
+        html_content = html_content.replace('{{VIEWS_JS_CONTENT}}', views_js_content)
+        html_content = html_content.replace('{{MAIN_JS_CONTENT}}', main_js_content)
         html_content = html_content.replace('{{DATA_JSON}}', data_json_escaped)
         html_content = html_content.replace('{{TITLE}}', f'{len(pairs)} API Calls')
         html_content = html_content.replace('{{TOTAL_PAIRS}}', str(len(pairs)))

@@ -128,6 +128,17 @@ chmod +x *.py *.sh
    - **SSE Display**: Clean event-by-event format for streaming responses
 - **Terminal output** - Real-time status and extracted tokens
 
+## Code Structure
+
+The HTML viewer is built with a clean separation of concerns:
+
+- **`template/index.html`** - Main HTML structure and layout
+- **`template/styles.css`** - All CSS styling and responsive design
+- **`template/views.js`** - View rendering and presentation logic (ClaudeViewRenderer class)
+- **`template/script.js`** - Core application logic and data processing (ClaudeViewer class)
+
+The Python script (`claude-logger.py`) merges all template files into a single standalone HTML file for easy sharing and deployment.
+
 ## HTML Viewer Features
 
 The generated HTML viewer provides a rich interface for analyzing Claude Code traffic:

@@ -5,6 +5,7 @@ class ClaudeViewer {
 		this.data = window.claudeData || { rawPairs: [] };
 		this.currentView = "conversations";
 		this.conversations = [];
+		this.renderer = new ClaudeViewRenderer(this);
 		this.init();
 	}
 
@@ -136,7 +137,7 @@ class ClaudeViewer {
 
 		// Re-render if we're in conversations view
 		if (this.currentView === "conversations") {
-			this.renderFilteredConversations();
+			this.renderer.renderFilteredConversations();
 		}
 	}
 
@@ -151,99 +152,161 @@ class ClaudeViewer {
 		if (this.currentView === "conversations") {
 			// Use filtered conversations if filters are active, otherwise use all
 			if (this.filteredConversations !== undefined) {
-				this.renderFilteredConversations();
+				this.renderer.renderFilteredConversations();
 			} else {
-				this.renderConversations();
+				this.renderer.renderConversations();
 			}
 		} else if (this.currentView === "raw") {
-			this.renderRawPairs();
+			this.renderer.renderRawPairs();
 		}
 	}
 
 	mergeConversations(pairs) {
 		if (!pairs || pairs.length === 0) return [];
 
-		const conversations = [];
-
-		// Sort pairs by timestamp
-		const sortedPairs = [...pairs].sort((a, b) => a.request.timestamp - b.request.timestamp);
-
-		for (const pair of sortedPairs) {
+		// First, group pairs by model
+		const pairsByModel = new Map();
+		for (const pair of pairs) {
 			const requestBody = pair.request.body || {};
 			const model = requestBody.model || "unknown";
-			const messages = requestBody.messages || [];
-			const system = requestBody.system;
 
-			// Try to find existing conversation to merge with
-			let mergedInto = false;
+			if (!pairsByModel.has(model)) {
+				pairsByModel.set(model, []);
+			}
+			pairsByModel.get(model).push(pair);
+		}
 
-			for (const conv of conversations) {
-				if (this.canMergeWithConversation(conv, messages, model)) {
-					// Merge this pair into existing conversation
-					conv.pairs.push(pair);
-					conv.messages = messages; // Update to latest message history
-					conv.latestResponse = this.extractResponseContent(pair.response);
-					conv.metadata.endTime = new Date(pair.request.timestamp * 1000).toISOString();
-					conv.metadata.totalPairs = conv.pairs.length;
+		const allConversations = [];
 
-					// Accumulate token usage
-					const newUsage = this.extractTokenUsage(pair);
-					conv.metadata.usage.input_tokens += newUsage.input_tokens || 0;
-					conv.metadata.usage.output_tokens += newUsage.output_tokens || 0;
-					conv.metadata.usage.cache_read_input_tokens += newUsage.cache_read_input_tokens || 0;
-					conv.metadata.usage.cache_creation_input_tokens += newUsage.cache_creation_input_tokens || 0;
-					conv.metadata.totalTokens = conv.metadata.usage.input_tokens + conv.metadata.usage.output_tokens;
+		// Process each model group separately
+		for (const [model, modelPairs] of pairsByModel) {
+			console.log(`Processing ${modelPairs.length} pairs for model: ${model}`);
 
-					mergedInto = true;
-					break;
+			// Sort pairs by timestamp within model
+			const sortedPairs = [...modelPairs].sort((a, b) => a.request.timestamp - b.request.timestamp);
+
+			// Group pairs by conversation thread based on message history
+			const conversationThreads = new Map(); // Maps first user message hash -> array of pairs
+
+			for (const pair of sortedPairs) {
+				const requestBody = pair.request.body || {};
+				const messages = requestBody.messages || [];
+				const system = requestBody.system;
+
+				if (messages.length === 0) continue;
+
+				// Use first user message as conversation identifier (but normalize it first)
+				const firstUserMessage = messages[0];
+				const normalizedFirstMessage = this.normalizeMessageForGrouping(firstUserMessage);
+				const normalizedSystem = this.normalizeSystemForGrouping(system);
+
+				const conversationKey = JSON.stringify({
+					system: normalizedSystem,
+					firstMessage: normalizedFirstMessage,
+				});
+
+				const keyHash = this.hashString(conversationKey);
+				console.log(
+					`Pair with ${messages.length} messages -> key hash: ${keyHash}, first 100 chars: ${conversationKey.substring(0, 100)}`,
+				);
+
+				if (!conversationThreads.has(keyHash)) {
+					conversationThreads.set(keyHash, []);
+					console.log(`Created new thread for hash: ${keyHash}`);
+				} else {
+					console.log(`Adding to existing thread for hash: ${keyHash}`);
 				}
+				conversationThreads.get(keyHash).push(pair);
 			}
 
-			if (!mergedInto) {
-				// Create new conversation
-				const usage = this.extractTokenUsage(pair);
+			// For each conversation thread, only keep the final pair (longest message history)
+			for (const [conversationKey, threadPairs] of conversationThreads) {
+				// Find the pair with the longest message history (most complete conversation)
+				const finalPair = threadPairs.reduce((longest, current) => {
+					const currentMessages = current.request.body?.messages || [];
+					const longestMessages = longest.request.body?.messages || [];
+					return currentMessages.length > longestMessages.length ? current : longest;
+				});
+
+				console.log(
+					`Conversation thread: ${threadPairs.length} pairs -> using final pair with ${finalPair.request.body?.messages?.length || 0} messages`,
+				);
+
+				// Create conversation from the final pair
+				const requestBody = finalPair.request.body || {};
+				const messages = requestBody.messages || [];
+				const system = requestBody.system;
+				const usage = this.extractTokenUsage(finalPair);
+
 				const conversation = {
 					model: model,
 					messages: messages,
 					system: system,
-					latestResponse: this.extractResponseContent(pair.response),
-					pairs: [pair],
+					latestResponse: this.extractResponseContent(finalPair.response),
+					pairs: threadPairs, // Keep all pairs for reference, but only show final result
 					metadata: {
-						startTime: new Date(pair.request.timestamp * 1000).toISOString(),
-						endTime: new Date(pair.request.timestamp * 1000).toISOString(),
-						totalPairs: 1,
-						totalTokens: this.extractTotalTokens(pair.response),
+						startTime: new Date(threadPairs[0].request.timestamp * 1000).toISOString(),
+						endTime: new Date(finalPair.request.timestamp * 1000).toISOString(),
+						totalPairs: threadPairs.length,
+						totalTokens: this.extractTotalTokens(finalPair.response),
 						usage: usage,
 					},
 				};
-				conversations.push(conversation);
+
+				allConversations.push(conversation);
 			}
 		}
 
-		return conversations;
+		return allConversations;
 	}
 
-	canMergeWithConversation(conversation, newMessages, model) {
-		if (conversation.model !== model) return false;
+	normalizeMessageForGrouping(message) {
+		if (!message || !message.content) return message;
 
-		const existingMessages = conversation.messages;
+		const normalizedContent = Array.isArray(message.content)
+			? message.content.map((block) => {
+					if (block.type === "text" && block.text) {
+						let text = block.text;
+						// Remove dynamic content that might vary between calls
+						text = text.replace(/Generated \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/g, "Generated [TIMESTAMP]");
+						text = text.replace(/The user opened the file [^\s]+ in the IDE\./g, "The user opened file in IDE.");
+						text = text.replace(/<system-reminder>.*?<\/system-reminder>/gs, "[SYSTEM-REMINDER]");
+						return { type: "text", text: text };
+					}
+					return block;
+				})
+			: message.content;
 
-		// Check if new messages are a continuation (longer message history with same prefix)
-		if (newMessages.length > existingMessages.length) {
-			// Check if existing messages are a prefix of new messages
-			for (let i = 0; i < existingMessages.length; i++) {
-				if (!this.messagesEqual(existingMessages[i], newMessages[i])) {
-					return false;
+		return {
+			role: message.role,
+			content: normalizedContent,
+		};
+	}
+
+	normalizeSystemForGrouping(system) {
+		if (!system) return system;
+		if (typeof system === "string") {
+			return system.substring(0, 100); // Just first 100 chars for grouping
+		}
+		if (Array.isArray(system)) {
+			return system.map((block) => {
+				if (block.type === "text" && block.text) {
+					return { type: "text", text: block.text.substring(0, 100) };
 				}
-			}
-			return true;
+				return block;
+			});
 		}
-
-		return false;
+		return system;
 	}
 
-	messagesEqual(msg1, msg2) {
-		return msg1.role === msg2.role && JSON.stringify(msg1.content) === JSON.stringify(msg2.content);
+	hashString(str) {
+		let hash = 0;
+		for (let i = 0; i < str.length; i++) {
+			const char = str.charCodeAt(i);
+			hash = (hash << 5) - hash + char;
+			hash = hash & hash; // Convert to 32bit integer
+		}
+		return hash.toString();
 	}
 
 	extractResponseContent(response) {
@@ -364,7 +427,7 @@ class ClaudeViewer {
 			Object.assign(usage, responseBody.usage);
 		} else if (response.body_raw && response.body_raw.includes("event:")) {
 			// SSE response - look for both message_start and message_delta events
-			const events = this.parseSSEToEvents(response.body_raw);
+			const events = this.renderer.parseSSEToEvents(response.body_raw);
 			for (const event of events) {
 				if (
 					event.event === "message_start" &&
@@ -385,326 +448,6 @@ class ClaudeViewer {
 		}
 
 		return usage;
-	}
-
-	renderConversations() {
-		const container = document.querySelector(".conversations-container");
-		if (!container) return;
-
-		if (this.conversations.length === 0) {
-			container.innerHTML = '<div class="text-center text-muted">No conversations found</div>';
-			return;
-		}
-
-		const html = this.conversations
-			.map((conv, idx) => {
-				return this.renderConversation(conv, idx);
-			})
-			.join("");
-
-		container.innerHTML = html;
-	}
-
-	renderFilteredConversations() {
-		const container = document.querySelector(".conversations-container");
-		if (!container) return;
-
-		if (!this.filteredConversations || this.filteredConversations.length === 0) {
-			container.innerHTML = '<div class="text-center text-muted">No conversations found with selected models</div>';
-			return;
-		}
-
-		const html = this.filteredConversations
-			.map((conv, idx) => {
-				return this.renderConversation(conv, idx);
-			})
-			.join("");
-
-		container.innerHTML = html;
-	}
-
-	renderConversation(conversation, index) {
-		const { model, messages, latestResponse, metadata } = conversation;
-
-		return `
-            <div class="conversation">
-                <div class="conversation-header">
-                    <div class="conversation-title">
-                        Conversation #${index + 1} - ${this.escapeHtml(model)}
-                    </div>
-                    <div class="conversation-meta">
-                        <span>${messages.length} messages</span>
-                        <span>${this.formatTokenUsage(metadata.usage)}</span>
-                        <span>${new Date(metadata.startTime).toLocaleString()}</span>
-                    </div>
-                </div>
-                <div class="conversation-body">
-                    ${conversation.system ? this.renderSystemMessage(conversation.system) : ""}
-                    ${this.renderMessages(messages)}
-                    ${this.renderLatestResponse(latestResponse)}
-                </div>
-            </div>
-        `;
-	}
-
-	formatTokenUsage(usage) {
-		if (!usage) return "";
-
-		const parts = [];
-		if (usage.input_tokens) parts.push(`In: ${usage.input_tokens}`);
-		if (usage.output_tokens) parts.push(`Out: ${usage.output_tokens}`);
-		if (usage.cache_read_input_tokens) parts.push(`Cache Read: ${usage.cache_read_input_tokens}`);
-		if (usage.cache_creation_input_tokens) parts.push(`Cache Created: ${usage.cache_creation_input_tokens}`);
-
-		const total = (usage.input_tokens || 0) + (usage.output_tokens || 0);
-		return parts.length > 0 ? `${total} tokens (${parts.join(", ")})` : "";
-	}
-
-	renderSystemMessage(system) {
-		const content = typeof system === "string" ? system : JSON.stringify(system);
-		return `
-            <div class="message system">
-                <div class="message-role">System</div>
-                <div class="message-content">${this.escapeHtml(content).replace(/\n/g, "<br>")}</div>
-            </div>
-        `;
-	}
-
-	renderMessages(messages) {
-		return messages
-			.map((msg) => {
-				const role = msg.role;
-				const content = this.formatMessageContent(msg.content);
-
-				return `
-                <div class="message ${role}">
-                    <div class="message-role">${role}</div>
-                    <div class="message-content">${content}</div>
-                </div>
-            `;
-			})
-			.join("");
-	}
-
-	renderLatestResponse(response) {
-		if (!response) return "";
-
-		const content = this.formatResponseContent(response);
-		const usage = response.usage;
-
-		return `
-            <div class="message assistant latest-response">
-                <div class="message-role">Assistant (Latest)</div>
-                <div class="message-content">
-                    ${content}
-                    ${usage ? this.renderUsageInfo(usage) : ""}
-                </div>
-            </div>
-        `;
-	}
-
-	formatMessageContent(content) {
-		if (typeof content === "string") {
-			return this.escapeHtml(content).replace(/\n/g, "<br>");
-		}
-
-		if (Array.isArray(content)) {
-			return content.map((block) => this.formatContentBlock(block)).join("");
-		}
-
-		return '<pre class="font-mono text-sm">' + this.escapeHtml(JSON.stringify(content, null, 2)) + "</pre>";
-	}
-
-	formatContentBlock(block) {
-		const type = block.type;
-
-		switch (type) {
-			case "text":
-				return `<div class="content-block text">${this.escapeHtml(block.text).replace(/\n/g, "<br>")}</div>`;
-
-			case "thinking":
-				return `
-                    <div class="content-block thinking">
-                        <div class="content-block-type">Thinking</div>
-                        ${this.escapeHtml(block.thinking).replace(/\n/g, "<br>")}
-                    </div>
-                `;
-
-			case "tool_use":
-				return `
-                    <div class="content-block tool-use">
-                        <div class="content-block-type">Tool Use</div>
-                        <div class="tool-info">
-                            <span class="tool-name">${this.escapeHtml(block.name)}</span>
-                            <span class="text-muted">(${this.escapeHtml(block.id)})</span>
-                        </div>
-                        <div class="tool-input">${this.escapeHtml(JSON.stringify(block.input, null, 2))}</div>
-                    </div>
-                `;
-
-			case "tool_result":
-				return `
-                    <div class="content-block tool-result">
-                        <div class="content-block-type">Tool Result</div>
-                        <div class="tool-info">
-                            Tool ID: <span class="font-mono text-sm">${this.escapeHtml(block.tool_use_id)}</span>
-                            ${block.is_error ? ' <span style="color: #dc2626;">(Error)</span>' : ""}
-                        </div>
-                        <div class="tool-input">${this.formatToolResult(block.content)}</div>
-                    </div>
-                `;
-
-			default:
-				return `
-                    <div class="content-block">
-                        <div class="content-block-type">${this.escapeHtml(type)}</div>
-                        <pre class="font-mono text-sm">${this.escapeHtml(JSON.stringify(block, null, 2))}</pre>
-                    </div>
-                `;
-		}
-	}
-
-	formatResponseContent(response) {
-		if (!response || !response.content) return "";
-
-		return response.content.map((block) => this.formatContentBlock(block)).join("");
-	}
-
-	formatToolResult(content) {
-		if (typeof content === "string") {
-			return this.escapeHtml(content);
-		}
-		return this.escapeHtml(JSON.stringify(content, null, 2));
-	}
-
-	renderUsageInfo(usage) {
-		const parts = [];
-		if (usage.input_tokens) parts.push(`Input: ${usage.input_tokens}`);
-		if (usage.output_tokens) parts.push(`Output: ${usage.output_tokens}`);
-		if (usage.cache_read_input_tokens) parts.push(`Cache Read: ${usage.cache_read_input_tokens}`);
-		if (usage.cache_creation_input_tokens) parts.push(`Cache Created: ${usage.cache_creation_input_tokens}`);
-
-		return `<div class="usage-info">🔢 Tokens: ${parts.join(", ")}</div>`;
-	}
-
-	renderRawPairs() {
-		const container = document.querySelector(".raw-container");
-		if (!container) return;
-
-		if (!this.data.rawPairs || this.data.rawPairs.length === 0) {
-			container.innerHTML = '<div class="text-center text-muted">No raw pairs found</div>';
-			return;
-		}
-
-		const html = this.data.rawPairs
-			.map((pair, idx) => {
-				return this.renderRawPair(pair, idx);
-			})
-			.join("");
-
-		container.innerHTML = html;
-	}
-
-	renderRawPair(pair, index) {
-		const { request, response } = pair;
-
-		return `
-            <div class="raw-pair">
-                <div class="raw-pair-header">
-                    Pair #${index + 1} - ${request.method} ${new URL(request.url).pathname} - ${response.status_code}
-                </div>
-                <div class="raw-content">
-                    <div style="margin-bottom: 1rem;">
-                        <strong>Request:</strong>
-                        <div class="raw-json">${this.formatJson(request)}</div>
-                    </div>
-                    <div>
-                        <strong>Response:</strong>
-                        <div class="raw-json">${this.formatJson(response)}</div>
-                        ${this.renderSSEStructure(response)}
-                    </div>
-                </div>
-            </div>
-        `;
-	}
-
-	renderSSEStructure(response) {
-		// Check if this response has SSE data
-		const bodyRaw = response.body_raw;
-		if (!bodyRaw || !bodyRaw.includes("event:") || !bodyRaw.includes("data:")) {
-			return "";
-		}
-
-		// Parse SSE into structured events
-		const events = this.parseSSEToEvents(bodyRaw);
-		if (events.length === 0) return "";
-
-		return `
-			<div style="margin-top: 1rem;">
-				<strong>SSE Event Structure:</strong>
-				<div class="sse-structure">${this.formatSSEEvents(events)}</div>
-			</div>
-		`;
-	}
-
-	parseSSEToEvents(sseData) {
-		const events = [];
-		const lines = sseData.trim().split("\n");
-		let currentEvent = {};
-
-		for (const line of lines) {
-			const trimmed = line.trim();
-			if (!trimmed) {
-				if (Object.keys(currentEvent).length > 0) {
-					events.push(currentEvent);
-					currentEvent = {};
-				}
-				continue;
-			}
-
-			if (trimmed.startsWith("event: ")) {
-				currentEvent.event = trimmed.substring(7);
-			} else if (trimmed.startsWith("data: ")) {
-				const dataStr = trimmed.substring(6);
-				currentEvent.data_raw = dataStr;
-				if (dataStr !== "[DONE]") {
-					try {
-						currentEvent.data_parsed = JSON.parse(dataStr);
-					} catch {
-						currentEvent.data_parsed = dataStr;
-					}
-				}
-			}
-		}
-
-		if (Object.keys(currentEvent).length > 0) {
-			events.push(currentEvent);
-		}
-
-		return events;
-	}
-
-	formatSSEEvents(events) {
-		return events
-			.map((event) => {
-				const eventType = event.event || "unknown";
-				const dataStr = event.data_raw || "";
-				return `event: ${eventType}\ndata: ${this.escapeHtml(dataStr)}`;
-			})
-			.join("\n\n");
-	}
-
-	formatJson(obj) {
-		return this.escapeHtml(JSON.stringify(obj, null, 2));
-	}
-
-	escapeHtml(unsafe) {
-		return unsafe
-			.replace(/&/g, "&amp;")
-			.replace(/</g, "&lt;")
-			.replace(/>/g, "&gt;")
-			.replace(/"/g, "&quot;")
-			.replace(/'/g, "&#039;");
 	}
 }
 
