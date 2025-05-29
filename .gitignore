@@ -90,3 +90,7 @@ pids/
 
 # Python cache
 __pycache__/
+
+# logs
+claude-traffic-*.html
+claude-traffic-*.log

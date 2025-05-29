@@ -38,6 +38,7 @@ Before using these tools, you must install:
 - Starts `claude-logger.py` via mitmproxy in the background
 - Runs Claude Code interactively through the proxy
 - Logs all requests/responses to `claude-traffic-[timestamp].log`
+- Generates a nicely formatted HTML file at `claude-traffic-[timestamp].html`
 - Automatic cleanup when you exit Claude Code
 
 ### 2. Traffic Logger (`claude-logger.py`)
@@ -61,6 +62,7 @@ mitmdump -s claude-logger.py --listen-port 8080
 - Automatically starts proxy, runs Claude Code with a simple message, extracts token
 - Displays extracted token in terminal
 - Logs traffic to `claude-traffic-[timestamp].log`
+- Generates HTML conversation view at `claude-traffic-[timestamp].html`
 - Automatic cleanup when complete
 - No configuration needed - just run it!
 
@@ -87,6 +89,11 @@ chmod +x *.py *.sh
 ## Output Files
 
 - **`claude-traffic-[timestamp].log`** - Complete HTTP traffic logs in JSON format
+- **`claude-traffic-[timestamp].html`** - Nicely formatted conversation view with:
+   - User messages and assistant responses
+   - Model names and timestamps
+   - Support for text and image attachments
+   - Chronologically sorted conversations
 - **Terminal output** - Real-time status and extracted tokens
 
 ## Troubleshooting
