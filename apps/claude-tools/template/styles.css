@@ -308,6 +308,19 @@ body {
     white-space: pre;
 }
 
+/* SSE Structure */
+.sse-structure {
+    margin-top: 0.5rem;
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header {

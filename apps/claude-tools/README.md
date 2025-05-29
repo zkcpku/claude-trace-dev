@@ -1,6 +1,6 @@
 # Claude Code Tools
 
-Network interception utilities for analyzing Claude Code traffic and extracting OAuth tokens for use with Anthropic's SDK.
+Network interception utilities for analyzing Claude Code traffic, extracting OAuth tokens, and generating detailed HTML reports.
 
 ## Prerequisites
 
@@ -18,11 +18,14 @@ Before using these tools, you must install:
 ## Quick Start
 
 ```bash
+# Monitor traffic while using Claude interactively
+./claude-logger.sh
+
 # Extract an OAuth token (simplest)
 ./claude-token.py
 
-# Monitor traffic while using Claude interactively
-./claude-logger.sh
+# Generate HTML from existing logs
+python3 claude-logger.py claude-traffic.jsonl
 ```
 
 ## Tools
@@ -32,24 +35,39 @@ Before using these tools, you must install:
 **Purpose**: Convenient wrapper that starts traffic logging and runs Claude Code interactively
 
 ```bash
-./claude-logger.sh
+./claude-logger.sh [claude-command]
 ```
 
 - Starts `claude-logger.py` via mitmproxy in the background
 - Runs Claude Code interactively through the proxy
-- Logs all requests/responses to `claude-traffic-[timestamp].log`
-- Generates a nicely formatted HTML file at `claude-traffic-[timestamp].html`
+- Logs all request/response pairs to `claude-traffic.jsonl`
+- Generates real-time HTML reports at `claude-traffic.html`
 - Automatic cleanup when you exit Claude Code
+- Thread-safe pairing prevents race conditions from parallel requests
 
 ### 2. Traffic Logger (`claude-logger.py`)
 
-**Purpose**: mitmproxy script to log all HTTP traffic (used by the shell script)
+**Purpose**: mitmproxy script for logging HTTP traffic with advanced features
 
-This is a mitmproxy script that can be run directly:
+**As mitmproxy script:**
 
 ```bash
 mitmdump -s claude-logger.py --listen-port 8080
 ```
+
+**As standalone HTML generator:**
+
+```bash
+python3 claude-logger.py <jsonl-file>
+```
+
+**Features:**
+
+- Thread-safe request/response pairing using flow IDs
+- Race condition protection for parallel API calls
+- Real-time HTML generation with embedded template files
+- Proper handling of SSE (Server-Sent Events) streaming responses
+- Token usage tracking for both input and output tokens
 
 ### 3. Token Extractor (`claude-token.py`)
 
@@ -61,12 +79,25 @@ mitmdump -s claude-logger.py --listen-port 8080
 
 - Automatically starts proxy, runs Claude Code with a simple message, extracts token
 - Displays extracted token in terminal
-- Logs traffic to `claude-traffic-[timestamp].log`
-- Generates HTML conversation view at `claude-traffic-[timestamp].html`
+- Logs traffic to timestamped files
+- Generates HTML conversation view
 - Automatic cleanup when complete
 - No configuration needed - just run it!
 
 **Usage with Anthropic SDK**: Use the extracted token with the Anthropic client by setting it as the auth token (not API key)
+
+### 4. Process Cleanup (`kill-mitm.sh`)
+
+**Purpose**: Kill any stuck mitmproxy processes
+
+```bash
+./kill-mitm.sh
+```
+
+- Finds all running mitmproxy-related processes
+- Attempts graceful shutdown first (SIGTERM)
+- Force kills remaining processes if needed
+- Useful when proxy processes get stuck
 
 ## How It Works
 
@@ -88,13 +119,46 @@ chmod +x *.py *.sh
 
 ## Output Files
 
-- **`claude-traffic-[timestamp].log`** - Complete HTTP traffic logs in JSON format
-- **`claude-traffic-[timestamp].html`** - Nicely formatted conversation view with:
-   - User messages and assistant responses
-   - Model names and timestamps
-   - Support for text and image attachments
-   - Chronologically sorted conversations
+- **`claude-traffic.jsonl`** - Request/response pairs in JSON Lines format
+- **`claude-traffic.html`** - Interactive HTML viewer with:
+   - **Conversations View**: Merged conversations with proper message flow
+   - **Raw Pairs View**: Complete SSE event structure and raw API data
+   - **Model Filtering**: Toggle visibility of different models (haiku hidden by default)
+   - **Token Tracking**: Detailed input/output token usage with cache metrics
+   - **SSE Display**: Clean event-by-event format for streaming responses
 - **Terminal output** - Real-time status and extracted tokens
+
+## HTML Viewer Features
+
+The generated HTML viewer provides a rich interface for analyzing Claude Code traffic:
+
+### Conversations View
+
+- Automatically merges related API calls into coherent conversations
+- Shows system prompts, user messages, and assistant responses
+- Displays model names, timestamps, and token usage
+- Supports all content types: text, thinking blocks, tool use, and tool results
+- Real-time filtering by model type
+
+### Raw Pairs View
+
+- Complete request/response data for each API call
+- SSE events displayed in clean `event: type\ndata: payload` format
+- Full token usage breakdown including cache read/creation tokens
+- Timestamps and metadata for debugging
+
+### Model Filtering
+
+- Checkboxes to show/hide traffic from different models
+- Haiku model requests hidden by default (cosmetic/title generation)
+- Real-time conversation count updates based on active filters
+
+### Token Analytics
+
+- Input and output token tracking from both structured and SSE responses
+- Cache token metrics (cache_read_input_tokens, cache_creation_input_tokens)
+- Per-conversation and per-request token breakdowns
+- Total token usage displayed in conversation headers
 
 ## Troubleshooting
 
@@ -102,3 +166,5 @@ chmod +x *.py *.sh
 - **Permission errors** - Make sure scripts are executable: `chmod +x *.py *.sh`
 - **Network issues** - Check that port 8080 is available
 - **TLS errors** - The tools automatically disable TLS verification for proxy use
+- **JSON syntax errors in HTML** - Regenerate HTML: `python3 claude-logger.py claude-traffic.jsonl`
+- **Stuck mitmproxy processes** - Run `./kill-mitm.sh` to clean up

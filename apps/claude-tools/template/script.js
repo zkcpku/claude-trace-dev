@@ -185,6 +185,15 @@ class ClaudeViewer {
 					conv.latestResponse = this.extractResponseContent(pair.response);
 					conv.metadata.endTime = new Date(pair.request.timestamp * 1000).toISOString();
 					conv.metadata.totalPairs = conv.pairs.length;
+
+					// Accumulate token usage
+					const newUsage = this.extractTokenUsage(pair);
+					conv.metadata.usage.input_tokens += newUsage.input_tokens || 0;
+					conv.metadata.usage.output_tokens += newUsage.output_tokens || 0;
+					conv.metadata.usage.cache_read_input_tokens += newUsage.cache_read_input_tokens || 0;
+					conv.metadata.usage.cache_creation_input_tokens += newUsage.cache_creation_input_tokens || 0;
+					conv.metadata.totalTokens = conv.metadata.usage.input_tokens + conv.metadata.usage.output_tokens;
+
 					mergedInto = true;
 					break;
 				}
@@ -192,6 +201,7 @@ class ClaudeViewer {
 
 			if (!mergedInto) {
 				// Create new conversation
+				const usage = this.extractTokenUsage(pair);
 				const conversation = {
 					model: model,
 					messages: messages,
@@ -203,6 +213,7 @@ class ClaudeViewer {
 						endTime: new Date(pair.request.timestamp * 1000).toISOString(),
 						totalPairs: 1,
 						totalTokens: this.extractTotalTokens(pair.response),
+						usage: usage,
 					},
 				};
 				conversations.push(conversation);
@@ -312,14 +323,68 @@ class ClaudeViewer {
 	}
 
 	extractTotalTokens(response) {
+		// Try to get usage from structured response first
 		const body = response.body || {};
-		if (typeof body === "object") {
-			const usage = body.usage || {};
+		if (typeof body === "object" && body.usage) {
+			const usage = body.usage;
 			const inputTokens = usage.input_tokens || 0;
 			const outputTokens = usage.output_tokens || 0;
 			return inputTokens + outputTokens;
 		}
+
+		// Fall back to SSE parsing
+		const bodyRaw = response.body_raw || "";
+		if (bodyRaw.includes("event:") && bodyRaw.includes("data:")) {
+			const parsed = this.parseSSEResponse(bodyRaw);
+			if (parsed.usage) {
+				const inputTokens = parsed.usage.input_tokens || 0;
+				const outputTokens = parsed.usage.output_tokens || 0;
+				return inputTokens + outputTokens;
+			}
+		}
+
 		return 0;
+	}
+
+	extractTokenUsage(pair) {
+		// Extract token usage from both request and response
+		const usage = {
+			input_tokens: 0,
+			output_tokens: 0,
+			cache_read_input_tokens: 0,
+			cache_creation_input_tokens: 0,
+		};
+
+		// Get from response (SSE or structured)
+		const response = pair.response;
+		const responseBody = response.body || {};
+
+		if (responseBody.usage) {
+			// Structured response
+			Object.assign(usage, responseBody.usage);
+		} else if (response.body_raw && response.body_raw.includes("event:")) {
+			// SSE response - look for both message_start and message_delta events
+			const events = this.parseSSEToEvents(response.body_raw);
+			for (const event of events) {
+				if (
+					event.event === "message_start" &&
+					event.data_parsed &&
+					event.data_parsed.message &&
+					event.data_parsed.message.usage
+				) {
+					// Input tokens are in message_start event
+					const messageUsage = event.data_parsed.message.usage;
+					usage.input_tokens = messageUsage.input_tokens || 0;
+					usage.cache_read_input_tokens = messageUsage.cache_read_input_tokens || 0;
+					usage.cache_creation_input_tokens = messageUsage.cache_creation_input_tokens || 0;
+				} else if (event.event === "message_delta" && event.data_parsed && event.data_parsed.usage) {
+					// Output tokens are in message_delta event
+					usage.output_tokens = event.data_parsed.usage.output_tokens || 0;
+				}
+			}
+		}
+
+		return usage;
 	}
 
 	renderConversations() {
@@ -369,7 +434,7 @@ class ClaudeViewer {
                     </div>
                     <div class="conversation-meta">
                         <span>${messages.length} messages</span>
-                        <span>${metadata.totalTokens ? `${metadata.totalTokens} tokens` : ""}</span>
+                        <span>${this.formatTokenUsage(metadata.usage)}</span>
                         <span>${new Date(metadata.startTime).toLocaleString()}</span>
                     </div>
                 </div>
@@ -380,6 +445,19 @@ class ClaudeViewer {
                 </div>
             </div>
         `;
+	}
+
+	formatTokenUsage(usage) {
+		if (!usage) return "";
+
+		const parts = [];
+		if (usage.input_tokens) parts.push(`In: ${usage.input_tokens}`);
+		if (usage.output_tokens) parts.push(`Out: ${usage.output_tokens}`);
+		if (usage.cache_read_input_tokens) parts.push(`Cache Read: ${usage.cache_read_input_tokens}`);
+		if (usage.cache_creation_input_tokens) parts.push(`Cache Created: ${usage.cache_creation_input_tokens}`);
+
+		const total = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+		return parts.length > 0 ? `${total} tokens (${parts.join(", ")})` : "";
 	}
 
 	renderSystemMessage(system) {
@@ -543,10 +621,77 @@ class ClaudeViewer {
                     <div>
                         <strong>Response:</strong>
                         <div class="raw-json">${this.formatJson(response)}</div>
+                        ${this.renderSSEStructure(response)}
                     </div>
                 </div>
             </div>
         `;
+	}
+
+	renderSSEStructure(response) {
+		// Check if this response has SSE data
+		const bodyRaw = response.body_raw;
+		if (!bodyRaw || !bodyRaw.includes("event:") || !bodyRaw.includes("data:")) {
+			return "";
+		}
+
+		// Parse SSE into structured events
+		const events = this.parseSSEToEvents(bodyRaw);
+		if (events.length === 0) return "";
+
+		return `
+			<div style="margin-top: 1rem;">
+				<strong>SSE Event Structure:</strong>
+				<div class="sse-structure">${this.formatSSEEvents(events)}</div>
+			</div>
+		`;
+	}
+
+	parseSSEToEvents(sseData) {
+		const events = [];
+		const lines = sseData.trim().split("\n");
+		let currentEvent = {};
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (!trimmed) {
+				if (Object.keys(currentEvent).length > 0) {
+					events.push(currentEvent);
+					currentEvent = {};
+				}
+				continue;
+			}
+
+			if (trimmed.startsWith("event: ")) {
+				currentEvent.event = trimmed.substring(7);
+			} else if (trimmed.startsWith("data: ")) {
+				const dataStr = trimmed.substring(6);
+				currentEvent.data_raw = dataStr;
+				if (dataStr !== "[DONE]") {
+					try {
+						currentEvent.data_parsed = JSON.parse(dataStr);
+					} catch {
+						currentEvent.data_parsed = dataStr;
+					}
+				}
+			}
+		}
+
+		if (Object.keys(currentEvent).length > 0) {
+			events.push(currentEvent);
+		}
+
+		return events;
+	}
+
+	formatSSEEvents(events) {
+		return events
+			.map((event) => {
+				const eventType = event.event || "unknown";
+				const dataStr = event.data_raw || "";
+				return `event: ${eventType}\ndata: ${this.escapeHtml(dataStr)}`;
+			})
+			.join("\n\n");
 	}
 
 	formatJson(obj) {
