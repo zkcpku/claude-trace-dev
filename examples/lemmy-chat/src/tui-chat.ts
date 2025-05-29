@@ -10,6 +10,10 @@ import {
 	OpenAIModelData,
 	GoogleModelData,
 	findModelData,
+	AnthropicAskOptions,
+	OpenAIAskOptions,
+	GoogleAskOptions,
+	Provider,
 } from "@mariozechner/lemmy";
 import {
 	TUI,
@@ -21,7 +25,7 @@ import {
 	type SlashCommand,
 	logger,
 } from "@mariozechner/lemmy-tui";
-import { CONFIG_SCHEMA } from "@mariozechner/lemmy";
+import { CLIENT_CONFIG_SCHEMAS } from "@mariozechner/lemmy";
 import { loadDefaults, loadDefaultsConfig, getProviderConfig } from "./defaults.js";
 import { loadFileAttachment } from "./images.js";
 import chalk from "chalk";
@@ -113,6 +117,99 @@ more content
 </attached-files>
 
 When you see this format, treat the file contents as part of the user's context and refer to them by filename when discussing them.`;
+
+// Type mapping for provider-specific AskOptions
+type ProviderAskOptions = {
+	anthropic: AnthropicAskOptions;
+	openai: OpenAIAskOptions;
+	google: GoogleAskOptions;
+};
+
+// Helper functions to extract schema information from Zod schemas
+function getSchemaFields(
+	schema: import("zod").ZodObject<any>,
+): Record<string, { type: string; description?: string; values?: string[] }> {
+	const fields: Record<string, { type: string; description?: string; values?: string[] }> = {};
+
+	if (schema && schema._def && schema._def.shape) {
+		for (const [key, fieldSchema] of Object.entries(schema._def.shape() as any)) {
+			const field = fieldSchema as import("zod").ZodTypeAny;
+			let type = "string";
+			let values: string[] | undefined;
+
+			if (field._def) {
+				// Handle coerced types
+				if (field._def.innerType) {
+					const innerType = field._def.innerType._def.typeName;
+					if (innerType === "ZodNumber") type = "number";
+					else if (innerType === "ZodBoolean") type = "boolean";
+				}
+				// Handle direct types
+				else if (field._def.typeName === "ZodNumber") type = "number";
+				else if (field._def.typeName === "ZodBoolean") type = "boolean";
+				else if (field._def.typeName === "ZodEnum") {
+					type = "enum";
+					values = field._def.values;
+				} else if (field._def.typeName === "ZodArray") type = "string[]";
+			}
+
+			fields[key] = { type, ...(values && { values }) };
+		}
+	}
+
+	return fields;
+}
+
+function hasSchemaField(schema: import("zod").ZodObject<any>, fieldName: string): boolean {
+	return schema && schema._def && schema._def.shape && fieldName in schema._def.shape();
+}
+
+function parseAskOptions<T extends Provider>(
+	currentOptions: Record<string, unknown>,
+	provider: T,
+	context: Context,
+): ProviderAskOptions[T] {
+	// Get Zod schemas for validation
+	const baseSchema = CLIENT_CONFIG_SCHEMAS.base;
+	const providerSchema = CLIENT_CONFIG_SCHEMAS[provider];
+
+	// Merge schemas for validation
+	const combinedSchema = baseSchema.merge(providerSchema);
+
+	// Prepare options for validation - filter by provider prefix and strip prefixes
+	const filteredOptions: Record<string, unknown> = { context };
+
+	for (const [key, value] of Object.entries(currentOptions)) {
+		// Remove provider: prefix if present
+		const parts = key.split(":");
+		const optionKey = parts.length > 1 && parts[1] ? parts[1] : key;
+
+		// Skip model field as it's handled separately, and skip non-provider options for provider-specific keys
+		if (optionKey === "model") continue;
+		if (key.includes(":") && !key.startsWith(`${provider}:`)) continue;
+
+		filteredOptions[optionKey] = value;
+	}
+
+	// Parse and validate with Zod
+	const result = combinedSchema.safeParse(filteredOptions);
+
+	if (result.success) {
+		return result.data as ProviderAskOptions[T];
+	} else {
+		// Log validation errors but continue with fallback
+		logger.debug("parseAskOptions", `Validation errors for ${provider}`, {
+			errors: result.error.issues.map((issue: any) => ({
+				path: issue.path.join("."),
+				message: issue.message,
+				received: issue.code === "invalid_type" ? issue.received : undefined,
+			})),
+		});
+
+		// Return base options as fallback
+		return { context } as ProviderAskOptions[T];
+	}
+}
 
 export async function runTUIChat(options: any): Promise<void> {
 	// Determine provider and model
@@ -260,23 +357,23 @@ export async function runTUIChat(options: any): Promise<void> {
 			{ name: "help", description: "Show available commands" },
 		];
 
-		// Add provider-specific options from config schema
-		const providerSchema = CONFIG_SCHEMA[currentProvider as keyof typeof CONFIG_SCHEMA] as any;
-		if (providerSchema && typeof providerSchema === "object") {
-			for (const [key, config] of Object.entries(providerSchema)) {
+		// Add provider-specific options from Zod schema
+		const providerZodSchema = CLIENT_CONFIG_SCHEMAS[currentProvider as keyof typeof CLIENT_CONFIG_SCHEMAS];
+		if (providerZodSchema) {
+			const providerFields = getSchemaFields(providerZodSchema);
+			for (const [key, fieldInfo] of Object.entries(providerFields)) {
 				// Skip the model field as it's already set
 				if (key === "model") continue;
 
-				const configObj = config as any;
 				const commandName = `${currentProvider}:${key}`;
-				let description = configObj.doc || "";
+				let description = fieldInfo.description || "";
 
 				// Add type/value hints to description
-				if (configObj.type === "boolean") {
+				if (fieldInfo.type === "boolean") {
 					description += " (true/false)";
-				} else if (configObj.type === "enum" && "values" in configObj) {
-					description += ` (${configObj.values.join("/")})`;
-				} else if (configObj.type === "number") {
+				} else if (fieldInfo.type === "enum" && fieldInfo.values) {
+					description += ` (${fieldInfo.values.join("/")})`;
+				} else if (fieldInfo.type === "number") {
 					description += " (number)";
 				}
 
@@ -288,14 +385,14 @@ export async function runTUIChat(options: any): Promise<void> {
 		}
 
 		// Add base options that apply to all providers
-		const baseSchema = CONFIG_SCHEMA.base;
-		for (const [key, config] of Object.entries(baseSchema)) {
+		const baseZodSchema = CLIENT_CONFIG_SCHEMAS.base;
+		const baseFields = getSchemaFields(baseZodSchema);
+		for (const [key, fieldInfo] of Object.entries(baseFields)) {
 			// Skip apiKey and baseURL as they're not typically changed at runtime
 			if (key === "apiKey" || key === "baseURL") continue;
 
-			const configObj = config as any;
-			let description = configObj.doc || "";
-			if (configObj.type === "number") {
+			let description = fieldInfo.description || "";
+			if (fieldInfo.type === "number") {
 				description += " (number)";
 			}
 
@@ -497,22 +594,17 @@ export async function runTUIChat(options: any): Promise<void> {
 				messagesContainer.addChild(attachmentComponent);
 			}
 
-			// Make the API call with current options
-			// Strip provider: prefix from option keys
-			const askOptions: any = { context };
-			for (const [key, value] of Object.entries(currentOptions)) {
-				// Remove provider: prefix if present
-				const parts = key.split(":");
-				const optionKey = parts.length > 1 && parts[1] ? parts[1] : key;
-				askOptions[optionKey] = value;
-			}
-
 			// Add system instruction about file format if we have text files
 			if (textFiles.length > 0) {
-				askOptions.system = askOptions.system
-					? `${askOptions.system}\n\n${FILE_SYSTEM_INSTRUCTION}`
+				const currentSystemMessage = context.getSystemMessage();
+				const newSystemMessage = currentSystemMessage
+					? `${currentSystemMessage}\n\n${FILE_SYSTEM_INSTRUCTION}`
 					: FILE_SYSTEM_INSTRUCTION;
+				context.setSystemMessage(newSystemMessage);
 			}
+
+			// Make the API call with current options using schema-driven parsing
+			const askOptions = parseAskOptions(currentOptions, provider as Provider, context);
 
 			// Use AskInput format if we have attachments, otherwise use string
 			const askInput = attachments.length > 0 ? { content: finalContent, attachments } : finalContent;
@@ -595,15 +687,16 @@ export async function runTUIChat(options: any): Promise<void> {
 
 							// Override with the new model
 							newConfig.model = newModel;
-							const newProviderSchema = CONFIG_SCHEMA[newProvider as keyof typeof CONFIG_SCHEMA];
-							const baseSchema = CONFIG_SCHEMA.base;
+							const newProviderZodSchema =
+								CLIENT_CONFIG_SCHEMAS[newProvider as keyof typeof CLIENT_CONFIG_SCHEMAS];
+							const baseZodSchema = CLIENT_CONFIG_SCHEMAS.base;
 
 							// Add compatible provider-specific options
-							if (newProviderSchema && typeof newProviderSchema === "object") {
+							if (newProviderZodSchema) {
 								for (const [key, value] of Object.entries(currentOptions)) {
 									if (key.startsWith(`${newProvider}:`)) {
 										const optionKey = key.split(":")[1];
-										if (optionKey && (newProviderSchema as any).hasOwnProperty(optionKey)) {
+										if (optionKey && hasSchemaField(newProviderZodSchema, optionKey)) {
 											newConfig[optionKey] = value;
 										}
 									}
@@ -612,7 +705,7 @@ export async function runTUIChat(options: any): Promise<void> {
 
 							// Add compatible base options
 							for (const [key, value] of Object.entries(currentOptions)) {
-								if (baseSchema.hasOwnProperty(key)) {
+								if (hasSchemaField(baseZodSchema, key)) {
 									newConfig[key] = value;
 								}
 							}
@@ -647,9 +740,9 @@ export async function runTUIChat(options: any): Promise<void> {
 							// Show any options that were removed due to incompatibility
 							const removedOptions = Object.keys(currentOptions).filter(
 								(key) =>
-									!baseSchema.hasOwnProperty(key) &&
+									!hasSchemaField(baseZodSchema, key) &&
 									(!key.startsWith(`${newProvider}:`) ||
-										!(newProviderSchema as any)?.hasOwnProperty(key.split(":")[1])),
+										!hasSchemaField(newProviderZodSchema, key.split(":")[1] || "")),
 							);
 
 							if (removedOptions.length > 0) {
@@ -775,7 +868,7 @@ export async function runTUIChat(options: any): Promise<void> {
 
 			default:
 				// Check if it's a provider-specific option or base option
-				if (command.includes(":") || CONFIG_SCHEMA.base.hasOwnProperty(command)) {
+				if (command.includes(":") || hasSchemaField(CLIENT_CONFIG_SCHEMAS.base, command)) {
 					if (value) {
 						// Parse and store the value
 						let parsedValue: any = value;

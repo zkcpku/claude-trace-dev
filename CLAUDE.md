@@ -57,3 +57,13 @@ The TUI framework uses differential rendering for performance - only redrawing p
 - To test the lemmy-tui package, use: `npx tsx --no-deprecation src/index.ts chat --simulate-input "Hello world" "ENTER"` to simulate user input. You can then look at the tui-debug.log file to see logs in addition to the output in the terminal.
 - To test commands like model switching, use: `npx tsx --no-deprecation src/index.ts chat --simulate-input "/" "model" "SPACE" "gpt-4o" "ENTER"`
 - Special input keywords for simulation: "TAB", "ENTER", "SPACE", "ESC"
+
+# Type Safety Guidelines
+
+**CRITICAL: Avoid `any` at all costs!** Use proper TypeScript types wherever possible:
+
+- Import and use the specific types from packages/lemmy/src/types.ts (AskOptions, AnthropicAskOptions, OpenAIAskOptions, GoogleAskOptions, etc.)
+- Never use `any` when a proper type exists
+- If dynamic properties are needed, use proper type unions or mapped types
+- Always prefer type safety over convenience
+- When you see `: any` in code, consider it a bug that needs fixing

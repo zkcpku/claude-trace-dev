@@ -1,7 +1,90 @@
 import { readdirSync, statSync } from "fs";
-import { join, dirname, basename } from "path";
+import { join, dirname, basename, extname } from "path";
 import { homedir } from "os";
 import { logger } from "./logger.js";
+import mimeTypes from "mime-types";
+
+function isAttachableFile(filePath: string): boolean {
+	const mimeType = mimeTypes.lookup(filePath);
+
+	// Check file extension for common text files that might be misidentified
+	const textExtensions = [
+		".txt",
+		".md",
+		".markdown",
+		".js",
+		".ts",
+		".tsx",
+		".jsx",
+		".py",
+		".java",
+		".c",
+		".cpp",
+		".h",
+		".hpp",
+		".cs",
+		".php",
+		".rb",
+		".go",
+		".rs",
+		".swift",
+		".kt",
+		".scala",
+		".sh",
+		".bash",
+		".zsh",
+		".fish",
+		".html",
+		".htm",
+		".css",
+		".scss",
+		".sass",
+		".less",
+		".xml",
+		".json",
+		".yaml",
+		".yml",
+		".toml",
+		".ini",
+		".cfg",
+		".conf",
+		".log",
+		".sql",
+		".r",
+		".R",
+		".m",
+		".pl",
+		".lua",
+		".vim",
+		".dockerfile",
+		".makefile",
+		".cmake",
+		".gradle",
+		".maven",
+		".properties",
+		".env",
+	];
+
+	const ext = extname(filePath).toLowerCase();
+	if (textExtensions.includes(ext)) return true;
+
+	if (!mimeType) return false;
+
+	if (mimeType.startsWith("image/")) return true;
+	if (mimeType.startsWith("text/")) return true;
+
+	// Special cases for common text files that might not be detected as text/
+	const commonTextTypes = [
+		"application/json",
+		"application/javascript",
+		"application/typescript",
+		"application/xml",
+		"application/yaml",
+		"application/x-yaml",
+	];
+
+	return commonTextTypes.includes(mimeType);
+}
 
 export interface AutocompleteItem {
 	value: string;
@@ -162,6 +245,20 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 			};
 		}
 
+		// Check if we're completing a file attachment (prefix starts with "@")
+		if (prefix.startsWith("@")) {
+			// This is a file attachment completion
+			const newLine = beforePrefix + item.value + " " + afterCursor;
+			const newLines = [...lines];
+			newLines[cursorLine] = newLine;
+
+			return {
+				lines: newLines,
+				cursorLine,
+				cursorCol: beforePrefix.length + item.value.length + 1, // +1 for space
+			};
+		}
+
 		// Check if we're in a slash command context (beforePrefix contains "/command ")
 		const textBeforeCursor = currentLine.slice(0, cursorCol);
 		if (textBeforeCursor.includes("/") && textBeforeCursor.includes(" ")) {
@@ -191,6 +288,12 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 
 	// Extract a path-like prefix from the text before cursor
 	private extractPathPrefix(text: string, forceExtract: boolean = false): string | null {
+		// Check for @ file attachment syntax first
+		const atMatch = text.match(/@([^\s]*)$/);
+		if (atMatch) {
+			return atMatch[0]; // Return the full @path pattern
+		}
+
 		// Match paths - including those ending with /, ~/, or any word at end for forced extraction
 		// This regex captures:
 		// - Paths starting from beginning of line or after space/quote/equals
@@ -228,7 +331,9 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 	// Expand home directory (~/) to actual home path
 	private expandHomePath(path: string): string {
 		if (path.startsWith("~/")) {
-			return join(homedir(), path.slice(2));
+			const expandedPath = join(homedir(), path.slice(2));
+			// Preserve trailing slash if original path had one
+			return path.endsWith("/") && !expandedPath.endsWith("/") ? expandedPath + "/" : expandedPath;
 		} else if (path === "~") {
 			return homedir();
 		}
@@ -246,23 +351,37 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 			let searchDir: string;
 			let searchPrefix: string;
 			let expandedPrefix = prefix;
+			let isAtPrefix = false;
 
-			// Handle home directory expansion
-			if (prefix.startsWith("~")) {
-				expandedPrefix = this.expandHomePath(prefix);
+			// Handle @ file attachment prefix
+			if (prefix.startsWith("@")) {
+				isAtPrefix = true;
+				expandedPrefix = prefix.slice(1); // Remove the @
 			}
 
-			if (prefix === "" || prefix === "./" || prefix === "../" || prefix === "~" || prefix === "~/") {
+			// Handle home directory expansion
+			if (expandedPrefix.startsWith("~")) {
+				expandedPrefix = this.expandHomePath(expandedPrefix);
+			}
+
+			if (
+				expandedPrefix === "" ||
+				expandedPrefix === "./" ||
+				expandedPrefix === "../" ||
+				expandedPrefix === "~" ||
+				expandedPrefix === "~/" ||
+				prefix === "@"
+			) {
 				// Complete from specified position
 				if (prefix.startsWith("~")) {
 					searchDir = expandedPrefix;
 				} else {
-					searchDir = join(this.basePath, prefix);
+					searchDir = join(this.basePath, expandedPrefix);
 				}
 				searchPrefix = "";
 			} else if (expandedPrefix.endsWith("/")) {
 				// If prefix ends with /, show contents of that directory
-				if (prefix.startsWith("~")) {
+				if (prefix.startsWith("~") || (isAtPrefix && expandedPrefix.startsWith("/"))) {
 					searchDir = expandedPrefix;
 				} else {
 					searchDir = join(this.basePath, expandedPrefix);
@@ -272,7 +391,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				// Split into directory and file prefix
 				const dir = dirname(expandedPrefix);
 				const file = basename(expandedPrefix);
-				if (prefix.startsWith("~")) {
+				if (prefix.startsWith("~") || (isAtPrefix && expandedPrefix.startsWith("/"))) {
 					searchDir = dir;
 				} else {
 					searchDir = join(this.basePath, dir);
@@ -295,9 +414,35 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 
 				const fullPath = join(searchDir, entry);
 				const isDirectory = statSync(fullPath).isDirectory();
+
+				// For @ prefix, filter to only show directories and attachable files
+				if (isAtPrefix && !isDirectory && !isAttachableFile(fullPath)) {
+					continue;
+				}
+
 				let relativePath: string;
 
-				if (prefix.endsWith("/")) {
+				// Handle @ prefix path construction
+				if (isAtPrefix) {
+					const pathWithoutAt = expandedPrefix;
+					if (pathWithoutAt.endsWith("/")) {
+						relativePath = "@" + pathWithoutAt + entry;
+					} else if (pathWithoutAt.includes("/")) {
+						if (pathWithoutAt.startsWith("~/")) {
+							const homeRelativeDir = pathWithoutAt.slice(2); // Remove ~/
+							const dir = dirname(homeRelativeDir);
+							relativePath = "@~/" + (dir === "." ? entry : join(dir, entry));
+						} else {
+							relativePath = "@" + join(dirname(pathWithoutAt), entry);
+						}
+					} else {
+						if (pathWithoutAt.startsWith("~")) {
+							relativePath = "@~/" + entry;
+						} else {
+							relativePath = "@" + entry;
+						}
+					}
+				} else if (prefix.endsWith("/")) {
 					// If prefix ends with /, append entry to the prefix
 					relativePath = prefix + entry;
 				} else if (prefix.includes("/")) {
