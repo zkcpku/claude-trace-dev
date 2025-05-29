@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude API Traffic - {{TITLE}}</title>
+    <style>{{CSS_CONTENT}}</style>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>Claude API Traffic Viewer</h1>
+            <div class="header-stats">
+                <span class="stat">{{TOTAL_PAIRS}} API calls</span>
+                <span class="stat">{{TOTAL_CONVERSATIONS}} conversations</span>
+                <span class="stat">Generated {{TIMESTAMP}}</span>
+            </div>
+        </header>
+
+        <nav class="nav">
+            <button class="nav-btn active" data-view="conversations">Conversations</button>
+            <button class="nav-btn" data-view="raw">Raw Pairs</button>
+        </nav>
+
+        <main class="main">
+            <div id="conversations-view" class="view active">
+                <div class="conversations-container">
+                    {{CONVERSATIONS_CONTENT}}
+                </div>
+            </div>
+
+            <div id="raw-view" class="view">
+                <div class="raw-container">
+                    {{RAW_CONTENT}}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Inject data
+        window.claudeData = {{DATA_JSON}};
+    </script>
+    <script>{{JS_CONTENT}}</script>
+</body>
+</html>

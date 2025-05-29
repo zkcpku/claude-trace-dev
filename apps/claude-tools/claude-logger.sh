@@ -1,7 +1,7 @@
 #!/bin/bash
-# Claude Code Traffic Logger Shell Script
-# Starts mitmproxy with claude-logger.py script and then runs Claude CLI interactively
-# Usage: ./claude-logger.sh [claude-command]
+# Claude Code Traffic Logger Shell Script - New Version
+# Starts mitmproxy with claude-logger-new.py script and then runs Claude CLI interactively
+# Usage: ./claude-logger-new.sh [claude-command]
 
 set -e
 
@@ -19,8 +19,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🚀 Claude Code Traffic Logger${NC}"
+echo -e "${BLUE}🚀 Claude Code Traffic Logger (New Version)${NC}"
 echo -e "${YELLOW}This will start mitmproxy and then Claude CLI for interactive use${NC}"
+echo -e "${YELLOW}Logs paired request/responses to claude-traffic.jsonl${NC}"
 echo ""
 
 # Check dependencies
@@ -41,7 +42,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 # Start mitmproxy silently in background
 echo -e "${GREEN}🔄 Starting traffic logger...${NC}"
-mitmdump -s "$SCRIPT_DIR/claude-logger.py" --listen-port 8080 --quiet > /dev/null 2>&1 &
+mitmdump -s "$SCRIPT_DIR/claude-logger-new.py" --listen-port 8080 --quiet > /dev/null 2>&1 &
 MITM_PID=$!
 
 # Wait for mitmproxy to start
@@ -50,15 +51,18 @@ sleep 2
 # Function to cleanup on exit
 cleanup() {
     if [[ ! -z "$MITM_PID" ]]; then
+        echo -e "\n${YELLOW}🔄 Shutting down traffic logger...${NC}"
         kill $MITM_PID 2>/dev/null || true
         wait $MITM_PID 2>/dev/null || true
+        echo -e "${GREEN}✅ Traffic logger stopped${NC}"
     fi
 }
 
 # Set trap for cleanup
 trap cleanup EXIT INT TERM
 
-echo -e "${GREEN}✅ Traffic logging started${NC}"
+echo -e "${GREEN}✅ Traffic logging started (PID: $MITM_PID)${NC}"
+echo -e "${BLUE}📁 Logs will be written to: claude-traffic.jsonl${NC}"
 echo ""
 
 # Run Claude CLI with proxy settings
