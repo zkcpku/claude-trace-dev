@@ -164,26 +164,38 @@ class ClaudeViewer {
 	mergeConversations(pairs) {
 		if (!pairs || pairs.length === 0) return [];
 
-		// First, group pairs by model
-		const pairsByModel = new Map();
+		// First, group pairs by system instructions + model
+		const pairsBySystem = new Map();
 		for (const pair of pairs) {
 			const requestBody = pair.request.body || {};
 			const model = requestBody.model || "unknown";
+			const system = requestBody.system;
 
-			if (!pairsByModel.has(model)) {
-				pairsByModel.set(model, []);
+			// Create a key based on system instructions + model
+			const systemKey = JSON.stringify({ system, model });
+
+			if (!pairsBySystem.has(systemKey)) {
+				pairsBySystem.set(systemKey, []);
 			}
-			pairsByModel.get(model).push(pair);
+			pairsBySystem.get(systemKey).push(pair);
 		}
 
 		const allConversations = [];
 
-		// Process each model group separately
-		for (const [model, modelPairs] of pairsByModel) {
-			console.log(`Processing ${modelPairs.length} pairs for model: ${model}`);
+		// Process each system group separately
+		for (const [systemKey, systemPairs] of pairsBySystem) {
+			const firstPair = systemPairs[0];
+			const model = firstPair.request.body?.model || "unknown";
 
-			// Sort pairs by timestamp within model
-			const sortedPairs = [...modelPairs].sort((a, b) => a.request.timestamp - b.request.timestamp);
+			// Skip logging for haiku models to reduce noise
+			if (!model.toLowerCase().includes("haiku")) {
+				console.log(
+					`Processing ${systemPairs.length} pairs for model: ${model} with system: ${systemKey.substring(0, 100)}...`,
+				);
+			}
+
+			// Sort pairs by timestamp within system group
+			const sortedPairs = [...systemPairs].sort((a, b) => a.request.timestamp - b.request.timestamp);
 
 			// Group pairs by conversation thread based on message history
 			const conversationThreads = new Map(); // Maps first user message hash -> array of pairs
@@ -195,13 +207,12 @@ class ClaudeViewer {
 
 				if (messages.length === 0) continue;
 
-				// Use first user message as conversation identifier (but normalize it first)
+				// Use first user message as conversation identifier (normalize it)
+				// Note: system is already grouped above, so we only need to normalize the first message
 				const firstUserMessage = messages[0];
 				const normalizedFirstMessage = this.normalizeMessageForGrouping(firstUserMessage);
-				const normalizedSystem = this.normalizeSystemForGrouping(system);
 
 				const conversationKey = JSON.stringify({
-					system: normalizedSystem,
 					firstMessage: normalizedFirstMessage,
 				});
 
@@ -222,15 +233,18 @@ class ClaudeViewer {
 			// For each conversation thread, only keep the final pair (longest message history)
 			const conversationList = [];
 			for (const [conversationKey, threadPairs] of conversationThreads) {
+				// Sort threadPairs by timestamp to get proper chronological order
+				const sortedThreadPairs = [...threadPairs].sort((a, b) => a.request.timestamp - b.request.timestamp);
+
 				// Find the pair with the longest message history (most complete conversation)
-				const finalPair = threadPairs.reduce((longest, current) => {
+				const finalPair = sortedThreadPairs.reduce((longest, current) => {
 					const currentMessages = current.request.body?.messages || [];
 					const longestMessages = longest.request.body?.messages || [];
 					return currentMessages.length > longestMessages.length ? current : longest;
 				});
 
 				console.log(
-					`Conversation thread: ${threadPairs.length} pairs -> using final pair with ${finalPair.request.body?.messages?.length || 0} messages`,
+					`Conversation thread: ${sortedThreadPairs.length} pairs -> using final pair with ${finalPair.request.body?.messages?.length || 0} messages`,
 				);
 
 				// Create conversation from the final pair
@@ -239,16 +253,22 @@ class ClaudeViewer {
 				const system = requestBody.system;
 				const usage = this.extractTokenUsage(finalPair);
 
+				// Calculate proper start and end times
+				const startTime = new Date(sortedThreadPairs[0].request.timestamp * 1000).toISOString();
+				const endTime = new Date(
+					(finalPair.response.timestamp || finalPair.request.timestamp) * 1000,
+				).toISOString();
+
 				const conversation = {
 					model: model,
 					messages: messages,
 					system: system,
 					latestResponse: this.extractResponseContent(finalPair.response),
-					pairs: threadPairs, // Keep all pairs for reference, but only show final result
+					pairs: sortedThreadPairs, // Keep all pairs for reference, but now sorted
 					metadata: {
-						startTime: new Date(threadPairs[0].request.timestamp * 1000).toISOString(),
-						endTime: new Date(finalPair.request.timestamp * 1000).toISOString(),
-						totalPairs: threadPairs.length,
+						startTime: startTime,
+						endTime: endTime,
+						totalPairs: sortedThreadPairs.length,
 						totalTokens: this.extractTotalTokens(finalPair.response),
 						usage: usage,
 					},
@@ -257,115 +277,201 @@ class ClaudeViewer {
 				conversationList.push(conversation);
 			}
 
-			// Now detect and merge compact conversations
-			// const mergedConversations = this.detectAndMergeCompactConversations(conversationList);
-			// allConversations.push(...mergedConversations);
+			// Add conversations to the global list (we'll detect compact patterns later)
 			allConversations.push(...conversationList);
 		}
 
-		return allConversations;
+		// Now detect and merge compact conversations across all system groups
+		return this.detectAndMergeCompactConversations(allConversations);
 	}
 
 	detectAndMergeCompactConversations(conversations) {
 		if (conversations.length <= 1) return conversations;
 
 		// Sort by start time to process in chronological order
-		const sortedConversations = [...conversations].sort(
-			(a, b) => new Date(a.metadata.startTime) - new Date(b.metadata.startTime),
-		);
+		const sortedConversations = [...conversations]
+			.sort((a, b) => new Date(a.metadata.startTime) - new Date(b.metadata.startTime))
+			.filter((conv) => !conv.model.toLowerCase().includes("haiku"));
 
+		console.log(`Sorted conversations by timestamp:`);
+		sortedConversations.forEach((conv, i) => {
+			console.log(
+				`  ${i}: ${conv.pairs.length} pairs, ${conv.messages.length} messages, start: ${conv.metadata.startTime}`,
+			);
+		});
+
+		const usedConversations = new Set();
 		const mergedConversations = [];
 
+		// Look for compact conversations (1 pair, many messages)
 		for (let i = 0; i < sortedConversations.length; i++) {
 			const currentConv = sortedConversations[i];
 
-			// Check if this could be a compact conversation by finding which existing conversation it matches
-			let foundMatch = false;
-			for (let j = mergedConversations.length - 1; j >= 0; j--) {
-				if (this.isCompactConversation(mergedConversations[j], currentConv)) {
-					const targetConv = mergedConversations[j];
-					console.log(`Detected compact conversation - merging into conversation ${j + 1}`);
+			if (usedConversations.has(i)) continue;
 
-					// Merge the compact conversation into the matching one
-					this.mergeCompactConversation(targetConv, currentConv);
-					foundMatch = true;
-					break;
+			// Check if this is a compact conversation (1 pair with many messages)
+			if (currentConv.pairs.length === 1) {
+				console.log(
+					`Found potential compact conversation ${i}: ${currentConv.pairs.length} pairs, ${currentConv.messages.length} messages`,
+				);
+
+				// Look for the original conversation with same system message and 2 fewer messages
+				let originalConv = null;
+				let originalIndex = -1;
+
+				for (let j = 0; j < sortedConversations.length; j++) {
+					if (j === i || usedConversations.has(j)) continue;
+
+					const otherConv = sortedConversations[j];
+
+					// Check if system messages match and other conversation has exactly 2 fewer messages
+					if (otherConv.messages.length === currentConv.messages.length - 2) {
+						console.log(
+							`Checking potential original conversation ${j}: ${otherConv.pairs.length} pairs, ${otherConv.messages.length} messages`,
+						);
+
+						// Check if all messages in otherConv (except first) match messages in currentConv (except first)
+						// Skip first message in both conversations when comparing
+						let messagesMatch = true;
+						for (let k = 1; k < otherConv.messages.length; k++) {
+							if (!this.messagesRoughlyEqual(otherConv.messages[k], currentConv.messages[k])) {
+								messagesMatch = false;
+								break;
+							}
+						}
+
+						if (messagesMatch) {
+							console.log(`Found matching original conversation ${j}: messages match after first`);
+							originalConv = otherConv;
+							originalIndex = j;
+							break;
+						}
+					}
 				}
-			}
 
-			if (!foundMatch) {
-				mergedConversations.push(currentConv);
+				if (originalConv) {
+					console.log(`✓ Merging compact conversation ${i} with original conversation ${originalIndex}`);
+					const mergedConv = this.mergeCompactConversation(originalConv, currentConv);
+					mergedConversations.push(mergedConv);
+					usedConversations.add(i);
+					usedConversations.add(originalIndex);
+				} else {
+					console.log(`✗ No matching original conversation found for compact conversation ${i}`);
+					mergedConversations.push(currentConv);
+					usedConversations.add(i);
+				}
 			}
 		}
 
-		return mergedConversations;
+		// Add remaining conversations that weren't part of compact patterns
+		for (let i = 0; i < sortedConversations.length; i++) {
+			if (!usedConversations.has(i)) {
+				console.log(
+					`Adding non-compact conversation ${i}: ${sortedConversations[i].pairs.length} pairs, ${sortedConversations[i].messages.length} messages`,
+				);
+				mergedConversations.push(sortedConversations[i]);
+			}
+		}
+
+		// Sort final merged conversations by startTime to ensure chronological order
+		return mergedConversations.sort((a, b) => new Date(a.metadata.startTime) - new Date(b.metadata.startTime));
 	}
 
-	isCompactConversation(previousConv, currentConv) {
-		const prevMessages = previousConv.messages || [];
+	isCompactConversation(currentConv, nextConv) {
+		console.log(`    Checking compact pattern:`);
+
 		const currentMessages = currentConv.messages || [];
+		const nextMessages = nextConv.messages || [];
 
-		// A compact conversation should have at least 3 messages: [summary, user_request, assistant_response]
-		if (currentMessages.length < 3) return false;
+		console.log(`    Current: ${currentConv.pairs.length} pairs, ${currentMessages.length} messages`);
+		console.log(`    Next: ${nextConv.pairs.length} pairs, ${nextMessages.length} messages`);
 
-		// Skip the first message (summary) and check if remaining messages match end of previous conversation
-		const currentWithoutSummary = currentMessages.slice(1);
+		// Compact conversation should have exactly 1 pair and MORE messages than original
+		// (the compact conversation contains the merged result)
+		if (nextConv.pairs.length !== 1) {
+			console.log(`    ✗ Next should have exactly 1 pair (compact pattern)`);
+			return false;
+		}
 
-		// Check if the previous conversation ends with the same messages (excluding the summary)
-		if (prevMessages.length < currentWithoutSummary.length) return false;
+		if (nextMessages.length <= currentMessages.length) {
+			console.log(`    ✗ Next should have more messages (compact pattern contains merged result)`);
+			return false;
+		}
 
-		const prevTail = prevMessages.slice(-currentWithoutSummary.length);
+		// For compact conversations, check if the beginning of the next conversation
+		// matches the beginning of the current conversation
+		const compareLength = Math.min(currentMessages.length, nextMessages.length);
+		console.log(`    Comparing first ${compareLength} messages:`);
 
-		// Compare messages (simplified comparison for now)
-		for (let i = 0; i < currentWithoutSummary.length - 1; i++) {
-			// -1 to exclude the final assistant response
-			if (!this.messagesRoughlyEqual(prevTail[i], currentWithoutSummary[i])) {
+		// Check if messages 0-N of next match current's messages 0-N
+		for (let i = 0; i < compareLength; i++) {
+			const match = this.messagesRoughlyEqual(currentMessages[i], nextMessages[i]);
+			console.log(
+				`    Message ${i}: ${match ? "✓" : "✗"} (roles: ${currentMessages[i]?.role} vs ${nextMessages[i]?.role})`,
+			);
+			if (!match) {
 				return false;
 			}
 		}
 
-		console.log(
-			`Compact pattern detected: prev ${prevMessages.length} messages, current ${currentMessages.length} messages`,
-		);
+		console.log(`    ✓ Compact pattern confirmed!`);
 		return true;
 	}
 
-	mergeCompactConversation(targetConv, compactConv) {
+	mergeCompactConversation(currentConv, compactConv) {
+		const currentMessages = currentConv.messages || [];
 		const compactMessages = compactConv.messages || [];
 
-		// The compact conversation pattern is: [summary, ...previous_messages, compact_request, summary_response]
-		// We want to add the compact_request and summary_response to the target conversation
-		if (compactMessages.length >= 2) {
-			const compactRequest = compactMessages[compactMessages.length - 2]; // User's compact request
-			const summaryResponse = compactMessages[compactMessages.length - 1]; // Assistant's summary
+		console.log(
+			`Merging: current has ${currentMessages.length} messages, compact has ${compactMessages.length} messages`,
+		);
 
-			console.log(`Adding compact request and summary to conversation with ${targetConv.messages.length} messages`);
-
-			// Add compact request and summary response to target conversation
-			targetConv.messages.push(compactRequest);
-			targetConv.messages.push(summaryResponse);
-
-			// Keep the latest response as the summary (but preserve tool calls from compact conversation)
-			const compactResponse = this.extractResponseContent(compactConv.pairs[compactConv.pairs.length - 1].response);
-			targetConv.latestResponse = compactResponse;
-
-			// Merge pairs (this preserves the tool calls in the raw data)
-			targetConv.pairs.push(...compactConv.pairs);
-
-			// Update metadata
-			targetConv.metadata.endTime = compactConv.metadata.endTime;
-			targetConv.metadata.totalPairs += compactConv.metadata.totalPairs;
-			targetConv.metadata.totalTokens += compactConv.metadata.totalTokens;
-
-			// Merge usage
-			targetConv.metadata.usage.input_tokens += compactConv.metadata.usage.input_tokens || 0;
-			targetConv.metadata.usage.output_tokens += compactConv.metadata.usage.output_tokens || 0;
-			targetConv.metadata.usage.cache_read_input_tokens += compactConv.metadata.usage.cache_read_input_tokens || 0;
-			targetConv.metadata.usage.cache_creation_input_tokens +=
-				compactConv.metadata.usage.cache_creation_input_tokens || 0;
-
-			console.log(`After merge: ${targetConv.messages.length} messages, ${targetConv.pairs.length} pairs`);
+		// The compact conversation contains the full merged result, but its first user message
+		// is truncated/summarized. We need to replace it with the original first message.
+		const mergedMessages = [...compactMessages];
+		if (currentMessages.length > 0 && mergedMessages.length > 0) {
+			mergedMessages[0] = currentMessages[0]; // Replace first message with original
+			console.log(`Replaced first message from original conversation`);
 		}
+
+		// Combine and sort all pairs by timestamp
+		const allPairs = [...currentConv.pairs, ...compactConv.pairs].sort(
+			(a, b) => a.request.timestamp - b.request.timestamp,
+		);
+
+		// Calculate proper start and end times from all pairs
+		const startTime = new Date(allPairs[0].request.timestamp * 1000).toISOString();
+		const lastPair = allPairs[allPairs.length - 1];
+		const endTime = new Date((lastPair.response.timestamp || lastPair.request.timestamp) * 1000).toISOString();
+
+		const mergedConv = {
+			model: compactConv.model,
+			system: compactConv.system,
+			messages: mergedMessages,
+			latestResponse: compactConv.latestResponse,
+			pairs: allPairs,
+			metadata: {
+				startTime: startTime,
+				endTime: endTime,
+				totalPairs: allPairs.length,
+				totalTokens: currentConv.metadata.totalTokens + compactConv.metadata.totalTokens,
+				usage: {
+					input_tokens:
+						(currentConv.metadata.usage.input_tokens || 0) + (compactConv.metadata.usage.input_tokens || 0),
+					output_tokens:
+						(currentConv.metadata.usage.output_tokens || 0) + (compactConv.metadata.usage.output_tokens || 0),
+					cache_read_input_tokens:
+						(currentConv.metadata.usage.cache_read_input_tokens || 0) +
+						(compactConv.metadata.usage.cache_read_input_tokens || 0),
+					cache_creation_input_tokens:
+						(currentConv.metadata.usage.cache_creation_input_tokens || 0) +
+						(compactConv.metadata.usage.cache_creation_input_tokens || 0),
+				},
+			},
+		};
+
+		console.log(`Merged result: ${mergedConv.messages.length} messages, ${mergedConv.pairs.length} pairs`);
+		return mergedConv;
 	}
 
 	messagesRoughlyEqual(msg1, msg2) {
