@@ -42,7 +42,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 # Start mitmproxy silently in background
 echo -e "${GREEN}🔄 Starting traffic logger...${NC}"
-mitmdump -s "$SCRIPT_DIR/claude-logger-new.py" --listen-port 8080 --quiet > /dev/null 2>&1 &
+mitmdump -s "$SCRIPT_DIR/claude-logger.py" --listen-port 8080 --quiet > /dev/null 2>&1 &
 MITM_PID=$!
 
 # Wait for mitmproxy to start

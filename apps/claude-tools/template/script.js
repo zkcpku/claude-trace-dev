@@ -56,12 +56,105 @@ class ClaudeViewer {
 	}
 
 	setupFilters() {
-		// Add model filters, search, etc. later
+		// Create model filter controls
+		this.createModelFilters();
+	}
+
+	createModelFilters() {
+		// Get all unique models from pairs
+		const models = [
+			...new Set(
+				this.data.rawPairs.map((pair) => {
+					const requestBody = pair.request.body || {};
+					return requestBody.model || "unknown";
+				}),
+			),
+		].sort();
+
+		if (models.length <= 1) return; // No need for filters if only one model
+
+		// Create filter container
+		const nav = document.querySelector(".nav");
+		const filterContainer = document.createElement("div");
+		filterContainer.className = "model-filters";
+		filterContainer.innerHTML = `
+			<span class="filter-label">Models:</span>
+			${models
+				.map((model) => {
+					const isHaiku = model.toLowerCase().includes("haiku");
+					const checked = !isHaiku; // Haiku off by default
+					return `
+					<label class="model-filter">
+						<input type="checkbox" value="${model}" ${checked ? "checked" : ""}>
+						<span>${model}</span>
+					</label>
+				`;
+				})
+				.join("")}
+		`;
+
+		nav.appendChild(filterContainer);
+
+		// Add event listeners for filter changes
+		filterContainer.addEventListener("change", () => {
+			this.applyModelFilters();
+		});
+
+		// Store initial filter state
+		this.modelFilters = new Set(models.filter((model) => !model.toLowerCase().includes("haiku")));
+
+		// Apply initial filters
+		this.applyModelFilters();
+	}
+
+	applyModelFilters() {
+		// Get checked models
+		const checkedModels = new Set();
+		document.querySelectorAll(".model-filter input:checked").forEach((input) => {
+			checkedModels.add(input.value);
+		});
+
+		this.modelFilters = checkedModels;
+
+		// Filter conversations and re-render
+		this.filterAndRenderConversations();
+	}
+
+	filterAndRenderConversations() {
+		// Filter raw pairs by selected models
+		const filteredPairs = this.data.rawPairs.filter((pair) => {
+			const requestBody = pair.request.body || {};
+			const model = requestBody.model || "unknown";
+			return this.modelFilters.has(model);
+		});
+
+		// Merge conversations from filtered pairs
+		this.filteredConversations = this.mergeConversations(filteredPairs);
+
+		// Update stats
+		this.updateFilteredStats();
+
+		// Re-render if we're in conversations view
+		if (this.currentView === "conversations") {
+			this.renderFilteredConversations();
+		}
+	}
+
+	updateFilteredStats() {
+		const totalConvsEl = document.querySelector(".header-stats .stat:nth-child(2)");
+		if (totalConvsEl && this.filteredConversations) {
+			totalConvsEl.textContent = `${this.filteredConversations.length} conversations`;
+		}
 	}
 
 	renderCurrentView() {
 		if (this.currentView === "conversations") {
-			this.renderConversations();
+			// Use filtered conversations if filters are active, otherwise use all
+			if (this.filteredConversations !== undefined) {
+				this.renderFilteredConversations();
+			} else {
+				this.renderConversations();
+			}
 		} else if (this.currentView === "raw") {
 			this.renderRawPairs();
 		}
@@ -239,6 +332,24 @@ class ClaudeViewer {
 		}
 
 		const html = this.conversations
+			.map((conv, idx) => {
+				return this.renderConversation(conv, idx);
+			})
+			.join("");
+
+		container.innerHTML = html;
+	}
+
+	renderFilteredConversations() {
+		const container = document.querySelector(".conversations-container");
+		if (!container) return;
+
+		if (!this.filteredConversations || this.filteredConversations.length === 0) {
+			container.innerHTML = '<div class="text-center text-muted">No conversations found with selected models</div>';
+			return;
+		}
+
+		const html = this.filteredConversations
 			.map((conv, idx) => {
 				return this.renderConversation(conv, idx);
 			})
