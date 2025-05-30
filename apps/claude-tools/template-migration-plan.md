@@ -1,3 +1,129 @@
+# Claude Tools Data Processing Plan
+
+## Data Processing Architecture
+
+### Input Data Structure (from mitmproxy)
+
+Raw API pairs contain:
+
+- `request_body`: Conforms to Anthropic SDK `MessageCreateParamsBase` type
+   - Non-streaming: `MessageCreateParamsNonStreaming` (stream: false/absent)
+   - Streaming: `MessageCreateParamsStreaming` (stream: true)
+- `response_body`: Depends on stream type
+   - Non-streaming: Direct `Message` object
+   - Streaming: SSE-encoded `MessageStreamEvent[]` in `body_raw`
+
+### Key Insight: Unified Message Reconstruction
+
+We can reconstruct a complete `Message` from SSE events:
+
+1. `message_start` → base `Message` structure (id, model, role, etc.)
+2. `content_block_start/delta` → build content blocks incrementally
+3. `message_delta` → update message-level fields (usage tokens)
+4. `message_stop` → finalize the message
+
+**Benefits:**
+
+- Unified data structure: everything becomes `Message` objects
+- Simpler processing: no need to handle two different response formats
+- Type safety: leverage Anthropic's official types
+- Easier conversation merging and analysis
+
+### Processing Pipeline
+
+#### Phase 1: Raw Pair Processing ✅ COMPLETED
+
+Convert mitmproxy data to typed Anthropic SDK structures:
+
+```typescript
+interface ProcessedPair {
+	id: string;
+	timestamp: string;
+	request: MessageCreateParams; // Cast from request_body
+	response: Message; // Direct or reconstructed from SSE
+	model: string;
+	isStreaming: boolean;
+}
+```
+
+**Implementation Steps:**
+
+- [x] Cast `request_body` to `MessageCreateParams` (trivial - check stream field)
+- [x] For non-streaming: Direct cast `response_body` to `Message`
+- [x] For streaming: Parse SSE events from `body_raw` and reconstruct `Message`
+- [x] Handle all content block delta types: `text_delta`, `input_json_delta`, `thinking_delta`, `signature_delta`, `citations_delta`
+- [x] Remove all `any` types for full type safety
+- [x] Add comprehensive error handling and validation
+- [x] Add typecheck script and ensure all types validate
+- [x] Add JSON view in UI to inspect processed pairs
+- [x] Implement model filtering for JSON view
+- [x] Add model filtering to raw view for consistency
+- [x] Make all sections collapsible but expanded by default
+- [x] Follow terminal styling patterns across all views
+
+#### Phase 2: Conversation Merging (FUTURE)
+
+Group related pairs into conversations using:
+
+- System prompt similarity
+- Model consistency
+- Message history threading
+- Temporal proximity
+
+```typescript
+interface Conversation {
+	id: string;
+	model: string;
+	system?: string | Array<TextBlockParam>; // Match SDK type
+	tools?: Tool[];
+	conversationHistory: MessageParam[];
+	responses: Message[];
+	metadata: {
+		totalTokens: number;
+		requestCount: number;
+		isCompact: boolean;
+	};
+}
+```
+
+#### Phase 3: UI Views (FUTURE)
+
+- **Conversations View**: Merged conversation display
+- **Raw Pairs View**: Current expandable pairs view
+- **JSON View**: Inspect processed pairs for debugging
+
+### Current Implementation Plan
+
+**Phase 1 Status:** ✅ **COMPLETED** - Raw pair processing with SSE reconstruction
+
+- ✅ Full type safety using Anthropic SDK types
+- ✅ Comprehensive SSE-to-Message reconstruction
+- ✅ All content block delta types supported
+- ✅ Zero `any` types remaining
+- ✅ TypeScript validation passing
+
+**Completed Features:**
+
+- ✅ **JSON Debug View**: Complete UI tab with `ProcessedPair[]` inspection
+- ✅ **Model Filtering**: Consistent across all three views (conversations, raw calls, json debug)
+- ✅ **Terminal Styling**: Unified design language with collapsible sections
+- ✅ **Expanded by Default**: All data visible immediately, collapsible for space management
+- ✅ **Type Safety**: Full TypeScript coverage with Anthropic SDK types
+- ✅ **SSE Reconstruction**: Complete Message reconstruction from all delta types
+
+**Next Priority:**
+
+1. **Update UI Components**: Migrate conversation and raw views to use new `ProcessedPair[]` data
+2. **Integration Testing**: Test with real traffic data and validate accuracy
+3. **Performance Optimization**: Optimize rendering for large datasets
+
+**Future Phases:**
+
+- Phase 2: Conversation merging using the new typed data structures
+- Phase 3: Enhanced UI views with better data presentation and analysis tools
+
+---
+
 # Claude Tools Frontend Migration Plan
 
 ## Context & Background
