@@ -7,7 +7,7 @@ export default defineConfig({
 	format: ["iife"],
 	outDir: "dist",
 	globalName: "ClaudeApp",
-	minify: false,
+	minify: true,
 	sourcemap: false,
 	clean: false, // Don't clean CSS file
 	noExternal: ["lit", "marked", "highlight.js"],
@@ -17,18 +17,18 @@ export default defineConfig({
 			js: "/* Claude Tools Frontend Bundle */",
 		};
 
-		// Inject CSS content
+		// No source maps for production bundle
+
+		// Inject CSS content - read dynamically on each build
 		options.define = {
 			...options.define,
-			__CSS_CONTENT__: JSON.stringify(
-				(() => {
-					try {
-						return readFileSync(join(process.cwd(), "dist/styles.css"), "utf8");
-					} catch {
-						return "";
-					}
-				})(),
-			),
+			get __CSS_CONTENT__() {
+				try {
+					return JSON.stringify(readFileSync(join(process.cwd(), "dist/styles.css"), "utf8"));
+				} catch {
+					return JSON.stringify("");
+				}
+			},
 		};
 	},
 });
