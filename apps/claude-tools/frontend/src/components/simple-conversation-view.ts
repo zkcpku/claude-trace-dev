@@ -182,15 +182,28 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 		return html`<pre>${JSON.stringify(response, null, 2)}</pre>`;
 	}
 
-	private getToolDisplayName(toolUse: any): string {
+	private getToolDisplayName(toolUse: any): TemplateResult {
 		const toolName = toolUse.name;
 		const input = toolUse.input;
 
+		// HTML unescape function
+		const unescapeHtml = (str: string): string => {
+			const div = document.createElement("div");
+			div.innerHTML = str;
+			return div.textContent || div.innerText || "";
+		};
+
 		switch (toolName) {
 			case "Read":
-				return input?.file_path ? `Read(${input.file_path})` : "Read";
+				return input?.file_path
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
+					: html`${toolName}`;
+			case "Bash":
+				return input?.command
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.command)}</span>)`
+					: html`${toolName}`;
 			default:
-				return toolName;
+				return html`${toolName}`;
 		}
 	}
 
