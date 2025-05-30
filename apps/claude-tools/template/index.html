@@ -3,44 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude API Traffic - {{TITLE}}</title>
+    <title>claude-traffic-{{TITLE}}</title>
     <style>{{CSS_CONTENT}}</style>
 </head>
 <body>
-    <div class="app">
-        <header class="header">
-            <h1>Claude API Traffic Viewer</h1>
-            <div class="header-stats">
-                <span class="stat">{{TOTAL_PAIRS}} API calls</span>
-                <span class="stat">{{TOTAL_CONVERSATIONS}} conversations</span>
-                <span class="stat">Generated {{TIMESTAMP}}</span>
-            </div>
-        </header>
-
-        <nav class="nav">
-            <button class="nav-btn active" data-view="conversations">Conversations</button>
-            <button class="nav-btn" data-view="raw">Raw Pairs</button>
-        </nav>
-
-        <main class="main">
-            <div id="conversations-view" class="view active">
-                <div class="conversations-container">
-                    {{CONVERSATIONS_CONTENT}}
+    <div class="terminal">
+        <div class="header-container">
+            <div class="terminal-header">
+                <span class="prompt">~</span>
+                <span class="command">claude-traffic</span>
+                <div class="status">
+                    <span>{{TOTAL_CONVERSATIONS}} conversations</span>
+                    <span>{{TOTAL_PAIRS}} raw calls</span>
+                    <br>
+                    <span>{{TIMESTAMP}}</span>
                 </div>
             </div>
 
-            <div id="raw-view" class="view">
-                <div class="raw-container">
-                    {{RAW_CONTENT}}
-                </div>
+            <div class="terminal-nav">
+                <span class="nav-item active" data-view="conversations">[conversations]</span>
+                <span class="nav-item" data-view="raw">[raw calls]</span>
             </div>
-        </main>
+
+            <div class="model-filters-container">
+                <!-- Model filters will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <div class="terminal-content">
+            <div id="conversations-view" class="view active">{{CONVERSATIONS_CONTENT}}</div>
+            <div id="raw-view" class="view">{{RAW_CONTENT}}</div>
+        </div>
     </div>
 
-    <script>
-        // Inject data
-        window.claudeData = {{DATA_JSON}};
-    </script>
+    <script>window.claudeData = {{DATA_JSON}};</script>
     <script>{{VIEWS_JS_CONTENT}}</script>
     <script>{{MAIN_JS_CONTENT}}</script>
 </body>

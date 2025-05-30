@@ -911,3 +911,54 @@ export type { AnthropicConfig, OpenAIConfig, GoogleConfig, OllamaConfig };
 ### Optional Dependencies
 
 - MCP server implementations for specific use cases
+
+## Claude Traffic Logger Design Aesthetics
+
+The `apps/claude-tools` traffic logger implements a **minimal terminal-inspired aesthetic** focused on readability and information density. This design philosophy prioritizes function over form while maintaining visual clarity.
+
+### Core Design Principles
+
+**Minimal Terminal Aesthetic:**
+
+- Dark terminal-style color scheme with monospace fonts throughout
+- Clean borders and compact spacing - no wasted whitespace
+- Information-dense layout that maximizes content per screen area
+- No decorative elements, icons, or emojis - pure text-based interface
+
+**Expandable Information Architecture:**
+
+- Everything starts collapsed to provide conversation overview
+- Click `[+]` to expand any section for detailed information
+- Clear visual hierarchy: `>` for outbound tool calls, `<` for inbound results
+- Consistent expand/collapse pattern across all content types
+
+**Conversation Readability:**
+
+- System prompts and tool lists shown compactly with expansion available
+- Tool calls integrated directly into message flow
+- Clean separation between user and assistant messages
+- No token counts or metrics - focus purely on conversation content
+
+**Terminal-Style Visual Elements:**
+
+- Border characters and ASCII-style formatting
+- Monospace font family: `'Monaco', 'Menlo', 'Ubuntu Mono', monospace`
+- Dark color palette: `#1e293b`, `#0f172a`, `#374151` backgrounds
+- Muted text colors: `#94a3b8`, `#cbd5e1`, `#d1d5db`
+- Accent colors for tool status: yellow for outbound, green for inbound
+
+**Compact Information Display:**
+
+- Small font sizes (0.7-0.75rem) for information density
+- Tight padding and margins (0.25-0.5rem) to maximize screen usage
+- Short line heights (1.3-1.4) for vertical compactness
+- Scrollable content areas with reasonable max-heights
+
+**No Distractions:**
+
+- No token usage displays or performance metrics
+- No emojis or decorative icons anywhere
+- No animated elements or transitions beyond hover states
+- Clean, unadorned interface focused on content consumption
+
+This aesthetic creates a **professional, developer-focused interface** that feels like reading well-formatted terminal output or code, making it easy to quickly scan conversations and drill down into details when needed.

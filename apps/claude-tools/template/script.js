@@ -22,17 +22,17 @@ class ClaudeViewer {
 	}
 
 	updateHeaderStats() {
-		const totalPairsEl = document.querySelector(".header-stats .stat:first-child");
-		const totalConvsEl = document.querySelector(".header-stats .stat:nth-child(2)");
+		const totalConvsEl = document.querySelector(".status span:first-child");
+		const totalPairsEl = document.querySelector(".status span:nth-child(2)");
 
-		if (totalPairsEl) totalPairsEl.textContent = `${this.data.rawPairs.length} API calls`;
 		if (totalConvsEl) totalConvsEl.textContent = `${this.conversations.length} conversations`;
+		if (totalPairsEl) totalPairsEl.textContent = `${this.data.rawPairs.length} raw calls`;
 	}
 
 	setupNavigation() {
-		const navButtons = document.querySelectorAll(".nav-btn");
-		navButtons.forEach((btn) => {
-			btn.addEventListener("click", (e) => {
+		const navItems = document.querySelectorAll(".nav-item");
+		navItems.forEach((item) => {
+			item.addEventListener("click", (e) => {
 				const view = e.target.dataset.view;
 				this.switchView(view);
 			});
@@ -42,9 +42,9 @@ class ClaudeViewer {
 	switchView(view) {
 		if (view === this.currentView) return;
 
-		// Update nav buttons
-		document.querySelectorAll(".nav-btn").forEach((btn) => {
-			btn.classList.toggle("active", btn.dataset.view === view);
+		// Update nav items
+		document.querySelectorAll(".nav-item").forEach((item) => {
+			item.classList.toggle("active", item.dataset.view === view);
 		});
 
 		// Update views
@@ -75,30 +75,41 @@ class ClaudeViewer {
 		if (models.length <= 1) return; // No need for filters if only one model
 
 		// Create filter container
-		const nav = document.querySelector(".nav");
+		const filterContainerParent = document.querySelector(".model-filters-container");
 		const filterContainer = document.createElement("div");
 		filterContainer.className = "model-filters";
 		filterContainer.innerHTML = `
-			<span class="filter-label">Models:</span>
+			<span class="filter-label">models:</span>
 			${models
 				.map((model) => {
 					const isHaiku = model.toLowerCase().includes("haiku");
 					const checked = !isHaiku; // Haiku off by default
+					const shortModel = model
+						.replace("claude-3-5-", "")
+						.replace("claude-3-", "")
+						.replace("-20241022", "")
+						.replace("-20240620", "");
 					return `
-					<label class="model-filter">
+					<span class="model-filter">
 						<input type="checkbox" value="${model}" ${checked ? "checked" : ""}>
-						<span>${model}</span>
-					</label>
+						${shortModel}
+					</span>
 				`;
 				})
 				.join("")}
 		`;
 
-		nav.appendChild(filterContainer);
+		filterContainerParent.appendChild(filterContainer);
 
 		// Add event listeners for filter changes
-		filterContainer.addEventListener("change", () => {
-			this.applyModelFilters();
+		filterContainer.addEventListener("click", (e) => {
+			if (e.target.classList.contains("model-filter")) {
+				const checkbox = e.target.querySelector("input[type='checkbox']");
+				if (checkbox) {
+					checkbox.checked = !checkbox.checked;
+					this.applyModelFilters();
+				}
+			}
 		});
 
 		// Store initial filter state
@@ -129,22 +140,28 @@ class ClaudeViewer {
 			return this.modelFilters.has(model);
 		});
 
+		// Store filtered pairs for raw view
+		this.filteredPairs = filteredPairs;
+
 		// Merge conversations from filtered pairs
 		this.filteredConversations = this.mergeConversations(filteredPairs);
 
 		// Update stats
 		this.updateFilteredStats();
 
-		// Re-render if we're in conversations view
-		if (this.currentView === "conversations") {
-			this.renderer.renderFilteredConversations();
-		}
+		// Re-render current view
+		this.renderCurrentView();
 	}
 
 	updateFilteredStats() {
-		const totalConvsEl = document.querySelector(".header-stats .stat:nth-child(2)");
+		const totalConvsEl = document.querySelector(".status span:first-child");
+		const totalPairsEl = document.querySelector(".status span:nth-child(2)");
+
 		if (totalConvsEl && this.filteredConversations) {
 			totalConvsEl.textContent = `${this.filteredConversations.length} conversations`;
+		}
+		if (totalPairsEl && this.filteredPairs) {
+			totalPairsEl.textContent = `${this.filteredPairs.length} raw calls`;
 		}
 	}
 
@@ -157,7 +174,12 @@ class ClaudeViewer {
 				this.renderer.renderConversations();
 			}
 		} else if (this.currentView === "raw") {
-			this.renderer.renderRawPairs();
+			// Use filtered pairs if filters are active, otherwise use all
+			if (this.filteredPairs !== undefined) {
+				this.renderer.renderFilteredRawPairs();
+			} else {
+				this.renderer.renderRawPairs();
+			}
 		}
 	}
 
@@ -289,9 +311,10 @@ class ClaudeViewer {
 		if (conversations.length <= 1) return conversations;
 
 		// Sort by start time to process in chronological order
-		const sortedConversations = [...conversations]
-			.sort((a, b) => new Date(a.metadata.startTime) - new Date(b.metadata.startTime))
-			.filter((conv) => !conv.model.toLowerCase().includes("haiku"));
+		const sortedConversations = [...conversations].sort(
+			(a, b) => new Date(a.metadata.startTime) - new Date(b.metadata.startTime),
+		);
+		// .filter((conv) => !conv.model.toLowerCase().includes("haiku"));
 
 		console.log(`Sorted conversations by timestamp:`);
 		sortedConversations.forEach((conv, i) => {
@@ -450,6 +473,7 @@ class ClaudeViewer {
 			messages: mergedMessages,
 			latestResponse: compactConv.latestResponse,
 			pairs: allPairs,
+			compacted: true,
 			metadata: {
 				startTime: startTime,
 				endTime: endTime,
@@ -677,6 +701,18 @@ class ClaudeViewer {
 		}
 
 		return usage;
+	}
+}
+
+// Global function for expandable sections
+function toggleExpand(expandId) {
+	const content = document.getElementById(expandId + "-content");
+	const toggle = document.getElementById(expandId + "-toggle");
+
+	if (content && toggle) {
+		const isHidden = content.classList.contains("hidden");
+		content.classList.toggle("hidden", !isHidden);
+		toggle.textContent = isHidden ? "[-]" : "[+]";
 	}
 }
 
