@@ -22,11 +22,8 @@ class ClaudeViewer {
 	}
 
 	updateHeaderStats() {
-		const totalConvsEl = document.querySelector(".status span:first-child");
-		const totalPairsEl = document.querySelector(".status span:nth-child(2)");
-
-		if (totalConvsEl) totalConvsEl.textContent = `${this.conversations.length} conversations`;
-		if (totalPairsEl) totalPairsEl.textContent = `${this.data.rawPairs.length} raw calls`;
+		// Update nav button counts
+		this.updateNavCounts(this.conversations.length, this.data.rawPairs.length);
 	}
 
 	setupNavigation() {
@@ -154,14 +151,21 @@ class ClaudeViewer {
 	}
 
 	updateFilteredStats() {
-		const totalConvsEl = document.querySelector(".status span:first-child");
-		const totalPairsEl = document.querySelector(".status span:nth-child(2)");
+		// Update nav button counts with filtered data
+		const convCount = this.filteredConversations ? this.filteredConversations.length : this.conversations.length;
+		const pairCount = this.filteredPairs ? this.filteredPairs.length : this.data.rawPairs.length;
+		this.updateNavCounts(convCount, pairCount);
+	}
 
-		if (totalConvsEl && this.filteredConversations) {
-			totalConvsEl.textContent = `${this.filteredConversations.length} conversations`;
+	updateNavCounts(convCount, pairCount) {
+		const convNavItem = document.querySelector('.nav-item[data-view="conversations"]');
+		const rawNavItem = document.querySelector('.nav-item[data-view="raw"]');
+
+		if (convNavItem) {
+			convNavItem.textContent = `[conversations (${convCount})]`;
 		}
-		if (totalPairsEl && this.filteredPairs) {
-			totalPairsEl.textContent = `${this.filteredPairs.length} raw calls`;
+		if (rawNavItem) {
+			rawNavItem.textContent = `[raw calls (${pairCount})]`;
 		}
 	}
 

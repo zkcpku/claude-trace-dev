@@ -13,16 +13,13 @@
                 <span class="prompt">~</span>
                 <span class="command">claude-traffic</span>
                 <div class="status">
-                    <span>{{TOTAL_CONVERSATIONS}} conversations</span>
-                    <span>{{TOTAL_PAIRS}} raw calls</span>
-                    <br>
                     <span>{{TIMESTAMP}}</span>
                 </div>
             </div>
 
             <div class="terminal-nav">
-                <span class="nav-item active" data-view="conversations">[conversations]</span>
-                <span class="nav-item" data-view="raw">[raw calls]</span>
+                <span class="nav-item active" data-view="conversations">[conversations ({{TOTAL_CONVERSATIONS}})]</span>
+                <span class="nav-item" data-view="raw">[raw calls ({{TOTAL_PAIRS}})]</span>
             </div>
 
             <div class="model-filters-container">
