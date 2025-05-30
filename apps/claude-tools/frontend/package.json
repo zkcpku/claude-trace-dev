@@ -1,0 +1,22 @@
+{
+	"name": "claude-tools-frontend",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "tailwindcss -i src/index.css -o dist/styles.css --minify && tsup",
+		"dev": "tailwindcss -i src/index.css -o dist/styles.css --watch & tsup --watch",
+		"watch": "npm run dev",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.52.0",
+		"highlight.js": "^11.9.0",
+		"lit": "^3.0.0",
+		"marked": "^12.0.0"
+	},
+	"devDependencies": {
+		"tailwindcss": "^3.4.0",
+		"tsup": "^8.0.0",
+		"typescript": "^5.0.0"
+	}
+}
