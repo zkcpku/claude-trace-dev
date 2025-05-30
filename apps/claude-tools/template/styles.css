@@ -155,8 +155,8 @@ body {
 
 .message-content {
     word-wrap: break-word;
-    word-break: break-all;
     overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .nav-item {
@@ -215,4 +215,13 @@ body {
 
 .view.active {
     display: block;
+}
+
+.thinking {
+    color: #8c8c8c;
+    font-style: italic;
+}
+
+.content-block {
+    margin-top: 1em;
 }

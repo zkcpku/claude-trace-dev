@@ -615,8 +615,9 @@ class ClaudeViewer {
 			events.push(currentEvent);
 		}
 
-		// Extract final content from events by accumulating text deltas
-		let textContent = "";
+		// Extract final content from events by accumulating deltas
+		const contentBlocks = [];
+		let currentBlocks = new Map(); // Track active content blocks by index
 		let usage = null;
 		let messageInfo = {};
 
@@ -626,20 +627,56 @@ class ClaudeViewer {
 
 			if (eventType === "message_start") {
 				messageInfo = data.message || {};
+			} else if (eventType === "content_block_start") {
+				const index = data.index;
+				const block = data.content_block || {};
+				if (block.type === "thinking") {
+					currentBlocks.set(index, { type: "thinking", thinking: "" });
+				} else if (block.type === "text") {
+					currentBlocks.set(index, { type: "text", text: "" });
+				} else if (block.type === "tool_use") {
+					currentBlocks.set(index, {
+						type: "tool_use",
+						id: block.id,
+						name: block.name,
+						input: {},
+					});
+				}
 			} else if (eventType === "content_block_delta") {
+				const index = data.index;
 				const delta = data.delta || {};
-				if (delta.type === "text_delta") {
-					textContent += delta.text || "";
+				const currentBlock = currentBlocks.get(index);
+				if (currentBlock) {
+					if (delta.type === "text_delta") {
+						currentBlock.text += delta.text || "";
+					} else if (delta.type === "thinking_delta") {
+						currentBlock.thinking += delta.thinking || "";
+					} else if (delta.type === "input_json_delta") {
+						currentBlock.inputJson = (currentBlock.inputJson || "") + (delta.partial_json || "");
+					}
+				}
+			} else if (eventType === "content_block_stop") {
+				const index = data.index;
+				const currentBlock = currentBlocks.get(index);
+				if (currentBlock) {
+					// Parse tool input JSON if it exists
+					if (currentBlock.type === "tool_use" && currentBlock.inputJson) {
+						try {
+							currentBlock.input = JSON.parse(currentBlock.inputJson);
+						} catch {
+							currentBlock.input = currentBlock.inputJson;
+						}
+						delete currentBlock.inputJson;
+					}
+					contentBlocks.push(currentBlock);
+					currentBlocks.delete(index);
 				}
 			} else if (eventType === "message_delta") {
 				usage = data.usage || null;
 			}
 		}
 
-		// Create content in the format expected by the UI
-		const content = textContent ? [{ type: "text", text: textContent }] : [];
-
-		return { content, usage, message: messageInfo };
+		return { content: contentBlocks, usage, message: messageInfo };
 	}
 
 	extractTotalTokens(response) {
