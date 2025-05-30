@@ -1,11 +1,25 @@
-import type { Message, MessageParam, TextBlockParam, ToolUnion } from "@anthropic-ai/sdk/resources/messages";
+import type {
+	Message,
+	MessageParam,
+	TextBlockParam,
+	ToolUnion,
+	ToolResultBlockParam,
+	ToolUseBlock,
+	ContentBlockParam,
+} from "@anthropic-ai/sdk/resources/messages";
 import { ProcessedPair } from "./data";
+
+// Extended message type with tool result pairing
+export interface EnhancedMessageParam extends MessageParam {
+	toolResults?: Record<string, ToolResultBlockParam>;
+	hide?: boolean;
+}
 
 export interface SimpleConversation {
 	id: string;
 	models: Set<string>;
 	system?: string | TextBlockParam[];
-	messages: MessageParam[];
+	messages: EnhancedMessageParam[];
 	response: Message;
 	allPairs: ProcessedPair[];
 	finalPair: ProcessedPair;
@@ -59,12 +73,15 @@ export class SimpleConversationProcessor {
 			// Collect all models used in this conversation
 			const modelsUsed = new Set(sortedPairs.map((pair) => pair.model));
 
+			// Process messages to pair tool_use with tool_result
+			const enhancedMessages = this.processToolResults(finalPair.request.messages || []);
+
 			// Create conversation
 			const conversation: SimpleConversation = {
 				id: this.hashString(groupKey),
 				models: modelsUsed,
 				system: finalPair.request.system,
-				messages: finalPair.request.messages || [],
+				messages: enhancedMessages,
 				response: finalPair.response,
 				allPairs: sortedPairs,
 				finalPair: finalPair,
@@ -93,6 +110,60 @@ export class SimpleConversationProcessor {
 			system: system,
 			firstMessage: firstUserMessage,
 		});
+	}
+
+	private processToolResults(messages: MessageParam[]): EnhancedMessageParam[] {
+		const enhancedMessages: EnhancedMessageParam[] = [];
+		const pendingToolUses: Record<string, { messageIndex: number; toolIndex: number }> = {};
+
+		for (let i = 0; i < messages.length; i++) {
+			const message = messages[i];
+			const enhancedMessage: EnhancedMessageParam = { ...message, toolResults: {}, hide: false };
+
+			// Process message content
+			if (Array.isArray(message.content)) {
+				let hasOnlyToolResults = true;
+				let hasTextContent = false;
+
+				for (let j = 0; j < message.content.length; j++) {
+					const block = message.content[j];
+
+					if (block.type === "tool_use" && "id" in block) {
+						// Track tool_use for later pairing
+						const toolUse = block as ToolUseBlock;
+						pendingToolUses[toolUse.id] = { messageIndex: i, toolIndex: j };
+						hasOnlyToolResults = false;
+					} else if (block.type === "tool_result" && "tool_use_id" in block) {
+						// Find corresponding tool_use and attach result
+						const toolResult = block as ToolResultBlockParam;
+						const toolUseId = toolResult.tool_use_id;
+
+						if (pendingToolUses[toolUseId]) {
+							const { messageIndex } = pendingToolUses[toolUseId];
+							if (!enhancedMessages[messageIndex]) {
+								enhancedMessages[messageIndex] = { ...messages[messageIndex], toolResults: {}, hide: false };
+							}
+							enhancedMessages[messageIndex].toolResults![toolUseId] = toolResult;
+							delete pendingToolUses[toolUseId];
+						}
+					} else if (block.type === "text") {
+						hasTextContent = true;
+						hasOnlyToolResults = false;
+					} else {
+						hasOnlyToolResults = false;
+					}
+				}
+
+				// Hide messages that contain only tool_result blocks
+				if (hasOnlyToolResults && !hasTextContent) {
+					enhancedMessage.hide = true;
+				}
+			}
+
+			enhancedMessages[i] = enhancedMessage;
+		}
+
+		return enhancedMessages;
 	}
 
 	private hashString(str: string): string {

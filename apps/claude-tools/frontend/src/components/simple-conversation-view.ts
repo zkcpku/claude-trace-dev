@@ -9,7 +9,7 @@ import type {
 	Message,
 	ToolUnion,
 } from "@anthropic-ai/sdk/resources/messages";
-import { SimpleConversation } from "../utils/simple-conversation-processor";
+import { SimpleConversation, EnhancedMessageParam } from "../utils/simple-conversation-processor";
 import { markdownToHtml } from "../utils/markdown";
 
 @customElement("simple-conversation-view")
@@ -33,7 +33,7 @@ export class SimpleConversationView extends LitElement {
 		}
 	}
 
-	private formatContent(content: string | ContentBlockParam[]): TemplateResult {
+	private formatContent(content: string | ContentBlockParam[], toolResults?: Record<string, any>): TemplateResult {
 		if (typeof content === "string") {
 			return this.formatStringContent(content);
 		}
@@ -44,23 +44,12 @@ export class SimpleConversationView extends LitElement {
 					if (block.type === "text") {
 						return this.formatStringContent(block.text);
 					} else if (block.type === "tool_result") {
-						return html`
-							<div class="mb-4">
-								<div
-									class="text-vs-function font-bold px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
-									@click=${this.toggleContent}
-								>
-									<span class="mr-2">[+]</span>
-									📤 Tool Result ${block.is_error ? "❌" : "✅"}
-								</div>
-								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
-									<pre class="whitespace-pre-wrap">
-${typeof block.content === "string" ? block.content : JSON.stringify(block.content, null, 2)}</pre
-									>
-								</div>
-							</div>
-						`;
+						// Skip standalone tool_result blocks - they will be paired with tool_use
+						return html``;
 					} else if (block.type === "tool_use") {
+						const toolUse = block as any;
+						const toolResult = toolResults?.[toolUse.id];
+
 						if (block.name === "TodoWrite") {
 							return html`
 								<div class="mb-4">
@@ -68,6 +57,7 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 										🔧 ${this.getToolDisplayName(block)}
 									</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
+									${toolResult ? this.renderToolResult(toolResult) : ""}
 								</div>
 							`;
 						}
@@ -83,6 +73,7 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
 								</div>
+								${toolResult ? this.renderToolResult(toolResult) : ""}
 							</div>
 						`;
 					}
@@ -436,6 +427,25 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 		`;
 	}
 
+	private renderToolResult(toolResult: any): TemplateResult {
+		return html`
+			<div class="mb-4">
+				<div
+					class="text-vs-function font-bold px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+					@click=${this.toggleContent}
+				>
+					<span class="mr-2">[+]</span>
+					📤 Tool Result ${toolResult.is_error ? "❌" : "✅"}
+				</div>
+				<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+					<pre class="whitespace-pre-wrap overflow-x-auto">
+${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content, null, 2)}</pre
+					>
+				</div>
+			</div>
+		`;
+	}
+
 	private hasTools(conversation: SimpleConversation): boolean {
 		return !!(conversation.finalPair.request.tools && conversation.finalPair.request.tools.length > 0);
 	}
@@ -551,21 +561,28 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 
 							<!-- Conversation Messages -->
 							<div class="px-4 mt-4">
-								${conversation.messages.map(
-									(message, msgIndex) => html`
-										<div class="mb-4">
-											<div
-												class="font-bold uppercase ${message.role === "user"
-													? "text-vs-user"
-													: "text-vs-assistant"}"
-											>
-												<span>${message.role}</span>
-												<span class="ml-1">${msgIndex + 1}</span>
+								${conversation.messages
+									.filter((message) => !(message as EnhancedMessageParam).hide)
+									.map(
+										(message, msgIndex) => html`
+											<div class="mb-4">
+												<div
+													class="font-bold uppercase ${message.role === "user"
+														? "text-vs-user"
+														: "text-vs-assistant"}"
+												>
+													<span>${message.role}</span>
+													<span class="ml-1">${msgIndex + 1}</span>
+												</div>
+												<div class="text-vs-text">
+													${this.formatContent(
+														message.content,
+														(message as EnhancedMessageParam).toolResults,
+													)}
+												</div>
 											</div>
-											<div class="text-vs-text">${this.formatContent(message.content)}</div>
-										</div>
-									`,
-								)}
+										`,
+									)}
 
 								<!-- Assistant Response -->
 								<div class="mb-4">
