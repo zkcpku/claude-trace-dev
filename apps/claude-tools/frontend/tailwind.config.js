@@ -1,27 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-	content: ["./src/**/*.{ts,js,html}"],
+	content: ["./src/**/*.{html,js,ts,jsx,tsx}", "./src/**/*.ts", "./src/components/*.ts", "./src/*.ts"],
 	theme: {
 		extend: {
 			colors: {
-				terminal: {
-					bg: "#1e1e1e",
-					"bg-alt": "#2d2d30",
-					"bg-highlight": "#3e3e42",
-					text: "#d4d4d4",
-					"text-muted": "#8c8c8c",
-					green: "#6a9955",
-					orange: "#ce9178",
-					red: "#f48771",
-					blue: "#569cd6",
-					purple: "#c586c0",
-				},
-			},
-			fontFamily: {
-				mono: ["Consolas", "Monaco", "Courier New", "monospace"],
-			},
-			spacing: {
-				18: "4.5rem",
+				"vs-bg": "#1e1e1e",
+				"vs-text": "#d4d4d4",
+				"vs-muted": "#8c8c8c",
+				"vs-accent": "#569cd6",
+				"vs-user": "#6a9955",
+				"vs-assistant": "#ce9178",
+				"vs-warning": "#f48771",
+				"vs-function": "#dcdcaa",
+				"vs-type": "#4ec9b0",
+				"vs-border": "#3e3e42",
+				"vs-bg-secondary": "#2d2d30",
+				"vs-nav": "#3e3e42",
+				"vs-nav-hover": "#4a4a4e",
+				"vs-nav-active": "#f48771",
+				"vs-highlight": "#8b6914",
 			},
 		},
 	},

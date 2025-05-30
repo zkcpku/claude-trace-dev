@@ -1,6 +1,7 @@
 import { ClaudeApp } from "./app";
-import "./components/conversation-view";
+import "./components/simple-conversation-view";
 import "./components/raw-pairs-view";
+import "./components/json-view";
 
 // Inject CSS styles into the page
 declare const __CSS_CONTENT__: string;

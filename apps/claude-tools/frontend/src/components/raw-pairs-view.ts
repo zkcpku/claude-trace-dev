@@ -13,47 +13,47 @@ export class RawPairsView extends LitElement {
 
 	render() {
 		if (this.rawPairs.length === 0) {
-			return html`<div class="text-muted">No raw pairs found.</div>`;
+			return html`<div>No raw pairs found.</div>`;
 		}
 
 		return html`
 			${this.rawPairs.map(
 				(pair, index) => html`
-					<div class="raw-pair">
-						<div class="raw-pair-header">
+					<div>
+						<div>
 							Raw Pair ${index + 1} - ${pair.request.method} ${this.getUrlPath(pair.request.url)}
 							(${pair.response.status})
 						</div>
 
-						<div class="raw-content">
-							<div class="expandable-header" @click=${(e: Event) => this.toggleContent(e)}>
-								<span class="expandable-toggle">[+]</span>
+						<div>
+							<div @click=${(e: Event) => this.toggleContent(e)}>
+								<span>[-]</span>
 								Request
 							</div>
-							<div class="expandable-content hidden">
-								<div class="raw-json">${this.formatJson(pair.request)}</div>
+							<div>
+								<div>${this.formatJson(pair.request)}</div>
 							</div>
 						</div>
 
-						<div class="raw-content">
-							<div class="expandable-header" @click=${(e: Event) => this.toggleContent(e)}>
-								<span class="expandable-toggle">[+]</span>
+						<div>
+							<div @click=${(e: Event) => this.toggleContent(e)}>
+								<span>[-]</span>
 								Response
 							</div>
-							<div class="expandable-content hidden">
-								<div class="raw-json">${this.formatJson(pair.response)}</div>
+							<div>
+								<div>${this.formatJson(pair.response)}</div>
 							</div>
 						</div>
 
 						${pair.response.events && pair.response.events.length > 0
 							? html`
-									<div class="raw-content">
-										<div class="expandable-header" @click=${(e: Event) => this.toggleContent(e)}>
-											<span class="expandable-toggle">[+]</span>
+									<div>
+										<div @click=${(e: Event) => this.toggleContent(e)}>
+											<span>[-]</span>
 											SSE Events (${pair.response.events.length})
 										</div>
-										<div class="expandable-content hidden">
-											<div class="sse-structure">${this.formatJson(pair.response.events)}</div>
+										<div>
+											<div>${this.formatJson(pair.response.events)}</div>
 										</div>
 									</div>
 								`
@@ -82,7 +82,7 @@ export class RawPairsView extends LitElement {
 
 	private toggleContent(e: Event) {
 		const header = e.currentTarget as HTMLElement;
-		const toggle = header.querySelector(".expandable-toggle") as HTMLElement;
+		const toggle = header.querySelector("span") as HTMLElement;
 		const content = header.nextElementSibling as HTMLElement;
 
 		if (content.classList.contains("hidden")) {

@@ -168,12 +168,18 @@ function reconstructMessageFromSSE(sseData: string): Message {
 					message.stop_sequence = event.delta.stop_sequence;
 				}
 				if (event.usage) {
+					// Preserve existing input_tokens if not provided in this delta
+					// Input tokens are typically only sent once and shouldn't change
+					const currentInputTokens = message.usage?.input_tokens ?? 0;
+
 					message.usage = {
-						input_tokens: event.usage.input_tokens ?? 0,
-						output_tokens: event.usage.output_tokens ?? 0,
-						cache_creation_input_tokens: event.usage.cache_creation_input_tokens ?? null,
-						cache_read_input_tokens: event.usage.cache_read_input_tokens ?? null,
-						server_tool_use: event.usage.server_tool_use ?? null,
+						input_tokens: event.usage.input_tokens ?? currentInputTokens,
+						output_tokens: event.usage.output_tokens ?? message.usage?.output_tokens ?? 0,
+						cache_creation_input_tokens:
+							event.usage.cache_creation_input_tokens ?? message.usage?.cache_creation_input_tokens ?? null,
+						cache_read_input_tokens:
+							event.usage.cache_read_input_tokens ?? message.usage?.cache_read_input_tokens ?? null,
+						server_tool_use: event.usage.server_tool_use ?? message.usage?.server_tool_use ?? null,
 						service_tier: null, // MessageDeltaUsage doesn't have service_tier
 					};
 				}
