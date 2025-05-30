@@ -115,7 +115,7 @@ export class ClaudeApp extends LitElement {
 						<div class="mb-8">
 							<span
 								@click=${() => this.switchView("conversations")}
-								class="cursor-pointer py-1 px-2 mr-1 inline-block leading-tight ${this.currentView ===
+								class="cursor-pointer py-2 px-4 mr-4 inline-block leading-tight ${this.currentView ===
 								"conversations"
 									? "bg-vs-nav-active text-black"
 									: "bg-vs-nav text-vs-text hover:bg-vs-nav-hover"}"
@@ -124,7 +124,7 @@ export class ClaudeApp extends LitElement {
 							</span>
 							<span
 								@click=${() => this.switchView("raw")}
-								class="cursor-pointer py-1 px-2 mr-1 inline-block leading-tight ${this.currentView === "raw"
+								class="cursor-pointer py-2 px-4 mr-4 inline-block leading-tight ${this.currentView === "raw"
 									? "bg-vs-nav-active text-black"
 									: "bg-vs-nav text-vs-text hover:bg-vs-nav-hover"}"
 							>
@@ -132,7 +132,7 @@ export class ClaudeApp extends LitElement {
 							</span>
 							<span
 								@click=${() => this.switchView("json")}
-								class="cursor-pointer py-1 px-2 mr-1 inline-block leading-tight ${this.currentView === "json"
+								class="cursor-pointer py-2 px-4 mr-4 inline-block leading-tight ${this.currentView === "json"
 									? "bg-vs-nav-active text-black"
 									: "bg-vs-nav text-vs-text hover:bg-vs-nav-hover"}"
 							>

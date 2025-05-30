@@ -33,24 +33,99 @@ export class SimpleConversationView extends LitElement {
 		}
 	}
 
-	private formatContent(content: string | ContentBlockParam[]): string {
+	private formatContent(content: string | ContentBlockParam[]): TemplateResult {
 		if (typeof content === "string") {
-			return markdownToHtml(content);
+			return this.formatStringContent(content);
 		}
 
 		if (Array.isArray(content)) {
-			const textContent = content
-				.map((block) => {
+			return html`
+				${content.map((block) => {
 					if (block.type === "text") {
-						return block.text;
+						return this.formatStringContent(block.text);
+					} else if (block.type === "tool_result") {
+						return html`
+							<div class="mb-4">
+								<div
+									class="text-vs-function font-bold px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+									@click=${this.toggleContent}
+								>
+									<span class="mr-2">[+]</span>
+									📤 Tool Result ${block.is_error ? "❌" : "✅"}
+								</div>
+								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+									<pre class="whitespace-pre-wrap">
+${typeof block.content === "string" ? block.content : JSON.stringify(block.content, null, 2)}</pre
+									>
+								</div>
+							</div>
+						`;
+					} else if (block.type === "tool_use") {
+						return html`
+							<div class="mb-4">
+								<div
+									class="text-vs-type font-bold  px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+									@click=${this.toggleContent}
+								>
+									<span class="mr-2">[+]</span>
+									🔧 ${this.getToolDisplayName(block)}
+								</div>
+								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+									<pre class="whitespace-pre-wrap">${JSON.stringify(block.input, null, 2)}</pre>
+								</div>
+							</div>
+						`;
 					}
-					return JSON.stringify(block, null, 2);
-				})
-				.join("\n");
-			return markdownToHtml(textContent);
+					return html`<pre class="mb-4">${JSON.stringify(block, null, 2)}</pre>`;
+				})}
+			`;
 		}
 
-		return JSON.stringify(content, null, 2);
+		return html`<pre>${JSON.stringify(content, null, 2)}</pre>`;
+	}
+
+	private formatStringContent(content: string): TemplateResult {
+		// Check for system reminder blocks (handling HTML-escaped delimiters)
+		const systemReminderRegex = /&lt;system-reminder&gt;([\s\S]*?)&lt;\/system-reminder&gt;/g;
+		const systemReminders: string[] = [];
+		let match;
+
+		// Extract all system reminder blocks
+		while ((match = systemReminderRegex.exec(content)) !== null) {
+			systemReminders.push(match[1].trim());
+		}
+
+		// Remove system reminder blocks from main content
+		const mainContent = content.replace(systemReminderRegex, "").trim();
+
+		return html`
+			${mainContent ? html`<div class="markdown-content">${unsafeHTML(markdownToHtml(mainContent))}</div>` : ""}
+			${systemReminders.length > 0
+				? html`
+						<div class="mb-4">
+							<div
+								class="cursor-pointer text-vs-muted hover:text-white transition-colors"
+								@click=${this.toggleContent}
+							>
+								<span class="mr-2">[+]</span>
+								<span>System Reminder</span>
+							</div>
+							<div class="hidden mt-2 text-vs-muted">
+								${systemReminders.map(
+									(reminder, index) => html`
+										<div>
+											${systemReminders.length > 1
+												? html`<div class="text-vs-function font-bold mb-2">Reminder ${index + 1}:</div>`
+												: ""}
+											<div class="markdown-content">${unsafeHTML(markdownToHtml(reminder))}</div>
+										</div>
+									`,
+								)}
+							</div>
+						</div>
+					`
+				: ""}
+		`;
 	}
 
 	private formatSystem(system: string | TextBlockParam[] | undefined): string {
@@ -75,18 +150,48 @@ export class SimpleConversationView extends LitElement {
 		return JSON.stringify(system, null, 2);
 	}
 
-	private formatResponseContent(response: Message): string {
-		if (!response) return "";
+	private formatResponseContent(response: Message): TemplateResult {
+		if (!response) return html``;
 
 		if (response.content && Array.isArray(response.content)) {
-			const textContent = response.content
-				.filter((block): block is Extract<ContentBlock, { type: "text" }> => block.type === "text")
-				.map((block) => block.text)
-				.join("\n");
-			return markdownToHtml(textContent);
+			return html`
+				${response.content.map((block) => {
+					if (block.type === "text") {
+						return html`<div class="markdown-content">${unsafeHTML(markdownToHtml(block.text))}</div>`;
+					} else if (block.type === "tool_use") {
+						return html`
+							<div class="mb-4">
+								<div
+									class="text-vs-type font-bold  px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+									@click=${this.toggleContent}
+								>
+									<span class="mr-2">[+]</span>
+									🔧 ${this.getToolDisplayName(block)}
+								</div>
+								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+									<pre class="whitespace-pre-wrap">${JSON.stringify(block.input, null, 2)}</pre>
+								</div>
+							</div>
+						`;
+					}
+					return html`<pre class="mb-4">${JSON.stringify(block, null, 2)}</pre>`;
+				})}
+			`;
 		}
 
-		return JSON.stringify(response, null, 2);
+		return html`<pre>${JSON.stringify(response, null, 2)}</pre>`;
+	}
+
+	private getToolDisplayName(toolUse: any): string {
+		const toolName = toolUse.name;
+		const input = toolUse.input;
+
+		switch (toolName) {
+			case "Read":
+				return input?.file_path ? `Read(${input.file_path})` : "Read";
+			default:
+				return toolName;
+		}
 	}
 
 	private hasTools(conversation: SimpleConversation): boolean {
@@ -101,34 +206,40 @@ export class SimpleConversationView extends LitElement {
 
 					return html`
 						<div class="mb-8">
-							<div class="text-vs-user font-bold mb-4 border border-vs-user px-4 py-2 inline-block">
+							<div
+								class="cursor-pointer text-vs-user font-bold mb-2 border border-vs-user px-4 py-2 inline-block hover:text-white transition-colors"
+								@click=${this.toggleContent}
+							>
+								<span class="mr-2">[-]</span>
 								${tool.name}
 							</div>
-							<div class="text-vs-text mb-3 markdown-content">${unsafeHTML(markdownToHtml(description))}</div>
+							<div>
+								<div class="text-vs-text mb-3 markdown-content">${unsafeHTML(markdownToHtml(description))}</div>
 
-							${"input_schema" in tool && tool.input_schema && typeof tool.input_schema === "object"
-								? (() => {
-										const schema = tool.input_schema as any;
-										if (schema.properties) {
-											return html`
-												<div class="text-vs-muted mb-2">Parameters:</div>
-												${Object.entries(schema.properties).map(([paramName, paramDef]) => {
-													const def = paramDef as any;
-													const required = schema.required?.includes(paramName) ? " (required)" : "";
-													const type = def.type ? ` [${def.type}]` : "";
-													const desc = def.description ? ` - ${def.description}` : "";
-													return html`
-														<div class="ml-4 mb-1">
-															<span class="text-vs-type">${paramName}</span>
-															<span class="text-vs-muted">${type}${required}${desc}</span>
-														</div>
-													`;
-												})}
-											`;
-										}
-										return html``;
-									})()
-								: html``}
+								${"input_schema" in tool && tool.input_schema && typeof tool.input_schema === "object"
+									? (() => {
+											const schema = tool.input_schema as any;
+											if (schema.properties) {
+												return html`
+													<div class="text-vs-muted mb-2">Parameters:</div>
+													${Object.entries(schema.properties).map(([paramName, paramDef]) => {
+														const def = paramDef as any;
+														const required = schema.required?.includes(paramName) ? " (required)" : "";
+														const type = def.type ? ` [${def.type}]` : "";
+														const desc = def.description ? ` - ${def.description}` : "";
+														return html`
+															<div class="ml-4 mb-1">
+																<span class="text-vs-type">${paramName}</span>
+																<span class="text-vs-muted">${type}${required}${desc}</span>
+															</div>
+														`;
+													})}
+												`;
+											}
+											return html``;
+										})()
+									: html``}
+							</div>
 						</div>
 					`;
 				}
@@ -167,7 +278,7 @@ export class SimpleConversationView extends LitElement {
 												<span class="mr-2">[+]</span>
 												<span>System Prompt</span>
 											</div>
-											<div class="hidden">
+											<div class="hidden mt-4">
 												<div class="text-vs-text markdown-content">
 													${unsafeHTML(this.formatSystem(conversation.system))}
 												</div>
@@ -184,10 +295,10 @@ export class SimpleConversationView extends LitElement {
 												class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
 												@click=${this.toggleContent}
 											>
-												<span class="mr-2">[-]</span>
+												<span class="mr-2">[+]</span>
 												<span>Tools (${conversation.finalPair.request.tools?.length || 0})</span>
 											</div>
-											<div class="pl-4 mt-4">
+											<div class="mt-4 hidden">
 												<div class="text-vs-text">
 													${this.renderTools(conversation.finalPair.request.tools || [])}
 												</div>
@@ -202,38 +313,28 @@ export class SimpleConversationView extends LitElement {
 									(message, msgIndex) => html`
 										<div class="mb-4">
 											<div
-												class="cursor-pointer font-bold uppercase ${message.role === "user"
+												class="font-bold uppercase ${message.role === "user"
 													? "text-vs-user"
-													: "text-vs-assistant"} hover:text-white transition-colors"
-												@click=${this.toggleContent}
+													: "text-vs-assistant"}"
 											>
-												<span class="mr-2">[-]</span>
 												<span>${message.role}</span>
 												<span class="ml-1">${msgIndex + 1}</span>
 											</div>
-											<div class="text-vs-text markdown-content">
-												${unsafeHTML(this.formatContent(message.content))}
-											</div>
+											<div class="text-vs-text">${this.formatContent(message.content)}</div>
 										</div>
 									`,
 								)}
 
 								<!-- Assistant Response -->
 								<div class="mb-4">
-									<div
-										class="cursor-pointer font-bold uppercase text-vs-assistant hover:text-white transition-colors"
-										@click=${this.toggleContent}
-									>
-										<span class="mr-2">[-]</span>
+									<div class="font-bold uppercase text-vs-assistant">
 										<span>assistant</span>
 										<span class="ml-1">${conversation.messages.length + 1}</span>
 										<span class="font-normal lowercase text-vs-muted ml-2">
 											(${conversation.metadata.inputTokens} in, ${conversation.metadata.outputTokens} out)
 										</span>
 									</div>
-									<div class="text-vs-text markdown-content">
-										${unsafeHTML(this.formatResponseContent(conversation.response))}
-									</div>
+									<div class="text-vs-text">${this.formatResponseContent(conversation.response)}</div>
 								</div>
 							</div>
 

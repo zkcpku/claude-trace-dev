@@ -30,36 +30,47 @@ def load_template_file(filename):
 def generate_html_from_pairs(pairs, output_file="claude-traffic.html"):
     """Generate HTML file from pairs data"""
     try:
-        # Load template files
-        html_template = load_template_file('index.html')
-        css_content = load_template_file('styles.css')
-        views_js_content = load_template_file('views.js')
-        main_js_content = load_template_file('script.js')
+        # Filter to only include v1/messages pairs
+        filtered_pairs = [
+            pair for pair in pairs 
+            if pair.get('request', {}).get('url', '').find('/v1/messages') != -1
+        ]
         
-        # Prepare data for injection - use a safer approach
-        # Convert to JSON and then encode for safe embedding in JavaScript
+        # Load new frontend files
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        frontend_dir = os.path.join(script_dir, 'frontend')
+        template_path = os.path.join(frontend_dir, 'src', 'template.html')
+        bundle_path = os.path.join(frontend_dir, 'dist', 'index.global.js')
+        
+        # Check if frontend is built
+        if not os.path.exists(bundle_path):
+            print(f"Frontend bundle not found at {bundle_path}. Run 'npm run build' in frontend directory first.")
+            return
+            
+        # Read template and bundle files
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_template = f.read()
+        with open(bundle_path, 'r', encoding='utf-8') as f:
+            js_bundle = f.read()
+        
+        print(f"Template loaded: HTML={len(html_template)} chars, JS bundle={len(js_bundle)} chars")
+        
+        # Prepare data for injection
         import html
         
         data_json = json.dumps({
-            'rawPairs': pairs
+            'rawPairs': filtered_pairs,
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }, ensure_ascii=True, separators=(',', ':'))
         
         # Use HTML escape to handle any problematic characters
         data_json_escaped = html.escape(data_json, quote=False)
         
         # Replace template placeholders
-        html_content = html_template.replace('{{CSS_CONTENT}}', css_content)
-        html_content = html_content.replace('{{VIEWS_JS_CONTENT}}', views_js_content)
-        html_content = html_content.replace('{{MAIN_JS_CONTENT}}', main_js_content)
+        html_content = html_template.replace('{{BUNDLE_JS}}', js_bundle)
+        html_content = html_content.replace('{{BUNDLE_CSS}}', '')  # CSS is now bundled with JS
         html_content = html_content.replace('{{DATA_JSON}}', data_json_escaped)
-        html_content = html_content.replace('{{TITLE}}', f'{len(pairs)} API Calls')
-        html_content = html_content.replace('{{TOTAL_PAIRS}}', str(len(pairs)))
-        html_content = html_content.replace('{{TOTAL_CONVERSATIONS}}', 'Processing...')
-        html_content = html_content.replace('{{TIMESTAMP}}', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        
-        # The script.js will handle the actual rendering, so we can leave these empty
-        html_content = html_content.replace('{{CONVERSATIONS_CONTENT}}', '')
-        html_content = html_content.replace('{{RAW_CONTENT}}', '')
+        html_content = html_content.replace('{{TITLE}}', f'{len(filtered_pairs)} API Calls')
         
         # Write HTML file
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -71,8 +82,15 @@ def generate_html_from_pairs(pairs, output_file="claude-traffic.html"):
 
 class ClaudeTrafficLogger:
     def __init__(self, clear_log=True):
-        self.log_file = "claude-traffic.jsonl"
-        self.html_file = "claude-traffic.html"
+        # Create .claude-logger directory if it doesn't exist
+        self.log_dir = ".claude-logger"
+        os.makedirs(self.log_dir, exist_ok=True)
+        
+        # Generate timestamped filenames
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        self.log_file = os.path.join(self.log_dir, f"log-{timestamp}.jsonl")
+        self.html_file = os.path.join(self.log_dir, f"log-{timestamp}.html")
+        
         self.pending_requests = {}  # Maps flow ID to request data
         self.lock = threading.Lock()  # Thread safety for parallel requests
         self.pairs = []  # Store all pairs for HTML generation
@@ -212,7 +230,7 @@ def done() -> None:
     if logger is not None:
         logger.cleanup_orphaned_requests()
 
-def generate_html_from_jsonl(jsonl_file):
+def generate_html_from_jsonl(jsonl_file, output_file=None):
     """Generate HTML from an existing JSONL file"""
     if not os.path.exists(jsonl_file):
         print(f"Error: File '{jsonl_file}' not found.")
@@ -239,8 +257,19 @@ def generate_html_from_jsonl(jsonl_file):
         print(f"No valid data found in '{jsonl_file}'.")
         sys.exit(1)
     
-    # Generate HTML using the standalone function
-    output_file = "claude-traffic.html"
+    # Determine output file
+    if output_file is None:
+        # Generate HTML using timestamped output (original behavior)
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        log_dir = ".claude-logger"
+        os.makedirs(log_dir, exist_ok=True)
+        output_file = os.path.join(log_dir, f"log-{timestamp}.html")
+    else:
+        # Use provided output file
+        output_dir = os.path.dirname(output_file)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+    
     try:
         generate_html_from_pairs(pairs, output_file)
         print(f"Generated HTML report: {output_file}")
@@ -254,5 +283,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         # Running as standalone HTML generator
         jsonl_file = sys.argv[1]
-        generate_html_from_jsonl(jsonl_file)
+        output_file = sys.argv[2] if len(sys.argv) > 2 else None
+        generate_html_from_jsonl(jsonl_file, output_file)
     # If no arguments, this file is being imported by mitmproxy (default behavior)
