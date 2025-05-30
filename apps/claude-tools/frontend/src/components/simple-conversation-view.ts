@@ -61,6 +61,16 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 							</div>
 						`;
 					} else if (block.type === "tool_use") {
+						if (block.name === "TodoWrite") {
+							return html`
+								<div class="mb-4">
+									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
+										🔧 ${this.getToolDisplayName(block)}
+									</div>
+									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
+								</div>
+							`;
+						}
 						return html`
 							<div class="mb-4">
 								<div
@@ -71,7 +81,7 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 									🔧 ${this.getToolDisplayName(block)}
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
-									<pre class="whitespace-pre-wrap">${JSON.stringify(block.input, null, 2)}</pre>
+									${this.renderToolUseContent(block)}
 								</div>
 							</div>
 						`;
@@ -159,6 +169,16 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 					if (block.type === "text") {
 						return html`<div class="markdown-content">${unsafeHTML(markdownToHtml(block.text))}</div>`;
 					} else if (block.type === "tool_use") {
+						if (block.name === "TodoWrite") {
+							return html`
+								<div class="mb-4">
+									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
+										🔧 ${this.getToolDisplayName(block)}
+									</div>
+									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
+								</div>
+							`;
+						}
 						return html`
 							<div class="mb-4">
 								<div
@@ -169,7 +189,7 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 									🔧 ${this.getToolDisplayName(block)}
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
-									<pre class="whitespace-pre-wrap">${JSON.stringify(block.input, null, 2)}</pre>
+									${this.renderToolUseContent(block)}
 								</div>
 							</div>
 						`;
@@ -202,9 +222,218 @@ ${typeof block.content === "string" ? block.content : JSON.stringify(block.conte
 				return input?.command
 					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.command)}</span>)`
 					: html`${toolName}`;
+			case "Write":
+				return input?.file_path
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
+					: html`${toolName}`;
+			case "Glob":
+				if (input?.pattern) {
+					const pattern = unescapeHtml(input.pattern);
+					const path = input?.path ? unescapeHtml(input.path) : null;
+					return path
+						? html`${toolName}(<span class="text-vs-text">${pattern}</span>,
+								<span class="text-vs-text">${path}</span>)`
+						: html`${toolName}(<span class="text-vs-text">${pattern}</span>)`;
+				}
+				return html`${toolName}`;
+			case "Grep":
+				if (input?.pattern) {
+					const pattern = unescapeHtml(input.pattern);
+					const include = input?.include ? unescapeHtml(input.include) : null;
+					const path = input?.path ? unescapeHtml(input.path) : null;
+
+					let params = pattern;
+					if (include) params += `, ${include}`;
+					if (path) params += `, ${path}`;
+
+					return html`${toolName}(<span class="text-vs-text">${params}</span>)`;
+				}
+				return html`${toolName}`;
+			case "LS":
+				if (input?.path) {
+					const path = unescapeHtml(input.path);
+					const ignore = input?.ignore ? input.ignore.map((p: string) => unescapeHtml(p)).join(", ") : null;
+
+					return ignore
+						? html`${toolName}(<span class="text-vs-text">${path}</span>, ignore:
+								<span class="text-vs-text">${ignore}</span>)`
+						: html`${toolName}(<span class="text-vs-text">${path}</span>)`;
+				}
+				return html`${toolName}`;
+			case "Edit":
+				return input?.file_path
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path).split("/").pop()}</span>)`
+					: html`${toolName}`;
+			case "MultiEdit":
+				if (input?.file_path) {
+					const fileName = unescapeHtml(input.file_path).split("/").pop();
+					const editCount = input?.edits ? input.edits.length : 0;
+					return html`${toolName}(<span class="text-vs-text">${fileName}</span>,
+						<span class="text-vs-text">${editCount} edits</span>)`;
+				}
+				return html`${toolName}`;
+			case "NotebookRead":
+				return input?.notebook_path
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.notebook_path).split("/").pop()}</span
+							>)`
+					: html`${toolName}`;
+			case "NotebookEdit":
+				if (input?.notebook_path && input?.cell_number !== undefined) {
+					const fileName = unescapeHtml(input.notebook_path).split("/").pop();
+					const cellNum = input.cell_number;
+					const mode = input?.edit_mode || "replace";
+					return html`${toolName}(<span class="text-vs-text">${fileName}</span>, cell
+						<span class="text-vs-text">${cellNum}</span>, <span class="text-vs-text">${mode}</span>)`;
+				}
+				return html`${toolName}`;
 			default:
 				return html`${toolName}`;
 		}
+	}
+
+	private renderToolUseContent(toolUse: any): TemplateResult {
+		const toolName = toolUse.name;
+		const input = toolUse.input;
+
+		// HTML unescape function
+		const unescapeHtml = (str: string): string => {
+			const div = document.createElement("div");
+			div.innerHTML = str;
+			return div.textContent || div.innerText || "";
+		};
+
+		if (toolName === "TodoWrite" && input?.todos) {
+			const todos = input.todos;
+
+			return html`
+				<div class="overflow-x-auto">
+					${todos.map((todo: any) => {
+						const statusClass =
+							todo.status === "completed"
+								? "line-through text-vs-text"
+								: todo.status === "in_progress"
+									? "text-green-400"
+									: "text-vs-muted";
+
+						return html`
+							<div class="mb-1 overflow-hidden whitespace-nowrap text-ellipsis ${statusClass}">
+								• ${todo.content}
+							</div>
+						`;
+					})}
+				</div>
+			`;
+		}
+
+		if (toolName === "NotebookEdit" && input?.new_source) {
+			const content = unescapeHtml(input.new_source);
+
+			return html`
+				<div class="overflow-x-auto">
+					<pre class="whitespace-pre text-vs-text m-0">${content}</pre>
+				</div>
+			`;
+		}
+
+		if (toolName === "Write" && input?.content) {
+			const content = unescapeHtml(input.content);
+
+			return html`
+				<div class="overflow-x-auto">
+					<pre class="whitespace-pre text-vs-text m-0">${content}</pre>
+				</div>
+			`;
+		}
+
+		if (toolName === "MultiEdit" && input?.edits) {
+			const edits = input.edits;
+
+			return html`
+				<div class="overflow-x-auto">
+					${edits.map((edit: any, index: number) => {
+						const oldStr = unescapeHtml(edit.old_string);
+						const newStr = unescapeHtml(edit.new_string);
+
+						// Split into lines for line-by-line diff
+						const oldLines = oldStr.split("\n");
+						const newLines = newStr.split("\n");
+						const maxLines = Math.max(oldLines.length, newLines.length);
+
+						const diffLines = [];
+						for (let i = 0; i < maxLines; i++) {
+							const oldLine = oldLines[i];
+							const newLine = newLines[i];
+
+							// Show removed lines
+							if (oldLine !== undefined && (newLine === undefined || oldLine !== newLine)) {
+								diffLines.push(
+									html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">${oldLine}</pre></div>`,
+								);
+							}
+
+							// Show added lines
+							if (newLine !== undefined && (oldLine === undefined || oldLine !== newLine)) {
+								diffLines.push(
+									html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">${newLine}</pre></div>`,
+								);
+							}
+
+							// Show unchanged lines (if both exist and are the same)
+							if (oldLine !== undefined && newLine !== undefined && oldLine === newLine) {
+								diffLines.push(html`<div><pre class="text-vs-text m-0">${oldLine}</pre></div>`);
+							}
+						}
+
+						return html`
+							<div class="mb-4">
+								<div class="text-vs-muted mb-2">Edit ${index + 1}:</div>
+								<div>${diffLines}</div>
+							</div>
+						`;
+					})}
+				</div>
+			`;
+		}
+
+		if (toolName === "Edit" && input?.old_string && input?.new_string) {
+			const oldStr = unescapeHtml(input.old_string);
+			const newStr = unescapeHtml(input.new_string);
+
+			// Split into lines for line-by-line diff
+			const oldLines = oldStr.split("\n");
+			const newLines = newStr.split("\n");
+			const maxLines = Math.max(oldLines.length, newLines.length);
+
+			const diffLines = [];
+			for (let i = 0; i < maxLines; i++) {
+				const oldLine = oldLines[i];
+				const newLine = newLines[i];
+
+				// Show removed lines
+				if (oldLine !== undefined && (newLine === undefined || oldLine !== newLine)) {
+					diffLines.push(html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">${oldLine}</pre></div>`);
+				}
+
+				// Show added lines
+				if (newLine !== undefined && (oldLine === undefined || oldLine !== newLine)) {
+					diffLines.push(html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">${newLine}</pre></div>`);
+				}
+
+				// Show unchanged lines (if both exist and are the same)
+				if (oldLine !== undefined && newLine !== undefined && oldLine === newLine) {
+					diffLines.push(html`<div><pre class="text-vs-text m-0">${oldLine}</pre></div>`);
+				}
+			}
+
+			return html` <div class="overflow-x-auto">${diffLines}</div> `;
+		}
+
+		// Default: show JSON parameters
+		return html`
+			<div class="overflow-x-auto">
+				<pre class="whitespace-pre">${JSON.stringify(input, null, 2)}</pre>
+			</div>
+		`;
 	}
 
 	private hasTools(conversation: SimpleConversation): boolean {
