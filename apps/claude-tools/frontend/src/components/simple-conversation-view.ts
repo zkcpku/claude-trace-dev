@@ -93,16 +93,48 @@ export class SimpleConversationView extends LitElement {
 		return !!(conversation.finalPair.request.tools && conversation.finalPair.request.tools.length > 0);
 	}
 
-	private formatTools(tools: ToolUnion[]): string {
-		return tools
-			.map((tool) => {
+	private renderTools(tools: ToolUnion[]): TemplateResult {
+		return html`
+			${tools.map((tool) => {
 				if ("name" in tool && tool.name) {
 					const description = ("description" in tool && tool.description) || "No description";
-					return `${tool.name}: ${description}`;
+
+					return html`
+						<div class="mb-8">
+							<div class="text-vs-user font-bold mb-4 border border-vs-user px-4 py-2 inline-block">
+								${tool.name}
+							</div>
+							<div class="text-vs-text mb-3 markdown-content">${unsafeHTML(markdownToHtml(description))}</div>
+
+							${"input_schema" in tool && tool.input_schema && typeof tool.input_schema === "object"
+								? (() => {
+										const schema = tool.input_schema as any;
+										if (schema.properties) {
+											return html`
+												<div class="text-vs-muted mb-2">Parameters:</div>
+												${Object.entries(schema.properties).map(([paramName, paramDef]) => {
+													const def = paramDef as any;
+													const required = schema.required?.includes(paramName) ? " (required)" : "";
+													const type = def.type ? ` [${def.type}]` : "";
+													const desc = def.description ? ` - ${def.description}` : "";
+													return html`
+														<div class="ml-4 mb-1">
+															<span class="text-vs-type">${paramName}</span>
+															<span class="text-vs-muted">${type}${required}${desc}</span>
+														</div>
+													`;
+												})}
+											`;
+										}
+										return html``;
+									})()
+								: html``}
+						</div>
+					`;
 				}
-				return JSON.stringify(tool, null, 2);
-			})
-			.join("\n");
+				return html`<pre class="mb-4">${JSON.stringify(tool, null, 2)}</pre>`;
+			})}
+		`;
 	}
 
 	render() {
@@ -116,9 +148,12 @@ export class SimpleConversationView extends LitElement {
 					(conversation) => html`
 						<div class="mt-8 first:mt-0">
 							<!-- Conversation Header -->
-							<div class="border-2 border-vs-highlight p-4 mb-0">
+							<div class="border border-vs-highlight p-4 mb-0">
 								<div class="text-vs-assistant font-bold">${Array.from(conversation.models).join(", ")}</div>
-								<div class="text-vs-muted">${new Date(conversation.metadata.startTime).toLocaleString()}</div>
+								<div class="text-vs-muted">
+									${new Date(conversation.metadata.startTime).toLocaleString()} •
+									${conversation.messages.length + 1} messages
+								</div>
 							</div>
 
 							<!-- System Prompt (Expandable) -->
@@ -149,13 +184,13 @@ export class SimpleConversationView extends LitElement {
 												class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
 												@click=${this.toggleContent}
 											>
-												<span class="mr-2">[+]</span>
+												<span class="mr-2">[-]</span>
 												<span>Tools (${conversation.finalPair.request.tools?.length || 0})</span>
 											</div>
-											<div class="hidden">
-												<pre class="text-vs-text whitespace-pre-wrap">
-${this.formatTools(conversation.finalPair.request.tools || [])}</pre
-												>
+											<div class="pl-4 mt-4">
+												<div class="text-vs-text">
+													${this.renderTools(conversation.finalPair.request.tools || [])}
+												</div>
 											</div>
 										</div>
 									`
