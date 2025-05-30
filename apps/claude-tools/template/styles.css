@@ -160,12 +160,27 @@ body {
 }
 
 .nav-item {
-    color: #8c8c8c;
+    color: #d4d4d4;
     cursor: pointer;
+    padding: 0.25em 0.5em;
+    background: #3e3e42;
+    margin-right: 0.25em;
+    display: inline-block;
+    font-family: monospace;
+    line-height: 1.2;
+}
+
+.nav-item:hover {
+    background: #4a4a4e;
 }
 
 .nav-item.active {
-    color: #f48771;
+    color: #000000;
+    background: #f48771;
+}
+
+.nav-item.active:hover {
+    background: #f48771;
 }
 
 .raw-pair {
@@ -224,4 +239,10 @@ body {
 
 .content-block {
     margin-top: 1em;
+}
+
+.text-muted {
+    text-align: center;
+    color: #8c8c8c;
+    padding: 2em;
 }

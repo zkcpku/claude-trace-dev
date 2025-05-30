@@ -106,6 +106,9 @@ class ClaudeViewer {
 					checkbox.checked = !checkbox.checked;
 					this.applyModelFilters();
 				}
+			} else if (e.target.type === "checkbox") {
+				// Direct checkbox click - the checkbox state is already changed by browser
+				this.applyModelFilters();
 			}
 		});
 
@@ -162,10 +165,10 @@ class ClaudeViewer {
 		const rawNavItem = document.querySelector('.nav-item[data-view="raw"]');
 
 		if (convNavItem) {
-			convNavItem.textContent = `[conversations (${convCount})]`;
+			convNavItem.textContent = `conversations (${convCount})`;
 		}
 		if (rawNavItem) {
-			rawNavItem.textContent = `[raw calls (${pairCount})]`;
+			rawNavItem.textContent = `raw calls (${pairCount})`;
 		}
 	}
 

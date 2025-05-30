@@ -10,7 +10,7 @@ class ClaudeViewRenderer {
 		if (!container) return;
 
 		if (this.viewer.conversations.length === 0) {
-			container.innerHTML = '<div class="text-muted">No conversations found</div>';
+			container.innerHTML = '<div class="conversation"><div class="text-muted">No conversations found</div></div>';
 			return;
 		}
 
@@ -28,7 +28,8 @@ class ClaudeViewRenderer {
 		if (!container) return;
 
 		if (!this.viewer.filteredConversations || this.viewer.filteredConversations.length === 0) {
-			container.innerHTML = '<div class="text-muted">No conversations found with selected models</div>';
+			container.innerHTML =
+				'<div class="conversation"><div class="text-muted">No conversations found with selected models</div></div>';
 			return;
 		}
 
