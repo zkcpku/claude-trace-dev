@@ -658,32 +658,6 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 									<div class="text-vs-text">${this.formatResponseContent(conversation.response)}</div>
 								</div>
 							</div>
-
-							<!-- Pair Details (Expandable) -->
-							${conversation.metadata.totalPairs > 1
-								? html`
-										<div>
-											<div @click=${this.toggleContent}>
-												<span>[+]</span>
-												<span>All ${conversation.metadata.totalPairs} API Pairs</span>
-											</div>
-											<div class="hidden">
-												<div>
-													${conversation.allPairs.map(
-														(pair, pairIndex) => html`
-															<div>
-																<strong>Pair ${pairIndex + 1}:</strong>
-																${pair.request.messages?.length || 0} messages,
-																${pair.isStreaming ? "streaming" : "non-streaming"},
-																${new Date(pair.timestamp).toLocaleString()}
-															</div>
-														`,
-													)}
-												</div>
-											</div>
-										</div>
-									`
-								: ""}
 						</div>
 					`,
 				)}
