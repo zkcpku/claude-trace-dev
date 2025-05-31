@@ -21,7 +21,7 @@ export class ConversationView extends LitElement {
 				(conversation, index) => html`
 					<div class="mt-8 first:mt-0">
 						<!-- Conversation Header -->
-						<div class="border-2 border-vs-highlight p-4 mb-0">
+						<div class="border border-vs-highlight p-4 mb-0">
 							<div class="text-vs-function font-bold mb-2">${conversation.model}</div>
 							${this.renderExpandableSystemPrompt(conversation.system)}
 							${this.renderExpandableTools(conversation)}

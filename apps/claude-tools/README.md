@@ -179,3 +179,19 @@ The generated HTML viewer provides a rich interface for analyzing Claude Code tr
 - **TLS errors** - The tools automatically disable TLS verification for proxy use
 - **JSON syntax errors in HTML** - Regenerate HTML: `python3 claude-logger.py claude-traffic.jsonl`
 - **Stuck mitmproxy processes** - Run `./kill-mitm.sh` to clean up
+
+### npm/Node.js Timeout Issues
+
+When running under `claude-logger.py`, npm commands may timeout due to proxy environment variables being inherited by Node.js processes. The logger sets:
+
+- `HTTP_PROXY=http://localhost:8080`
+- `HTTPS_PROXY=http://localhost:8080`
+- `NODE_TLS_REJECT_UNAUTHORIZED=0`
+
+**Solution**: Claude Code should automatically unset these variables when running npm/yarn/Node.js commands:
+
+```bash
+unset NODE_TLS_REJECT_UNAUTHORIZED && unset HTTP_PROXY && unset HTTPS_PROXY && npm install
+```
+
+This prevents Node.js processes from inheriting proxy settings that cause timeouts. This issue affects any Node.js-based tools (npm, yarn, pnpm, etc.) when Claude Code is running through the proxy logger.

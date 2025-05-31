@@ -40,9 +40,25 @@ fi
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
+# Function to find a free port
+find_free_port() {
+    for port in $(seq 8080 8999); do
+        if ! nc -z localhost $port 2>/dev/null; then
+            echo $port
+            return
+        fi
+    done
+    # Fallback to random port if none found in range
+    python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()"
+}
+
+# Find a free port
+PROXY_PORT=$(find_free_port)
+echo -e "${BLUE}🔍 Using proxy port: $PROXY_PORT${NC}"
+
 # Start mitmproxy silently in background
 echo -e "${GREEN}🔄 Starting traffic logger...${NC}"
-mitmdump -s "$SCRIPT_DIR/claude-logger.py" --listen-port 8080 --quiet > /dev/null 2>&1 &
+mitmdump -s "$SCRIPT_DIR/claude-logger.py" --listen-port $PROXY_PORT --quiet > /dev/null 2>&1 &
 MITM_PID=$!
 
 # Wait for mitmproxy to start
@@ -62,11 +78,11 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo -e "${GREEN}✅ Traffic logging started (PID: $MITM_PID)${NC}"
-echo -e "${BLUE}📁 Logs will be written to: claude-traffic.jsonl${NC}"
+echo -e "${BLUE}📁 Logs will be written to: .claude-logger/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}${NC}"
 echo ""
 
-# Run Claude CLI with proxy settings
-HTTP_PROXY=http://localhost:8080 \
-HTTPS_PROXY=http://localhost:8080 \
+# Run Claude CLI with proxy settings but npx wrapper
+HTTP_PROXY=http://localhost:$PROXY_PORT \
+HTTPS_PROXY=http://localhost:$PROXY_PORT \
 NODE_TLS_REJECT_UNAUTHORIZED=0 \
 eval "$CLAUDE_CMD"
