@@ -96,3 +96,4 @@ claude-traffic-*.html
 claude-traffic-*.log
 apps/claude-tools/claude-traffic.html
 apps/claude-tools/claude-traffic.jsonl
+.claude-logger
