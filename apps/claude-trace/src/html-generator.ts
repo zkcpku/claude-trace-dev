@@ -145,7 +145,7 @@ export class HTMLGenerator {
 		// Determine output file
 		if (!outputFile) {
 			const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").slice(0, -5);
-			const logDir = ".claude-logger";
+			const logDir = ".claude-trace";
 			if (!fs.existsSync(logDir)) {
 				fs.mkdirSync(logDir, { recursive: true });
 			}

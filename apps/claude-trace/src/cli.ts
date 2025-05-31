@@ -22,11 +22,11 @@ function log(message: string, color: ColorName = "reset"): void {
 
 function showHelp(): void {
 	console.log(`
-${colors.blue}Claude Code Traffic Logger${colors.reset}
-Intercept and visualize Claude Code API request/response pairs
+${colors.blue}Claude Trace${colors.reset}
+Record all your interactions with Claude Code as you develop your projects
 
 ${colors.yellow}USAGE:${colors.reset}
-  claude-logger [OPTIONS] [COMMAND]
+  claude-trace [OPTIONS] [COMMAND]
 
 ${colors.yellow}OPTIONS:${colors.reset}
   --extract-token    Extract OAuth token and exit (reproduces claude-token.py)
@@ -34,37 +34,37 @@ ${colors.yellow}OPTIONS:${colors.reset}
 
 ${colors.yellow}MODES:${colors.reset}
   ${colors.green}Interactive logging:${colors.reset}
-    claude-logger                    Start Claude with traffic logging
-    claude-logger claude chat        Run specific Claude command with logging
+    claude-trace                     Start Claude with traffic logging
+    claude-trace claude chat         Run specific Claude command with logging
     
   ${colors.green}Token extraction:${colors.reset}
-    claude-logger --extract-token    Extract OAuth token for SDK usage
+    claude-trace --extract-token     Extract OAuth token for SDK usage
     
   ${colors.green}HTML generation:${colors.reset}
-    claude-logger file.jsonl         Generate HTML from JSONL file
-    claude-logger file.jsonl out.html   Generate HTML with custom output name
+    claude-trace file.jsonl          Generate HTML from JSONL file
+    claude-trace file.jsonl out.html Generate HTML with custom output name
 
 ${colors.yellow}EXAMPLES:${colors.reset}
   # Start Claude with logging
-  claude-logger
+  claude-trace
   
   # Run specific command with logging  
-  claude-logger claude chat --model sonnet-3.5
+  claude-trace claude chat --model sonnet-3.5
   
   # Extract token for Anthropic SDK
-  export ANTHROPIC_API_KEY=$(claude-logger --extract-token)
+  export ANTHROPIC_API_KEY=$(claude-trace --extract-token)
   
   # Generate HTML report
-  claude-logger logs/traffic.jsonl report.html
+  claude-trace logs/traffic.jsonl report.html
 
 ${colors.yellow}OUTPUT:${colors.reset}
-  Logs are saved to: ${colors.green}.claude-logger/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}${colors.reset}
+  Logs are saved to: ${colors.green}.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}${colors.reset}
   
 ${colors.yellow}MIGRATION:${colors.reset}
   This tool replaces Python-based claude-logger and claude-token.py scripts
   with a pure Node.js implementation. All output formats are compatible.
 
-For more information, visit: https://github.com/mariozechner/claude-logger
+For more information, visit: https://github.com/mariozechner/claude-trace
 `);
 }
 
@@ -127,9 +127,9 @@ async function runClaudeWithInterception(): Promise<void> {
 	const args = process.argv.slice(2);
 	const claudeCmd = args.length > 0 ? args.join(" ") : "claude";
 
-	log("🚀 Claude Code Traffic Logger", "blue");
+	log("🚀 Claude Trace", "blue");
 	log("This will start Claude CLI with request/response logging", "yellow");
-	log("Logs paired request/responses to .claude-logger/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}", "yellow");
+	log("Logs paired request/responses to .claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}", "yellow");
 	console.log("");
 
 	// Check dependencies
@@ -147,7 +147,7 @@ async function runClaudeWithInterception(): Promise<void> {
 	}
 
 	log("🔄 Starting traffic logger...", "green");
-	log("📁 Logs will be written to: .claude-logger/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}", "blue");
+	log("📁 Logs will be written to: .claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}", "blue");
 	console.log("");
 
 	// Prepare environment

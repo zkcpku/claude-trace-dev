@@ -1,10 +1,10 @@
 {
-	"name": "@mariozechner/claude-logger",
+	"name": "@mariozechner/claude-trace",
 	"version": "1.0.0",
-	"description": "Intercept and visualize Claude Code API request/response pairs",
+	"description": "Record all your interactions with Claude Code as you develop your projects",
 	"main": "dist/index.js",
 	"bin": {
-		"claude-logger": "dist/cli.js"
+		"claude-trace": "dist/cli.js"
 	},
 	"scripts": {
 		"build": "tsc && npm run build:frontend",
@@ -37,7 +37,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/mariozechner/claude-logger.git"
+		"url": "https://github.com/mariozechner/claude-trace.git"
 	},
 	"engines": {
 		"node": ">=16.0.0"

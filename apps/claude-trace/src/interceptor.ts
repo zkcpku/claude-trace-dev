@@ -20,7 +20,7 @@ export class ClaudeTrafficLogger {
 
 	constructor(config: InterceptorConfig = {}) {
 		this.config = {
-			logDirectory: ".claude-logger",
+			logDirectory: ".claude-trace",
 			enableRealTimeHTML: true,
 			logLevel: "info",
 			...config,
