@@ -14,14 +14,14 @@ npm install -g @mariozechner/claude-trace
 # Start Claude Code with logging
 claude-trace
 
-# Run specific command
-claude-trace claude chat --model sonnet-3.5
+# Show help
+claude-trace --help
 
 # Extract OAuth token
 claude-trace --extract-token
 
-# Generate HTML report manually from .jsonl
-claude-trace logs.jsonl report.html
+# Generate HTML report manually from previously logged .jsonl
+claude-trace --generate-html logs.jsonl report.html
 ```
 
 Logs are saved to `.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}` in your current directory. The HTML file is self-contained and opens in any browser without needing a server.

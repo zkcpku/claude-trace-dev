@@ -54,19 +54,39 @@ export class ClaudeTrafficLogger {
 	}
 
 	private generateRequestId(): string {
-		return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 	}
 
-	private log(message: string, level: "debug" | "info" | "warn" | "error" = "info") {
-		if (this.shouldLog(level)) {
-			const timestamp = new Date().toISOString();
-			console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`);
+	private redactSensitiveHeaders(headers: Record<string, string>): Record<string, string> {
+		const redactedHeaders = { ...headers };
+		const sensitiveKeys = [
+			"authorization",
+			"x-api-key",
+			"x-auth-token",
+			"cookie",
+			"set-cookie",
+			"x-session-token",
+			"x-access-token",
+			"bearer",
+			"proxy-authorization",
+		];
+
+		for (const key of Object.keys(redactedHeaders)) {
+			const lowerKey = key.toLowerCase();
+			if (sensitiveKeys.some((sensitive) => lowerKey.includes(sensitive))) {
+				// Keep first 10 chars and last 4 chars, redact middle
+				const value = redactedHeaders[key];
+				if (value && value.length > 14) {
+					redactedHeaders[key] = `${value.substring(0, 10)}...${value.slice(-4)}`;
+				} else if (value && value.length > 4) {
+					redactedHeaders[key] = `${value.substring(0, 2)}...${value.slice(-2)}`;
+				} else {
+					redactedHeaders[key] = "[REDACTED]";
+				}
+			}
 		}
-	}
 
-	private shouldLog(level: string): boolean {
-		const levels = { debug: 0, info: 1, warn: 2, error: 3 };
-		return levels[level as keyof typeof levels] >= levels[this.config.logLevel!];
+		return redactedHeaders;
 	}
 
 	private async cloneResponse(response: Response): Promise<Response> {
@@ -115,14 +135,14 @@ export class ClaudeTrafficLogger {
 				return { body_raw };
 			}
 		} catch (error) {
-			this.log(`Error parsing response body: ${error}`, "warn");
+			// Silent error handling during runtime
 			return {};
 		}
 	}
 
 	public instrumentFetch(): void {
 		if (!global.fetch) {
-			this.log("fetch not available in global scope", "warn");
+			// Silent - fetch not available
 			return;
 		}
 
@@ -141,14 +161,12 @@ export class ClaudeTrafficLogger {
 			const requestId = logger.generateRequestId();
 			const requestTimestamp = Date.now();
 
-			logger.log(`Intercepting request: ${url}`, "debug");
-
 			// Capture request details
 			const requestData = {
 				timestamp: requestTimestamp / 1000, // Convert to seconds (like Python version)
 				method: init.method || "GET",
 				url: url,
-				headers: Object.fromEntries(new Headers(init.headers || {}).entries()),
+				headers: logger.redactSensitiveHeaders(Object.fromEntries(new Headers(init.headers || {}).entries())),
 				body: await logger.parseRequestBody(init.body),
 			};
 
@@ -170,7 +188,7 @@ export class ClaudeTrafficLogger {
 				const responseData = {
 					timestamp: responseTimestamp / 1000,
 					status_code: response.status,
-					headers: Object.fromEntries(response.headers.entries()),
+					headers: logger.redactSensitiveHeaders(Object.fromEntries(response.headers.entries())),
 					...responseBodyData,
 				};
 
@@ -193,18 +211,15 @@ export class ClaudeTrafficLogger {
 					await logger.generateHTML();
 				}
 
-				logger.log(`Logged API call: ${requestData.method} ${requestData.url}`, "info");
-
 				return response;
 			} catch (error) {
-				logger.log(`Error during fetch interception: ${error}`, "error");
 				// Remove from pending requests on error
 				logger.pendingRequests.delete(requestId);
 				throw error;
 			}
 		};
 
-		this.log("Fetch instrumentation active", "info");
+		// Silent initialization
 	}
 
 	private async writePairToLog(pair: RawPair): Promise<void> {
@@ -212,7 +227,7 @@ export class ClaudeTrafficLogger {
 			const jsonLine = JSON.stringify(pair) + "\n";
 			fs.appendFileSync(this.logFile, jsonLine);
 		} catch (error) {
-			this.log(`Error writing to log file: ${error}`, "error");
+			// Silent error handling during runtime
 		}
 	}
 
@@ -222,16 +237,16 @@ export class ClaudeTrafficLogger {
 				title: `${this.pairs.length} API Calls`,
 				timestamp: new Date().toISOString().replace("T", " ").slice(0, -5),
 			});
-			this.log(`HTML report updated: ${this.htmlFile}`, "debug");
+			// Silent HTML generation
 		} catch (error) {
-			this.log(`Error generating HTML: ${error}`, "error");
+			// Silent error handling during runtime
 		}
 	}
 
 	public cleanup(): void {
-		this.log("Cleaning up orphaned requests...", "info");
+		console.log("Cleaning up orphaned requests...");
 
-		for (const [requestId, requestData] of this.pendingRequests.entries()) {
+		for (const [, requestData] of this.pendingRequests.entries()) {
 			const orphanedPair = {
 				request: requestData,
 				response: null,
@@ -243,12 +258,12 @@ export class ClaudeTrafficLogger {
 				const jsonLine = JSON.stringify(orphanedPair) + "\n";
 				fs.appendFileSync(this.logFile, jsonLine);
 			} catch (error) {
-				this.log(`Error writing orphaned request: ${error}`, "error");
+				console.log(`Error writing orphaned request: ${error}`);
 			}
 		}
 
 		this.pendingRequests.clear();
-		this.log(`Cleanup complete. Logged ${this.pairs.length} pairs`, "info");
+		console.log(`Cleanup complete. Logged ${this.pairs.length} pairs`);
 	}
 
 	public getStats() {

@@ -6,7 +6,7 @@ import * as fs from "fs";
 import { HTMLGenerator } from "./html-generator";
 
 // Colors for output
-const colors = {
+export const colors = {
 	red: "\x1b[0;31m",
 	green: "\x1b[0;32m",
 	yellow: "\x1b[1;33m",
@@ -30,36 +30,37 @@ ${colors.yellow}USAGE:${colors.reset}
 
 ${colors.yellow}OPTIONS:${colors.reset}
   --extract-token    Extract OAuth token and exit (reproduces claude-token.py)
+  --generate-html    Generate HTML report from JSONL file
   --help, -h         Show this help message
 
 ${colors.yellow}MODES:${colors.reset}
   ${colors.green}Interactive logging:${colors.reset}
     claude-trace                     Start Claude with traffic logging
     claude-trace claude chat         Run specific Claude command with logging
-    
+
   ${colors.green}Token extraction:${colors.reset}
     claude-trace --extract-token     Extract OAuth token for SDK usage
-    
+
   ${colors.green}HTML generation:${colors.reset}
-    claude-trace file.jsonl          Generate HTML from JSONL file
-    claude-trace file.jsonl out.html Generate HTML with custom output name
+    claude-trace --generate-html file.jsonl          Generate HTML from JSONL file
+    claude-trace --generate-html file.jsonl out.html Generate HTML with custom output name
 
 ${colors.yellow}EXAMPLES:${colors.reset}
   # Start Claude with logging
   claude-trace
-  
-  # Run specific command with logging  
+
+  # Run specific command with logging
   claude-trace claude chat --model sonnet-3.5
-  
+
   # Extract token for Anthropic SDK
   export ANTHROPIC_API_KEY=$(claude-trace --extract-token)
-  
+
   # Generate HTML report
-  claude-trace logs/traffic.jsonl report.html
+  claude-trace --generate-html logs/traffic.jsonl report.html
 
 ${colors.yellow}OUTPUT:${colors.reset}
   Logs are saved to: ${colors.green}.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}${colors.reset}
-  
+
 ${colors.yellow}MIGRATION:${colors.reset}
   This tool replaces Python-based claude-logger and claude-token.py scripts
   with a pure Node.js implementation. All output formats are compatible.
@@ -68,101 +69,50 @@ For more information, visit: https://github.com/mariozechner/claude-trace
 `);
 }
 
-function checkDependencies(): void {
-	// Skip dependency check for flags
-	if (process.argv.includes("--extract-token")) {
-		// For token extraction, we just need claude to exist
-		try {
-			require("child_process").execSync("which claude", { stdio: "ignore" });
-		} catch {
-			log(`❌ Command not found: 'claude'. Please install Claude Code CLI`, "red");
-			process.exit(1);
-		}
-		return;
-	}
-
-	// Check if claude command exists
-	const claudeCmd = process.argv[2] || "claude";
-	const claudeExecutable = claudeCmd.split(" ")[0];
-
+function getClaudeAbsolutePath(): string {
 	try {
-		require("child_process").execSync(`which ${claudeExecutable}`, { stdio: "ignore" });
-	} catch {
-		log(`❌ Command not found: '${claudeExecutable}'. Please check the path or install required dependencies`, "red");
+		return require("child_process")
+			.execSync("which claude", {
+				encoding: "utf-8",
+			})
+			.trim();
+	} catch (error) {
+		log(`❌ Claude CLI not found in PATH`, "red");
+		log(`❌ Please install Claude Code CLI first`, "red");
 		process.exit(1);
 	}
 }
 
-function ensureFrontendBuilt(): void {
-	// In published package, frontend should be pre-built
-	const packageDir = path.join(__dirname, "..");
-	const bundlePath = path.join(packageDir, "frontend", "dist", "index.global.js");
+function getLoaderPath(): string {
+	const loaderPath = path.join(__dirname, "interceptor-loader.js");
 
-	if (!fs.existsSync(bundlePath)) {
-		log("⚠️  Frontend bundle not found. This might be a development environment.", "yellow");
-
-		const frontendDir = path.join(packageDir, "frontend");
-		if (fs.existsSync(frontendDir) && fs.existsSync(path.join(frontendDir, "package.json"))) {
-			log("🔄 Building frontend...", "yellow");
-
-			try {
-				require("child_process").execSync("npm run build", {
-					cwd: frontendDir,
-					stdio: "inherit",
-				});
-				log("✅ Frontend built successfully", "green");
-			} catch (error) {
-				log('❌ Failed to build frontend. Please run "npm run build" in the frontend directory', "red");
-				process.exit(1);
-			}
-		} else {
-			log("❌ Frontend not found. This package may be corrupted.", "red");
-			process.exit(1);
-		}
+	if (!fs.existsSync(loaderPath)) {
+		log(`❌ Interceptor loader not found at: ${loaderPath}`, "red");
+		process.exit(1);
 	}
+
+	return loaderPath;
 }
 
+// Scenario 1: No args -> launch node with interceptor and absolute path to claude
 async function runClaudeWithInterception(): Promise<void> {
-	// Parse command line arguments
-	const args = process.argv.slice(2);
-	const claudeCmd = args.length > 0 ? args.join(" ") : "claude";
-
 	log("🚀 Claude Trace", "blue");
-	log("This will start Claude CLI with request/response logging", "yellow");
-	log("Logs paired request/responses to .claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}", "yellow");
+	log("Starting Claude with traffic logging", "yellow");
 	console.log("");
 
-	// Check dependencies
-	checkDependencies();
-
-	// Ensure frontend is built
-	ensureFrontendBuilt();
-
-	// Get interceptor path
-	const interceptorPath = path.join(__dirname, "interceptor.js");
-
-	if (!fs.existsSync(interceptorPath)) {
-		log(`❌ Interceptor not found at: ${interceptorPath}`, "red");
-		process.exit(1);
-	}
+	const claudePath = getClaudeAbsolutePath();
+	const loaderPath = getLoaderPath();
 
 	log("🔄 Starting traffic logger...", "green");
 	log("📁 Logs will be written to: .claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}", "blue");
 	console.log("");
 
-	// Prepare environment
-	const env = {
-		...process.env,
-		// Ensure Node doesn't reject unauthorized certificates for local development
-		NODE_TLS_REJECT_UNAUTHORIZED: "0",
-	};
-
-	// Split the command properly
-	const [command, ...commandArgs] = claudeCmd.split(" ");
-
-	// Start Claude with the interceptor
-	const child: ChildProcess = spawn("node", ["--require", interceptorPath, command, ...commandArgs], {
-		env,
+	// Launch node with interceptor and absolute path to claude
+	const child: ChildProcess = spawn("node", ["--require", loaderPath, claudePath], {
+		env: {
+			...process.env,
+			NODE_OPTIONS: "--no-deprecation",
+		},
 		stdio: "inherit",
 		cwd: process.cwd(),
 	});
@@ -207,42 +157,26 @@ async function runClaudeWithInterception(): Promise<void> {
 	}
 }
 
-async function generateHTMLFromCLI(): Promise<void> {
-	const jsonlFile = process.argv[2];
-	const outputFile = process.argv[3];
-
-	try {
-		const htmlGenerator = new HTMLGenerator();
-		await htmlGenerator.generateHTMLFromJSONL(jsonlFile, outputFile);
-		process.exit(0);
-	} catch (error) {
-		const err = error as Error;
-		log(`❌ Error: ${err.message}`, "red");
-		process.exit(1);
-	}
-}
-
+// Scenario 2: --extract-token -> launch node with token interceptor and absolute path to claude
 async function extractToken(): Promise<void> {
-	// Check dependencies
-	checkDependencies();
-	ensureFrontendBuilt();
+	const claudePath = getClaudeAbsolutePath();
 
 	// Create a temporary file to store the token
 	const tempTokenFile = path.join(process.cwd(), `.token-${Date.now()}.tmp`);
 
 	// Create a custom interceptor that writes the token to a file
-	const tokenExtractorPath = path.join(process.cwd(), "token-extractor.js");
+	const tokenExtractorPath = path.join(process.cwd(), `token-extractor-${Date.now()}.js`);
 	const extractorCode = `
 const fs = require('fs');
 const originalFetch = global.fetch;
 
 global.fetch = async function(input, init = {}) {
 	const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-	
+
 	if (url.includes('api.anthropic.com') && url.includes('/v1/messages')) {
 		const headers = new Headers(init.headers || {});
 		const authorization = headers.get('authorization');
-		
+
 		if (authorization && authorization.startsWith('Bearer ')) {
 			const token = authorization.substring(7);
 			try {
@@ -252,7 +186,7 @@ global.fetch = async function(input, init = {}) {
 			}
 		}
 	}
-	
+
 	return originalFetch(input, init);
 };
 `;
@@ -260,24 +194,21 @@ global.fetch = async function(input, init = {}) {
 	// Write the temporary extractor
 	fs.writeFileSync(tokenExtractorPath, extractorCode);
 
-	// Prepare environment
-	const env = {
-		...process.env,
-		NODE_TLS_REJECT_UNAUTHORIZED: "0",
+	const cleanup = () => {
+		try {
+			if (fs.existsSync(tokenExtractorPath)) fs.unlinkSync(tokenExtractorPath);
+			if (fs.existsSync(tempTokenFile)) fs.unlinkSync(tempTokenFile);
+		} catch (e) {
+			// Ignore cleanup errors
+		}
 	};
 
-	// Find the absolute path of the claude binary
-	let claudePath: string;
-	try {
-		claudePath = require("child_process").execSync("which claude", { encoding: "utf-8" }).trim();
-	} catch (error) {
-		console.error("❌ Could not find claude binary");
-		process.exit(1);
-	}
-
-	// Start Claude with a simple prompt to trigger token usage
+	// Launch node with token interceptor and absolute path to claude
 	const child: ChildProcess = spawn("node", ["--require", tokenExtractorPath, claudePath, "-p", "hello"], {
-		env,
+		env: {
+			...process.env,
+			NODE_TLS_REJECT_UNAUTHORIZED: "0",
+		},
 		stdio: ["pipe", "pipe", "pipe"], // Suppress all output from Claude
 		cwd: process.cwd(),
 	});
@@ -289,15 +220,6 @@ global.fetch = async function(input, init = {}) {
 		console.error("❌ Timeout: No token found within 30 seconds");
 		process.exit(1);
 	}, 30000);
-
-	const cleanup = () => {
-		try {
-			if (fs.existsSync(tokenExtractorPath)) fs.unlinkSync(tokenExtractorPath);
-			if (fs.existsSync(tempTokenFile)) fs.unlinkSync(tempTokenFile);
-		} catch (e) {
-			// Ignore cleanup errors
-		}
-	};
 
 	// Handle child process events
 	child.on("error", (error: Error) => {
@@ -351,25 +273,53 @@ global.fetch = async function(input, init = {}) {
 	}, 500);
 }
 
+// Scenario 3: --generate-html input.jsonl output.html
+async function generateHTMLFromCLI(inputFile: string, outputFile?: string): Promise<void> {
+	try {
+		const htmlGenerator = new HTMLGenerator();
+		await htmlGenerator.generateHTMLFromJSONL(inputFile, outputFile);
+		process.exit(0);
+	} catch (error) {
+		const err = error as Error;
+		log(`❌ Error: ${err.message}`, "red");
+		process.exit(1);
+	}
+}
+
 // Main entry point
 async function main(): Promise<void> {
+	const args = process.argv.slice(2);
+
 	// Check for help flags
-	if (process.argv.includes("--help") || process.argv.includes("-h")) {
+	if (args.includes("--help") || args.includes("-h")) {
 		showHelp();
 		process.exit(0);
 	}
 
-	// Check for other flags
-	if (process.argv.includes("--extract-token")) {
-		// Token extraction mode
+	// Scenario 2: --extract-token
+	if (args.includes("--extract-token")) {
 		await extractToken();
-	} else if (process.argv.length > 2 && process.argv[2].endsWith(".jsonl")) {
-		// If first argument is a JSONL file, run in HTML generation mode
-		await generateHTMLFromCLI();
-	} else {
-		// Normal mode: run Claude with interception
-		await runClaudeWithInterception();
+		return;
 	}
+
+	// Scenario 3: --generate-html input.jsonl [output.html]
+	if (args.includes("--generate-html")) {
+		const flagIndex = args.indexOf("--generate-html");
+		const inputFile = args[flagIndex + 1];
+		const outputFile = args[flagIndex + 2];
+
+		if (!inputFile) {
+			log(`❌ Missing input file for --generate-html`, "red");
+			log(`Usage: claude-trace --generate-html input.jsonl [output.html]`, "yellow");
+			process.exit(1);
+		}
+
+		await generateHTMLFromCLI(inputFile, outputFile);
+		return;
+	}
+
+	// Scenario 1: No args (or claude with args) -> launch claude with interception
+	await runClaudeWithInterception();
 }
 
 main().catch((error) => {

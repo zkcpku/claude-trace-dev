@@ -7,10 +7,11 @@
 		"claude-trace": "dist/cli.js"
 	},
 	"scripts": {
-		"build": "tsc && npm run build:frontend",
+		"build": "tsc && cp src/interceptor-loader.js dist/ && npm run build:frontend",
 		"build:frontend": "cd frontend && npm run build",
-		"dev": "concurrently \"npm run dev:core\" \"npm run dev:frontend\"",
+		"dev": "concurrently \"npm run dev:core\" \"npm run dev:copy\" \"npm run dev:frontend\"",
 		"dev:core": "tsc --watch --preserveWatchOutput",
+		"dev:copy": "nodemon --watch src/interceptor-loader.js --exec 'mkdir -p dist && cp src/interceptor-loader.js dist/'",
 		"dev:frontend": "cd frontend && npm run dev",
 		"clean": "rm -rf dist",
 		"prepublishOnly": "npm run clean && npm run build",

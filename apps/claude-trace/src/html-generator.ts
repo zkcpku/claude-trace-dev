@@ -106,9 +106,6 @@ export class HTMLGenerator {
 
 			// Write HTML file
 			fs.writeFileSync(outputFile, htmlContent, "utf-8");
-
-			console.log(`Generated HTML report: ${outputFile}`);
-			console.log(`Processed ${filteredPairs.length} API call pairs`);
 		} catch (error) {
 			console.error(`Error generating HTML: ${error}`);
 			throw error;
