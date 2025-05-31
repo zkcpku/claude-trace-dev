@@ -11,9 +11,7 @@
 		"build": "tsc && chmod +x dist/index.js",
 		"start": "node dist/index.js",
 		"dev": "tsx src/index.ts",
-		"test": "npx tsx test.ts",
-		"test:e2e": "node test-e2e.js",
-		"test:config": "npx tsx test-config.js",
+		"test": "npx tsx test/test.ts && npx tsx test/test-config.js && node test/test-e2e.js",
 		"prepublishOnly": "npm run build",
 		"postinstall": "echo 'Snap Happy installed successfully! See README.md for setup instructions.'"
 	},
@@ -46,7 +44,7 @@
 		"README.md",
 		"LICENSE",
 		"setup-mcp.sh",
-		"test-e2e.js"
+		"test/test-e2e.js"
 	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.12.1"
