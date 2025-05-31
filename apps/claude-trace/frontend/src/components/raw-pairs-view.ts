@@ -27,7 +27,7 @@ export class RawPairsView extends LitElement {
 									${pair.request.method} ${this.getUrlPath(pair.request.url)}
 								</div>
 								<div class="text-vs-muted">
-									Raw Pair ${index + 1} • Status ${pair.response.status_code} •
+									Raw Pair ${index + 1} • ${this.getModelName(pair)} • Status ${pair.response.status_code} •
 									${new Date(pair.logged_at).toLocaleString()}
 								</div>
 							</div>
@@ -100,6 +100,10 @@ ${this.formatJson(pair.response.events)}</pre
 		} catch {
 			return url;
 		}
+	}
+
+	private getModelName(pair: RawPair): string {
+		return pair.request.body?.model || "unknown";
 	}
 
 	private formatJson(obj: any): string {

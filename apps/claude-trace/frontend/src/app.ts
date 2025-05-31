@@ -41,13 +41,13 @@ export class ClaudeApp extends LitElement {
 		const processor = new SimpleConversationProcessor();
 		this.conversations = processor.mergeConversations(this.processedPairs);
 
-		// Initialize with all models selected except haiku models
+		// Initialize with all models available, but haiku models disabled by default in UI
 		const conversationModels = new Set(this.conversations.flatMap((c) => Array.from(c.models)));
 		const processedPairModels = new Set(this.processedPairs.map((p) => p.model));
 		const rawPairModels = new Set(this.data.rawPairs.map((pair) => pair.request.body?.model || "unknown"));
 		const allModels = new Set([...conversationModels, ...processedPairModels, ...rawPairModels]);
 
-		// Filter out haiku models by default
+		// Disable haiku models by default in UI (but include them in data)
 		const selectedModels = new Set([...allModels].filter((model) => !model.toLowerCase().includes("haiku")));
 		this.selectedModels = selectedModels;
 		console.log(`Processed data in ${performance.now() - start}ms`);

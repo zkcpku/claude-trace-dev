@@ -37,14 +37,13 @@ export class SimpleConversationProcessor {
 	mergeConversations(pairs: ProcessedPair[]): SimpleConversation[] {
 		if (!pairs || pairs.length === 0) return [];
 
-		// Filter out haiku models to reduce debug noise
-		const filteredPairs = pairs.filter((pair) => !pair.model.toLowerCase().includes("haiku"));
-		console.log(`Filtered ${pairs.length} pairs to ${filteredPairs.length} (removed haiku models)`);
+		// Process all pairs including haiku models
+		console.log(`Processing ${pairs.length} pairs`);
 
 		// First, group pairs by system instructions + model (like old implementation)
 		const pairsBySystem = new Map<string, ProcessedPair[]>();
 
-		for (const pair of filteredPairs) {
+		for (const pair of pairs) {
 			const system = pair.request.system;
 			const model = pair.model;
 
