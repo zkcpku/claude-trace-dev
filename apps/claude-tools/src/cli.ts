@@ -4,6 +4,7 @@ import { spawn, ChildProcess } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 import { HTMLGenerator } from "./html-generator";
+import { ClaudeTrafficLogger } from "./interceptor";
 
 // Colors for output
 const colors = {
@@ -162,10 +163,133 @@ async function generateHTMLFromCLI(): Promise<void> {
 	}
 }
 
+async function extractToken(): Promise<void> {
+	// Check dependencies
+	checkDependencies();
+	ensureFrontendBuilt();
+
+	// Create a temporary file to store the token
+	const tempTokenFile = path.join(process.cwd(), `.token-${Date.now()}.tmp`);
+
+	// Create a custom interceptor that writes the token to a file
+	const tokenExtractorPath = path.join(process.cwd(), "token-extractor.js");
+	const extractorCode = `
+const fs = require('fs');
+const originalFetch = global.fetch;
+
+global.fetch = async function(input, init = {}) {
+	const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+	
+	if (url.includes('api.anthropic.com') && url.includes('/v1/messages')) {
+		const headers = new Headers(init.headers || {});
+		const authorization = headers.get('authorization');
+		
+		if (authorization && authorization.startsWith('Bearer ')) {
+			const token = authorization.substring(7);
+			try {
+				fs.writeFileSync('${tempTokenFile}', token);
+			} catch (e) {
+				console.error('Failed to write token:', e.message);
+			}
+		}
+	}
+	
+	return originalFetch(input, init);
+};
+`;
+
+	// Write the temporary extractor
+	fs.writeFileSync(tokenExtractorPath, extractorCode);
+
+	// Prepare environment
+	const env = {
+		...process.env,
+		NODE_TLS_REJECT_UNAUTHORIZED: "0",
+	};
+
+	// Start Claude with a simple prompt to trigger token usage
+	const child: ChildProcess = spawn("node", ["--require", tokenExtractorPath, "claude", "say", "hello"], {
+		env,
+		stdio: ["pipe", "pipe", "pipe"],
+		cwd: process.cwd(),
+	});
+
+	// Set a timeout to avoid hanging
+	const timeout = setTimeout(() => {
+		child.kill();
+		cleanup();
+		console.error("❌ Timeout: No token found within 30 seconds");
+		process.exit(1);
+	}, 30000);
+
+	const cleanup = () => {
+		try {
+			if (fs.existsSync(tokenExtractorPath)) fs.unlinkSync(tokenExtractorPath);
+			if (fs.existsSync(tempTokenFile)) fs.unlinkSync(tempTokenFile);
+		} catch (e) {
+			// Ignore cleanup errors
+		}
+	};
+
+	// Handle child process events
+	child.on("error", (error: Error) => {
+		clearTimeout(timeout);
+		cleanup();
+		console.error(`❌ Error starting Claude: ${error.message}`);
+		process.exit(1);
+	});
+
+	child.on("exit", (code: number | null) => {
+		clearTimeout(timeout);
+
+		try {
+			if (fs.existsSync(tempTokenFile)) {
+				const token = fs.readFileSync(tempTokenFile, "utf-8").trim();
+				cleanup();
+				if (token) {
+					// Only output the token, nothing else
+					console.log(token);
+					process.exit(0);
+				}
+			}
+		} catch (e) {
+			// File doesn't exist or read error
+		}
+
+		cleanup();
+		console.error("❌ No authorization token found");
+		process.exit(1);
+	});
+
+	// Check for token file periodically
+	const checkToken = setInterval(() => {
+		try {
+			if (fs.existsSync(tempTokenFile)) {
+				const token = fs.readFileSync(tempTokenFile, "utf-8").trim();
+				if (token) {
+					clearTimeout(timeout);
+					clearInterval(checkToken);
+					child.kill();
+					cleanup();
+
+					// Only output the token, nothing else
+					console.log(token);
+					process.exit(0);
+				}
+			}
+		} catch (e) {
+			// Ignore read errors, keep trying
+		}
+	}, 500);
+}
+
 // Main entry point
 async function main(): Promise<void> {
-	// Handle standalone HTML generation mode
-	if (process.argv.length > 2 && process.argv[2].endsWith(".jsonl")) {
+	// Check for flags
+	if (process.argv.includes("--extract-token")) {
+		// Token extraction mode
+		await extractToken();
+	} else if (process.argv.length > 2 && process.argv[2].endsWith(".jsonl")) {
 		// If first argument is a JSONL file, run in HTML generation mode
 		await generateHTMLFromCLI();
 	} else {

@@ -34,6 +34,9 @@ claude-logger
 # Run specific Claude command
 claude-logger claude chat --model sonnet-3.5
 
+# Extract OAuth token (reproduces claude-token.py functionality)
+claude-logger --extract-token
+
 # Generate HTML from existing JSONL file
 claude-logger test-traffic.jsonl output.html
 ```
@@ -83,6 +86,7 @@ interface InterceptorConfig {
 
 - No arguments: Run Claude with default settings
 - `<command> [args...]`: Run specific Claude command
+- `--extract-token`: Extract OAuth token and output only the token
 - `<file.jsonl> [output.html]`: Generate HTML from JSONL
 
 ## Requirements
