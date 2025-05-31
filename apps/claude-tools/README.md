@@ -1,143 +1,112 @@
-# Claude Code Tools
+# @mariozechner/claude-logger
 
-Network interception utilities for analyzing Claude Code traffic, extracting OAuth tokens, and generating detailed HTML reports.
+Intercept and visualize Claude Code API request/response pairs with a lightweight Node.js solution.
 
-## Prerequisites
+## Features
 
-Before using these tools, you must install:
-
-1. **Python 3.x** (usually pre-installed on macOS/Linux)
-2. **mitmproxy** - HTTP/HTTPS traffic interception tool
-   ```bash
-   pip install mitmproxy
-   ```
-3. **Claude Code** - Anthropic's official command-line interface
-   - Install from: https://docs.anthropic.com/en/docs/claude-code/overview
-   - Must be configured with valid credentials
+- 🔍 **HTTP Interception**: Instruments global `fetch` to capture Anthropic API calls
+- 📝 **JSONL Logging**: Saves request/response pairs to timestamped JSONL files
+- 🌐 **HTML Reports**: Generates self-contained HTML visualizations
+- ⚡ **Real-time Updates**: HTML reports update as requests are captured
+- 🧹 **Cleanup**: Handles orphaned requests and graceful shutdown
+- 🎯 **Zero Dependencies**: Pure Node.js, no Python or mitmproxy required
 
 ## Quick Start
 
-```bash
-# Monitor traffic while using Claude interactively
-./claude-logger.sh
-
-# Extract an OAuth token (simplest)
-./claude-token.py
-
-# Generate HTML from existing logs
-python3 claude-logger.py claude-traffic.jsonl
-```
-
-## Tools
-
-### 1. Traffic Logger Shell Script (`claude-logger.sh`)
-
-**Purpose**: Convenient wrapper that starts traffic logging and runs Claude Code interactively
+### Install globally
 
 ```bash
-./claude-logger.sh [claude-command]
+npm install -g @mariozechner/claude-logger
 ```
 
-- Starts `claude-logger.py` via mitmproxy in the background
-- Runs Claude Code interactively through the proxy
-- Logs all request/response pairs to `claude-traffic.jsonl`
-- Generates real-time HTML reports at `claude-traffic.html`
-- Automatic cleanup when you exit Claude Code
-- Thread-safe pairing prevents race conditions from parallel requests
-
-### 2. Traffic Logger (`claude-logger.py`)
-
-**Purpose**: mitmproxy script for logging HTTP traffic with advanced features
-
-**As mitmproxy script:**
+### Or use with npx (no install required)
 
 ```bash
-mitmdump -s claude-logger.py --listen-port 8080
+npx @mariozechner/claude-logger
 ```
 
-**As standalone HTML generator:**
+### Basic Usage
 
 ```bash
-python3 claude-logger.py <jsonl-file>
+# Start Claude Code with traffic logging
+claude-logger
+
+# Run specific Claude command
+claude-logger claude chat --model sonnet-3.5
+
+# Generate HTML from existing JSONL file
+claude-logger test-traffic.jsonl output.html
 ```
 
-**Features:**
+## Generated Files
 
-- Thread-safe request/response pairing using flow IDs
-- Race condition protection for parallel API calls
-- Real-time HTML generation with embedded template files
-- Proper handling of SSE (Server-Sent Events) streaming responses
-- Token usage tracking for both input and output tokens
+All files are saved to `.claude-logger/` directory:
 
-### 3. Token Extractor (`claude-token.py`)
-
-**Purpose**: Automatically extract the OAuth token from Claude Code for use with Anthropic's SDK
-
-```bash
-./claude-token.py
-```
-
-- Automatically starts proxy, runs Claude Code with a simple message, extracts token
-- Displays extracted token in terminal
-- Logs traffic to timestamped files
-- Generates HTML conversation view
-- Automatic cleanup when complete
-- No configuration needed - just run it!
-
-**Usage with Anthropic SDK**: Use the extracted token with the Anthropic client by setting it as the auth token (not API key)
-
-### 4. Process Cleanup (`kill-mitm.sh`)
-
-**Purpose**: Kill any stuck mitmproxy processes
-
-```bash
-./kill-mitm.sh
-```
-
-- Finds all running mitmproxy-related processes
-- Attempts graceful shutdown first (SIGTERM)
-- Force kills remaining processes if needed
-- Useful when proxy processes get stuck
+- `log-YYYY-MM-DD-HH-MM-SS.jsonl` - Raw request/response pairs
+- `log-YYYY-MM-DD-HH-MM-SS.html` - Interactive visualization
 
 ## How It Works
 
-All tools use **mitmproxy** to intercept HTTPS traffic:
+1. **Fetch Instrumentation**: Patches global `fetch` before Claude Code starts
+2. **API Filtering**: Only captures Anthropic API calls (`/v1/messages`)
+3. **Response Handling**: Supports both JSON and Server-Sent Events (SSE)
+4. **Data Pairing**: Thread-safe request/response matching
+5. **HTML Generation**: Real-time self-contained reports
 
-1. Start mitmproxy on port 8080 with appropriate logging script
-2. Configure Claude Code to use the proxy via environment variables
-3. Disable TLS verification (required for interception)
-4. Log all traffic and/or extract Authorization headers
-5. Automatic cleanup of proxy processes
+## Usage as Library
 
-## Setup
+```javascript
+const { initializeInterceptor } = require("@mariozechner/claude-logger");
 
-Make scripts executable before first use:
+const logger = initializeInterceptor({
+	logDirectory: "./my-logs",
+	enableRealTimeHTML: true,
+	logLevel: "debug",
+});
 
-```bash
-chmod +x *.py *.sh
+// Logger automatically instruments fetch and handles cleanup
 ```
 
-## Output Files
+## API Reference
 
-- **`claude-traffic.jsonl`** - Request/response pairs in JSON Lines format
-- **`claude-traffic.html`** - Interactive HTML viewer with:
-   - **Conversations View**: Merged conversations with proper message flow
-   - **Raw Pairs View**: Complete SSE event structure and raw API data
-   - **Model Filtering**: Toggle visibility of different models (haiku hidden by default)
-   - **Token Tracking**: Detailed input/output token usage with cache metrics
-   - **SSE Display**: Clean event-by-event format for streaming responses
-- **Terminal output** - Real-time status and extracted tokens
+### InterceptorConfig
 
-## Code Structure
+```typescript
+interface InterceptorConfig {
+	logDirectory?: string; // Default: '.claude-logger'
+	enableRealTimeHTML?: boolean; // Default: true
+	logLevel?: "debug" | "info" | "warn" | "error"; // Default: 'info'
+}
+```
 
-The HTML viewer is built with a clean separation of concerns:
+### CLI Options
 
-- **`template/index.html`** - Main HTML structure and layout
-- **`template/styles.css`** - All CSS styling and responsive design
-- **`template/views.js`** - View rendering and presentation logic (ClaudeViewRenderer class)
-- **`template/script.js`** - Core application logic and data processing (ClaudeViewer class)
+- No arguments: Run Claude with default settings
+- `<command> [args...]`: Run specific Claude command
+- `<file.jsonl> [output.html]`: Generate HTML from JSONL
 
-The Python script (`claude-logger.py`) merges all template files into a single standalone HTML file for easy sharing and deployment.
+## Requirements
+
+- Node.js 16+
+- Claude Code CLI installed
+
+## Migration from Python Version
+
+This package is a drop-in replacement for the Python/mitmproxy-based logger:
+
+### Advantages
+
+- ✅ No Python dependencies
+- ✅ No proxy setup required
+- ✅ Faster startup
+- ✅ Lower memory usage
+- ✅ Same output format
+
+### Compatibility
+
+- 📊 HTML files work with existing frontend
+- 📋 JSONL format identical to Python version
+- 🔄 Same visualization features
 
 ## HTML Viewer Features
 
@@ -164,34 +133,36 @@ The generated HTML viewer provides a rich interface for analyzing Claude Code tr
 - Haiku model requests hidden by default (cosmetic/title generation)
 - Real-time conversation count updates based on active filters
 
-### Token Analytics
-
-- Input and output token tracking from both structured and SSE responses
-- Cache token metrics (cache_read_input_tokens, cache_creation_input_tokens)
-- Per-conversation and per-request token breakdowns
-- Total token usage displayed in conversation headers
-
 ## Troubleshooting
 
-- **"command not found"** - Ensure mitmproxy and Claude Code are installed and in PATH
-- **Permission errors** - Make sure scripts are executable: `chmod +x *.py *.sh`
-- **Network issues** - Check that port 8080 is available
-- **TLS errors** - The tools automatically disable TLS verification for proxy use
-- **JSON syntax errors in HTML** - Regenerate HTML: `python3 claude-logger.py claude-traffic.jsonl`
-- **Stuck mitmproxy processes** - Run `./kill-mitm.sh` to clean up
-
-### npm/Node.js Timeout Issues
-
-When running under `claude-logger.py`, npm commands may timeout due to proxy environment variables being inherited by Node.js processes. The logger sets:
-
-- `HTTP_PROXY=http://localhost:8080`
-- `HTTPS_PROXY=http://localhost:8080`
-- `NODE_TLS_REJECT_UNAUTHORIZED=0`
-
-**Solution**: Claude Code should automatically unset these variables when running npm/yarn/Node.js commands:
+### Command not found
 
 ```bash
-unset NODE_TLS_REJECT_UNAUTHORIZED && unset HTTP_PROXY && unset HTTPS_PROXY && npm install
+npm install -g @mariozechner/claude-logger
 ```
 
-This prevents Node.js processes from inheriting proxy settings that cause timeouts. This issue affects any Node.js-based tools (npm, yarn, pnpm, etc.) when Claude Code is running through the proxy logger.
+### Permission errors
+
+```bash
+sudo npm install -g @mariozechner/claude-logger
+```
+
+### HTML generation fails
+
+Ensure frontend is built (should be automatic in published package).
+
+### Node.js version issues
+
+Requires Node.js 16+ for native fetch support.
+
+## Legacy Python Version
+
+The original Python/mitmproxy implementation is still available in this repository as reference. See `README-python.md` for documentation.
+
+## License
+
+MIT
+
+## Contributing
+
+Issues and PRs welcome!

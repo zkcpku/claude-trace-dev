@@ -1,0 +1,50 @@
+{
+	"name": "@mariozechner/claude-logger",
+	"version": "1.0.0",
+	"description": "Intercept and visualize Claude Code API request/response pairs",
+	"main": "dist/index.js",
+	"bin": {
+		"claude-logger": "dist/cli.js"
+	},
+	"scripts": {
+		"build": "tsc && npm run build:frontend",
+		"build:frontend": "cd frontend && npm run build",
+		"dev": "concurrently \"npm run dev:core\" \"npm run dev:frontend\"",
+		"dev:core": "tsc --watch --preserveWatchOutput",
+		"dev:frontend": "cd frontend && npm run dev",
+		"clean": "rm -rf dist",
+		"prepublishOnly": "npm run clean && npm run build",
+		"test": "node --require ./dist/interceptor.js echo 'test'",
+		"test:generate": "npx tsx src/cli test/test-traffic.jsonl test/index.html",
+		"typecheck": "tsc --noEmit"
+	},
+	"files": [
+		"dist/**/*",
+		"frontend/dist/**/*",
+		"frontend/template.html",
+		"README.md"
+	],
+	"keywords": [
+		"claude",
+		"anthropic",
+		"logging",
+		"api",
+		"debugging",
+		"http",
+		"interception"
+	],
+	"author": "Mario Zechner",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/mariozechner/claude-logger.git"
+	},
+	"engines": {
+		"node": ">=16.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "^20.0.0",
+		"concurrently": "^9.1.2",
+		"typescript": "^5.0.0"
+	}
+}

@@ -5,12 +5,12 @@
 	"scripts": {
 		"build:css": "npx tailwindcss -i src/styles.css -o dist/styles.css",
 		"build:js": "npx tsup",
-		"build:html": "cd .. && python3 claude-logger.py test-traffic.jsonl claude-traffic.html",
+		"build:html": "cd .. && npx tsx src/cli.ts test/test-traffic.jsonl test/index.html",
 		"build": "npm run build:css && npm run build:js",
 		"rebuild": "npm run build:css && npm run build:js && npm run build:html",
 		"dev": "npx concurrently \"npm run watch:src\" \"npm run serve\"",
 		"watch:src": "npx nodemon --watch src --ext ts,css,html,js --exec \"npm run rebuild\"",
-		"serve": "cd .. && npx live-server --port=8080 --no-browser --ignore=frontend",
+		"serve": "cd ../test && npx live-server --port=8080 --no-browser --ignore=frontend",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
