@@ -10,7 +10,7 @@ func captureWindow(cgWindowID: UInt32, outputPath: String) -> Bool {
         CGRect.null,  // null rect means capture the entire window
         .optionIncludingWindow,
         cgWindowID,
-        .bestResolution
+        [.bestResolution, .boundsIgnoreFraming]
     ) else {
         print("Error: Failed to create window image", to: &standardError)
         return false

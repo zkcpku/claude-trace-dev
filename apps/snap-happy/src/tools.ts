@@ -19,7 +19,7 @@ export const getLastScreenshotTool: Tool = {
 export const takeScreenshotTool: Tool = {
 	name: "TakeScreenshot",
 	description:
-		"Takes a new screenshot, stores it, and returns as base64 encoded PNG data. Optionally capture a specific window by ID (macOS only)",
+		"Takes a new screenshot, stores it, and returns as base64 encoded PNG data. Optionally capture a specific window by ID (macOS only). If asked to capture a specific app, ALWAYS use ListWindows tool first, to get the windowId.",
 	inputSchema: {
 		type: "object",
 		properties: {
