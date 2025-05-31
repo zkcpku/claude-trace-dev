@@ -41,7 +41,10 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 		return "anthropic";
 	}
 
-	private buildAnthropicParams(options: AskOptions<AnthropicAskOptions>): Anthropic.MessageCreateParams {
+	private buildAnthropicParams(
+		options: AskOptions<AnthropicAskOptions>,
+		messages: Anthropic.MessageParam[],
+	): Anthropic.MessageCreateParamsStreaming {
 		const modelData = findModelData(this.config.model);
 		const defaultMaxTokens = options?.maxOutputTokens || modelData?.maxOutputTokens || 4096;
 		const maxThinkingTokens = options?.maxThinkingTokens || this.config.defaults?.maxThinkingTokens || 3000;
@@ -53,7 +56,8 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 		const params: Anthropic.MessageCreateParams = {
 			model: this.config.model,
 			max_tokens: maxTokens,
-			messages: [], // Will be set later
+			messages,
+			stream: true,
 		};
 
 		const systemMessage = options.context?.getSystemMessage();
@@ -130,14 +134,10 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 
 			// Build request parameters
 			const mergedOptions = { ...this.config.defaults, ...options };
-			const requestParams = this.buildAnthropicParams(mergedOptions);
-			requestParams.messages = messages;
+			const requestParams = this.buildAnthropicParams(mergedOptions, messages);
 
 			// Execute streaming request
-			const stream = await this.anthropic.messages.create({
-				...requestParams,
-				stream: true,
-			});
+			const stream = await this.anthropic.messages.create(requestParams);
 
 			return await this.processStream(stream, options, startTime);
 		} catch (error) {

@@ -164,34 +164,18 @@ async function extractToken(): Promise<void> {
 	// Create a temporary file to store the token
 	const tempTokenFile = path.join(process.cwd(), `.token-${Date.now()}.tmp`);
 
-	// Create a custom interceptor that writes the token to a file
-	const tokenExtractorPath = path.join(process.cwd(), `token-extractor-${Date.now()}.js`);
-	const extractorCode = `
-const fs = require('fs');
-const originalFetch = global.fetch;
-
-global.fetch = async function(input, init = {}) {
-	const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-
-	if (url.includes('api.anthropic.com') && url.includes('/v1/messages')) {
-		const headers = new Headers(init.headers || {});
-		const authorization = headers.get('authorization');
-
-		if (authorization && authorization.startsWith('Bearer ')) {
-			const token = authorization.substring(7);
-			try {
-				fs.writeFileSync('${tempTokenFile}', token);
-			} catch (e) {
-				// Ignore write errors silently
-			}
-		}
+	// Read the token extractor template and configure it
+	const templatePath = path.join(__dirname, "token-extractor.js");
+	if (!fs.existsSync(templatePath)) {
+		log(`❌ Token extractor template not found at: ${templatePath}`, "red");
+		process.exit(1);
 	}
 
-	return originalFetch(input, init);
-};
-`;
+	const templateCode = fs.readFileSync(templatePath, "utf-8");
+	const extractorCode = templateCode.replace("TOKEN_FILE_PLACEHOLDER", tempTokenFile);
 
-	// Write the temporary extractor
+	// Write the configured extractor
+	const tokenExtractorPath = path.join(process.cwd(), `token-extractor-${Date.now()}.js`);
 	fs.writeFileSync(tokenExtractorPath, extractorCode);
 
 	const cleanup = () => {
