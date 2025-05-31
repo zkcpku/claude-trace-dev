@@ -34,10 +34,10 @@ jobs:
            run: cd packages/lemmy && npm run typecheck
 
          - name: Typecheck cli-chat example
-           run: cd examples/cli-chat && npx tsc --noEmit
+           run: cd apps/lemmy-chat && npx tsc --noEmit
 
          - name: Typecheck red-teaming example
-           run: cd examples/red-teaming && npx tsc --noEmit
+           run: cd apps/red-teaming && npx tsc --noEmit
 
          - name: Run tests
            run: cd packages/lemmy && npm run test:run
