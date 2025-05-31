@@ -13,54 +13,83 @@ export class RawPairsView extends LitElement {
 
 	render() {
 		if (this.rawPairs.length === 0) {
-			return html`<div>No raw pairs found.</div>`;
+			return html`<div class="text-vs-muted">No raw pairs found.</div>`;
 		}
 
 		return html`
-			${this.rawPairs.map(
-				(pair, index) => html`
-					<div>
-						<div>
-							Raw Pair ${index + 1} - ${pair.request.method} ${this.getUrlPath(pair.request.url)}
-							(${pair.response.status})
-						</div>
+			<div>
+				${this.rawPairs.map(
+					(pair, index) => html`
+						<div class="mt-8 first:mt-0">
+							<!-- Pair Header -->
+							<div class="border border-vs-highlight p-4 mb-0">
+								<div class="text-vs-assistant font-bold">
+									${pair.request.method} ${this.getUrlPath(pair.request.url)}
+								</div>
+								<div class="text-vs-muted">
+									Raw Pair ${index + 1} • Status ${pair.response.status} • ${new Date().toLocaleString()}
+								</div>
+							</div>
 
-						<div>
-							<div @click=${(e: Event) => this.toggleContent(e)}>
-								<span>[-]</span>
-								Request
-							</div>
-							<div>
-								<div>${this.formatJson(pair.request)}</div>
-							</div>
-						</div>
-
-						<div>
-							<div @click=${(e: Event) => this.toggleContent(e)}>
-								<span>[-]</span>
-								Response
-							</div>
-							<div>
-								<div>${this.formatJson(pair.response)}</div>
-							</div>
-						</div>
-
-						${pair.response.events && pair.response.events.length > 0
-							? html`
-									<div>
-										<div @click=${(e: Event) => this.toggleContent(e)}>
-											<span>[-]</span>
-											SSE Events (${pair.response.events.length})
-										</div>
-										<div>
-											<div>${this.formatJson(pair.response.events)}</div>
+							<!-- Request Section -->
+							<div class="px-4 mt-4">
+								<div class="mb-4">
+									<div
+										class="cursor-pointer text-vs-user font-bold hover:text-white transition-colors"
+										@click=${(e: Event) => this.toggleContent(e)}
+									>
+										<span class="mr-2">[+]</span>
+										<span>Request</span>
+									</div>
+									<div class="hidden mt-2">
+										<div class="bg-vs-bg-secondary p-4 text-vs-text overflow-x-auto">
+											<pre class="whitespace-pre text-vs-text m-0">${this.formatJson(pair.request)}</pre>
 										</div>
 									</div>
-								`
-							: ""}
-					</div>
-				`,
-			)}
+								</div>
+
+								<!-- Response Section -->
+								<div class="mb-4">
+									<div
+										class="cursor-pointer text-vs-assistant font-bold hover:text-white transition-colors"
+										@click=${(e: Event) => this.toggleContent(e)}
+									>
+										<span class="mr-2">[+]</span>
+										<span>Response</span>
+									</div>
+									<div class="hidden mt-2">
+										<div class="bg-vs-bg-secondary p-4 text-vs-text overflow-x-auto">
+											<pre class="whitespace-pre text-vs-text m-0">${this.formatJson(pair.response)}</pre>
+										</div>
+									</div>
+								</div>
+
+								<!-- SSE Events Section -->
+								${pair.response.events && pair.response.events.length > 0
+									? html`
+											<div class="mb-4">
+												<div
+													class="cursor-pointer text-vs-type font-bold hover:text-white transition-colors"
+													@click=${(e: Event) => this.toggleContent(e)}
+												>
+													<span class="mr-2">[+]</span>
+													<span>SSE Events (${pair.response.events.length})</span>
+												</div>
+												<div class="hidden mt-2">
+													<div class="bg-vs-bg-secondary p-4 text-vs-text overflow-x-auto">
+														<pre class="whitespace-pre text-vs-text m-0">
+${this.formatJson(pair.response.events)}</pre
+														>
+													</div>
+												</div>
+											</div>
+										`
+									: ""}
+							</div>
+						</div>
+					`,
+				)}
+			</div>
 		`;
 	}
 
@@ -82,15 +111,13 @@ export class RawPairsView extends LitElement {
 
 	private toggleContent(e: Event) {
 		const header = e.currentTarget as HTMLElement;
-		const toggle = header.querySelector("span") as HTMLElement;
 		const content = header.nextElementSibling as HTMLElement;
+		const toggle = header.querySelector("span:first-child") as HTMLElement;
 
-		if (content.classList.contains("hidden")) {
-			content.classList.remove("hidden");
-			toggle.textContent = "[-]";
-		} else {
-			content.classList.add("hidden");
-			toggle.textContent = "[+]";
+		if (content && toggle) {
+			const isHidden = content.classList.contains("hidden");
+			content.classList.toggle("hidden", !isHidden);
+			toggle.textContent = isHidden ? "[-]" : "[+]";
 		}
 	}
 }
