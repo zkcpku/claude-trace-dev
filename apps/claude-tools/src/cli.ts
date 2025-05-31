@@ -22,6 +22,18 @@ function log(message: string, color: ColorName = "reset"): void {
 }
 
 function checkDependencies(): void {
+	// Skip dependency check for flags
+	if (process.argv.includes("--extract-token")) {
+		// For token extraction, we just need claude to exist
+		try {
+			require("child_process").execSync("which claude", { stdio: "ignore" });
+		} catch {
+			log(`❌ Command not found: 'claude'. Please install Claude Code CLI`, "red");
+			process.exit(1);
+		}
+		return;
+	}
+
 	// Check if claude command exists
 	const claudeCmd = process.argv[2] || "claude";
 	const claudeExecutable = claudeCmd.split(" ")[0];
@@ -189,7 +201,7 @@ global.fetch = async function(input, init = {}) {
 			try {
 				fs.writeFileSync('${tempTokenFile}', token);
 			} catch (e) {
-				console.error('Failed to write token:', e.message);
+				// Ignore write errors silently
 			}
 		}
 	}
@@ -207,10 +219,19 @@ global.fetch = async function(input, init = {}) {
 		NODE_TLS_REJECT_UNAUTHORIZED: "0",
 	};
 
+	// Find the absolute path of the claude binary
+	let claudePath: string;
+	try {
+		claudePath = require("child_process").execSync("which claude", { encoding: "utf-8" }).trim();
+	} catch (error) {
+		console.error("❌ Could not find claude binary");
+		process.exit(1);
+	}
+
 	// Start Claude with a simple prompt to trigger token usage
-	const child: ChildProcess = spawn("node", ["--require", tokenExtractorPath, "claude", "say", "hello"], {
+	const child: ChildProcess = spawn("node", ["--require", tokenExtractorPath, claudePath, "-p", "hello"], {
 		env,
-		stdio: ["pipe", "pipe", "pipe"],
+		stdio: ["pipe", "pipe", "pipe"], // Suppress all output from Claude
 		cwd: process.cwd(),
 	});
 
