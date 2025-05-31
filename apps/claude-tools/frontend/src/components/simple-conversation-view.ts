@@ -1,6 +1,7 @@
 import { LitElement, html, TemplateResult } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import * as Diff from "diff";
 import type {
 	MessageParam,
 	TextBlockParam,
@@ -33,6 +34,24 @@ export class SimpleConversationView extends LitElement {
 		}
 	}
 
+	private toggleWriteContent(e: Event) {
+		const preview = e.currentTarget as HTMLElement;
+		const fullContent = preview.previousElementSibling as HTMLElement;
+
+		if (fullContent) {
+			const isExpanded = !fullContent.classList.contains("hidden");
+			if (isExpanded) {
+				// Collapse: hide full content, show preview
+				fullContent.classList.add("hidden");
+				preview.classList.remove("hidden");
+			} else {
+				// Expand: show full content, hide preview
+				fullContent.classList.remove("hidden");
+				preview.classList.add("hidden");
+			}
+		}
+	}
+
 	private formatContent(content: string | ContentBlockParam[], toolResults?: Record<string, any>): TemplateResult {
 		if (typeof content === "string") {
 			return this.formatStringContent(content);
@@ -50,13 +69,32 @@ export class SimpleConversationView extends LitElement {
 						const toolUse = block as any;
 						const toolResult = toolResults?.[toolUse.id];
 
-						if (block.name === "TodoWrite") {
+						if (block.name === "TodoWrite" || block.name === "Edit" || block.name === "MultiEdit") {
 							return html`
 								<div class="mb-4">
 									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
-										🔧 ${this.getToolDisplayName(block)}
+										${this.getToolDisplayName(block)}
 									</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
+									${toolResult ? this.renderToolResult(toolResult) : ""}
+								</div>
+							`;
+						}
+						if (block.name === "Write") {
+							return html`
+								<div class="mb-4">
+									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
+										${this.getToolDisplayName(block)}
+									</div>
+									<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+										${this.renderToolUseContent(block)}
+									</div>
+									<div
+										class="bg-vs-bg-secondary p-4 text-vs-text cursor-pointer hover:bg-vs-border transition-colors"
+										@click=${this.toggleWriteContent}
+									>
+										${this.renderWritePreview(block)}
+									</div>
 									${toolResult ? this.renderToolResult(toolResult) : ""}
 								</div>
 							`;
@@ -68,7 +106,7 @@ export class SimpleConversationView extends LitElement {
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
-									🔧 ${this.getToolDisplayName(block)}
+									${this.getToolDisplayName(block)}
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
@@ -164,7 +202,7 @@ export class SimpleConversationView extends LitElement {
 							return html`
 								<div class="mb-4">
 									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
-										🔧 ${this.getToolDisplayName(block)}
+										${this.getToolDisplayName(block)}
 									</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
 								</div>
@@ -177,7 +215,7 @@ export class SimpleConversationView extends LitElement {
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
-									🔧 ${this.getToolDisplayName(block)}
+									${this.getToolDisplayName(block)}
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
@@ -345,33 +383,29 @@ export class SimpleConversationView extends LitElement {
 						const oldStr = unescapeHtml(edit.old_string);
 						const newStr = unescapeHtml(edit.new_string);
 
-						// Split into lines for line-by-line diff
-						const oldLines = oldStr.split("\n");
-						const newLines = newStr.split("\n");
-						const maxLines = Math.max(oldLines.length, newLines.length);
-
+						// Use proper diff algorithm
+						const diff = Diff.diffLines(oldStr, newStr);
 						const diffLines = [];
-						for (let i = 0; i < maxLines; i++) {
-							const oldLine = oldLines[i];
-							const newLine = newLines[i];
 
-							// Show removed lines
-							if (oldLine !== undefined && (newLine === undefined || oldLine !== newLine)) {
-								diffLines.push(
-									html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">${oldLine}</pre></div>`,
-								);
+						for (const part of diff) {
+							const lines = part.value.split("\n");
+							// Remove empty last line from split if it exists
+							if (lines[lines.length - 1] === "") {
+								lines.pop();
 							}
 
-							// Show added lines
-							if (newLine !== undefined && (oldLine === undefined || oldLine !== newLine)) {
-								diffLines.push(
-									html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">${newLine}</pre></div>`,
-								);
-							}
-
-							// Show unchanged lines (if both exist and are the same)
-							if (oldLine !== undefined && newLine !== undefined && oldLine === newLine) {
-								diffLines.push(html`<div><pre class="text-vs-text m-0">${oldLine}</pre></div>`);
+							for (const line of lines) {
+								if (part.added) {
+									diffLines.push(
+										html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">+ ${line}</pre></div>`,
+									);
+								} else if (part.removed) {
+									diffLines.push(
+										html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">- ${line}</pre></div>`,
+									);
+								} else {
+									diffLines.push(html`<div><pre class="text-vs-text m-0">  ${line}</pre></div>`);
+								}
 							}
 						}
 
@@ -390,29 +424,27 @@ export class SimpleConversationView extends LitElement {
 			const oldStr = unescapeHtml(input.old_string);
 			const newStr = unescapeHtml(input.new_string);
 
-			// Split into lines for line-by-line diff
-			const oldLines = oldStr.split("\n");
-			const newLines = newStr.split("\n");
-			const maxLines = Math.max(oldLines.length, newLines.length);
-
+			// Use proper diff algorithm
+			const diff = Diff.diffLines(oldStr, newStr);
 			const diffLines = [];
-			for (let i = 0; i < maxLines; i++) {
-				const oldLine = oldLines[i];
-				const newLine = newLines[i];
 
-				// Show removed lines
-				if (oldLine !== undefined && (newLine === undefined || oldLine !== newLine)) {
-					diffLines.push(html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">${oldLine}</pre></div>`);
+			for (const part of diff) {
+				const lines = part.value.split("\n");
+				// Remove empty last line from split if it exists
+				if (lines[lines.length - 1] === "") {
+					lines.pop();
 				}
 
-				// Show added lines
-				if (newLine !== undefined && (oldLine === undefined || oldLine !== newLine)) {
-					diffLines.push(html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">${newLine}</pre></div>`);
-				}
-
-				// Show unchanged lines (if both exist and are the same)
-				if (oldLine !== undefined && newLine !== undefined && oldLine === newLine) {
-					diffLines.push(html`<div><pre class="text-vs-text m-0">${oldLine}</pre></div>`);
+				for (const line of lines) {
+					if (part.added) {
+						diffLines.push(
+							html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">+ ${line}</pre></div>`,
+						);
+					} else if (part.removed) {
+						diffLines.push(html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">- ${line}</pre></div>`);
+					} else {
+						diffLines.push(html`<div><pre class="text-vs-text m-0">  ${line}</pre></div>`);
+					}
 				}
 			}
 
@@ -435,7 +467,7 @@ export class SimpleConversationView extends LitElement {
 					@click=${this.toggleContent}
 				>
 					<span class="mr-2">[+]</span>
-					📤 Tool Result ${toolResult.is_error ? "❌" : "✅"}
+					Tool Result ${toolResult.is_error ? "❌" : "✅"}
 				</div>
 				<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 					<pre class="whitespace-pre-wrap overflow-x-auto">
@@ -443,6 +475,36 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 					>
 				</div>
 			</div>
+		`;
+	}
+
+	private renderWritePreview(toolUse: any): TemplateResult {
+		const input = toolUse.input;
+		if (!input?.content) {
+			return html`<div class="text-vs-muted">No content</div>`;
+		}
+
+		// HTML unescape function
+		const unescapeHtml = (str: string): string => {
+			const div = document.createElement("div");
+			div.innerHTML = str;
+			return div.textContent || div.innerText || "";
+		};
+
+		const content = unescapeHtml(input.content);
+		const lines = content.split("\n");
+		const preview = lines.slice(0, 10);
+		const hasMore = lines.length > 10;
+
+		return html`
+			<div class="overflow-x-auto">
+				<pre class="whitespace-pre text-vs-text m-0">${preview.join("\n")}</pre>
+			</div>
+			${hasMore
+				? html`<div class="text-vs-muted mt-2 border-t border-vs-border pt-2">
+						... ${lines.length - 10} more lines (click to expand)
+					</div>`
+				: ""}
 		`;
 	}
 
