@@ -87,6 +87,7 @@ interface InterceptorConfig {
 - No arguments: Run Claude with default settings
 - `<command> [args...]`: Run specific Claude command
 - `--extract-token`: Extract OAuth token and output only the token
+- `--help, -h`: Show detailed help message with examples
 - `<file.jsonl> [output.html]`: Generate HTML from JSONL
 
 ## Requirements

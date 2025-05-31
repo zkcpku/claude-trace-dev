@@ -4,7 +4,6 @@ import { spawn, ChildProcess } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 import { HTMLGenerator } from "./html-generator";
-import { ClaudeTrafficLogger } from "./interceptor";
 
 // Colors for output
 const colors = {
@@ -19,6 +18,54 @@ type ColorName = keyof typeof colors;
 
 function log(message: string, color: ColorName = "reset"): void {
 	console.log(`${colors[color]}${message}${colors.reset}`);
+}
+
+function showHelp(): void {
+	console.log(`
+${colors.blue}Claude Code Traffic Logger${colors.reset}
+Intercept and visualize Claude Code API request/response pairs
+
+${colors.yellow}USAGE:${colors.reset}
+  claude-logger [OPTIONS] [COMMAND]
+
+${colors.yellow}OPTIONS:${colors.reset}
+  --extract-token    Extract OAuth token and exit (reproduces claude-token.py)
+  --help, -h         Show this help message
+
+${colors.yellow}MODES:${colors.reset}
+  ${colors.green}Interactive logging:${colors.reset}
+    claude-logger                    Start Claude with traffic logging
+    claude-logger claude chat        Run specific Claude command with logging
+    
+  ${colors.green}Token extraction:${colors.reset}
+    claude-logger --extract-token    Extract OAuth token for SDK usage
+    
+  ${colors.green}HTML generation:${colors.reset}
+    claude-logger file.jsonl         Generate HTML from JSONL file
+    claude-logger file.jsonl out.html   Generate HTML with custom output name
+
+${colors.yellow}EXAMPLES:${colors.reset}
+  # Start Claude with logging
+  claude-logger
+  
+  # Run specific command with logging  
+  claude-logger claude chat --model sonnet-3.5
+  
+  # Extract token for Anthropic SDK
+  export ANTHROPIC_API_KEY=$(claude-logger --extract-token)
+  
+  # Generate HTML report
+  claude-logger logs/traffic.jsonl report.html
+
+${colors.yellow}OUTPUT:${colors.reset}
+  Logs are saved to: ${colors.green}.claude-logger/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}${colors.reset}
+  
+${colors.yellow}MIGRATION:${colors.reset}
+  This tool replaces Python-based claude-logger and claude-token.py scripts
+  with a pure Node.js implementation. All output formats are compatible.
+
+For more information, visit: https://github.com/mariozechner/claude-logger
+`);
 }
 
 function checkDependencies(): void {
@@ -260,7 +307,7 @@ global.fetch = async function(input, init = {}) {
 		process.exit(1);
 	});
 
-	child.on("exit", (code: number | null) => {
+	child.on("exit", () => {
 		clearTimeout(timeout);
 
 		try {
@@ -306,7 +353,13 @@ global.fetch = async function(input, init = {}) {
 
 // Main entry point
 async function main(): Promise<void> {
-	// Check for flags
+	// Check for help flags
+	if (process.argv.includes("--help") || process.argv.includes("-h")) {
+		showHelp();
+		process.exit(0);
+	}
+
+	// Check for other flags
 	if (process.argv.includes("--extract-token")) {
 		// Token extraction mode
 		await extractToken();
