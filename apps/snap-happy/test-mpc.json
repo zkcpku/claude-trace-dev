@@ -1,0 +1,10 @@
+{
+	"mcpServers": {
+		"snap-happy": {
+			"command": "npx @mariozechner/snap-happy",
+			"env": {
+				"SNAP_HAPPY_SCREENSHOT_PATH": "/Users/badlogic/Desktop/snaphappy"
+			}
+		}
+	}
+}

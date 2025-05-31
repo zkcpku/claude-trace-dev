@@ -1,0 +1,11 @@
+{
+	"mcpServers": {
+		"snap-happy": {
+			"command": "npx",
+			"args": ["tsx", "/Users/badlogic/workspaces/lemmy/apps/snap-happy/src/index.ts"],
+			"env": {
+				"SNAP_HAPPY_SCREENSHOT_PATH": "/Users/badlogic/Desktop/snaphappy"
+			}
+		}
+	}
+}

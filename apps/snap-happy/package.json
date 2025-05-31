@@ -1,0 +1,59 @@
+{
+	"name": "@mariozechner/snap-happy",
+	"version": "1.0.0",
+	"description": "MCP server for screenshot functionality",
+	"type": "module",
+	"main": "dist/index.js",
+	"bin": {
+		"snap-happy": "dist/index.js"
+	},
+	"scripts": {
+		"build": "tsc",
+		"start": "node dist/index.js",
+		"dev": "tsx src/index.ts",
+		"test": "npx tsx test.ts",
+		"test:e2e": "node test-e2e.js",
+		"test:config": "npx tsx test-config.js",
+		"prepublishOnly": "npm run build",
+		"postinstall": "echo 'Snap Happy installed successfully! See README.md for setup instructions.'"
+	},
+	"keywords": [
+		"mcp",
+		"screenshot",
+		"server",
+		"automation",
+		"claude",
+		"ai",
+		"cross-platform",
+		"model-context-protocol"
+	],
+	"author": "Mario Zechner",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/badlogic/lemmy.git",
+		"directory": "apps/snap-happy"
+	},
+	"homepage": "https://github.com/badlogic/lemmy/tree/main/apps/snap-happy",
+	"bugs": {
+		"url": "https://github.com/badlogic/lemmy/issues"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"files": [
+		"dist/**/*",
+		"README.md",
+		"LICENSE",
+		"setup-mcp.sh",
+		"test-e2e.js"
+	],
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.12.1"
+	},
+	"devDependencies": {
+		"@types/node": "^22.15.29",
+		"tsx": "^4.19.4",
+		"typescript": "^5.8.3"
+	}
+}
