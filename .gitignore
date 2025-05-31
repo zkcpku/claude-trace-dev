@@ -91,9 +91,13 @@ pids/
 # Python cache
 __pycache__/
 
-# logs
+# Claude tools generated files
 claude-traffic-*.html
 claude-traffic-*.log
 apps/claude-tools/claude-traffic.html
 apps/claude-tools/claude-traffic.jsonl
+apps/claude-tools/test/index.html*
+apps/claude-tools/debug-*.html
+apps/claude-tools/*.cjs
+apps/claude-tools/intercept.log
 .claude-logger
