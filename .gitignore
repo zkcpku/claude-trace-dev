@@ -101,3 +101,5 @@ apps/claude-tools/debug-*.html
 apps/claude-tools/*.cjs
 apps/claude-tools/intercept.log
 .claude-logger
+apps/claude-trace/test/index.html
+.claude-trace

@@ -35,7 +35,7 @@
 	"references": [
 		{ "path": "./packages/lemmy" },
 		{ "path": "./packages/lemmy-tui" },
-		{ "path": "./examples/lemmy-chat" },
-		{ "path": "./examples/red-teaming" }
+		{ "path": "./apps/lemmy-chat" },
+		{ "path": "./apps/red-teaming" }
 	]
 }

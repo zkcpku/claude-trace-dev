@@ -7,10 +7,10 @@
 	"workspaces": [
 		"packages/lemmy",
 		"packages/lemmy-tui",
-		"examples/*"
+		"apps/*"
 	],
 	"scripts": {
-		"dev": "concurrently --kill-others-on-fail --prefix-colors \"cyan,magenta,yellow,green\" --prefix \"[{name}]\" --names \"lemmy,tui,chat,red-team\" \"cd packages/lemmy && tsc --watch --pretty\" \"cd packages/lemmy-tui && tsc --watch --pretty\" \"cd examples/lemmy-chat && tsc --watch --pretty\" \"cd examples/red-teaming && tsc --watch --pretty\"",
+		"dev": "concurrently --kill-others-on-fail --prefix-colors \"cyan,magenta,yellow,green\" --prefix \"[{name}]\" --names \"lemmy,tui,chat,red-team\" \"cd packages/lemmy && tsc --watch --pretty\" \"cd packages/lemmy-tui && tsc --watch --pretty\" \"cd apps/lemmy-chat && tsc --watch --pretty\" \"cd apps/red-teaming && tsc --watch --pretty\"",
 		"build": "npm run build --workspaces --if-present",
 		"clean": "npm run clean --workspaces --if-present",
 		"typecheck": "npm run typecheck --workspaces --if-present",
