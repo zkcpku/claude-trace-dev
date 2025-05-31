@@ -24,6 +24,7 @@ import {
 	takeScreenshot,
 	getLastScreenshot,
 	imageToBase64,
+	listWindows,
 } from "./screenshot.js";
 
 const server = new Server(
@@ -86,19 +87,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 			}
 
 			case "TakeScreenshot": {
-				const screenshotPath = takeScreenshot(config.screenshotPath);
+				const windowId = request.params.arguments?.windowId as number | undefined;
+				const screenshotPath = takeScreenshot(config.screenshotPath, windowId);
 				const base64Data = imageToBase64(screenshotPath);
 
 				return {
 					content: [
 						{
 							type: "text",
-							text: `Screenshot taken: ${screenshotPath}`,
+							text: `Screenshot taken: ${screenshotPath}${windowId ? ` (window ID: ${windowId})` : ""}`,
 						},
 						{
 							type: "image",
 							data: base64Data,
 							mimeType: "image/png",
+						},
+					],
+				};
+			}
+
+			case "ListWindows": {
+				const windows = listWindows();
+
+				const windowList = windows
+					.map(
+						(win) =>
+							`ID: ${win.id} | App: ${win.app} | Title: ${win.title} | Position: ${win.position.x},${win.position.y} | Size: ${win.size.width}x${win.size.height}`,
+					)
+					.join("\n");
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Found ${windows.length} windows:\n\n${windowList}\n\nNote: Window IDs can now be used with TakeScreenshot windowId parameter to capture specific windows.`,
 						},
 					],
 				};

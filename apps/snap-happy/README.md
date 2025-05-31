@@ -5,9 +5,14 @@ A Model Context Protocol (MCP) server that provides screenshot functionality for
 ## Features
 
 - **Cross-platform screenshot capture**: Works on macOS, Linux, and Windows
-- **Two main tools**:
+- **Three main tools**:
    - `GetLastScreenshot()`: Returns the most recent screenshot as base64 PNG
    - `TakeScreenshot()`: Takes a new screenshot and returns it as base64 PNG
+      - **macOS**: Full screen or specific window capture (captures actual window content, ignoring overlapping windows)
+      - **Linux/Windows**: Full screen capture only
+   - `ListWindows()`: Lists all visible windows with IDs, titles, and application names (macOS only)
+- **Window-specific screenshots**: On macOS, capture individual windows without interference from overlapping content
+- **Native performance**: Uses Swift-based utilities on macOS for fast, reliable window detection and capture
 - **Automatic directory management**: Creates and validates screenshot directories
 - **Environment-based configuration**: Uses `SNAP_HAPPY_SCREENSHOT_PATH` environment variable
 
@@ -19,9 +24,16 @@ npm install -g @mariozechner/snap-happy
 
 ## Prerequisites
 
-- **macOS**: Built-in `screencapture` command (Screen Recording permission required)
+- **macOS**: Built-in `screencapture` command and Swift compiler (Screen Recording permission required for window capture)
 - **Linux**: `gnome-screenshot` or `scrot` package
 - **Windows**: PowerShell with .NET Framework
+
+### Build Requirements
+
+The package includes pre-built native utilities for macOS. If you need to rebuild them:
+
+- **macOS**: Swift compiler (Xcode or Swift toolchain)
+- **Linux/Windows**: No additional build requirements
 
 ## Configuration
 
@@ -70,11 +82,21 @@ Add to your MCP client configuration:
 # Start building in watch mode
 npm run dev
 
+# Build everything (TypeScript + native utilities)
+npm run build
+
+# Build only native utilities
+npm run build:native
+
 # Add to Claude for testing (after building)
 claude mcp add snap-happy node /path/to/git/clone/of/snap-happy/dist/index.js
 
 # Test using Claude Code
 echo "Take a screenshot" | claude -p
+
+# Test with JSON-RPC directly
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "ListWindows", "arguments": {}}}' | node dist/index.js
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "TakeScreenshot", "arguments": {"windowId": 2}}}' | node dist/index.js
 
 # Run all tests
 npm test
@@ -82,9 +104,14 @@ npm test
 
 ## Troubleshooting
 
-### macOS Screen Recording Permission
+### macOS Permissions
 
-On first use, macOS will prompt for Screen Recording access. Grant permission in System Preferences → Security & Privacy → Privacy → Screen Recording.
+On first use, macOS will prompt for permissions:
+
+- **Screen Recording**: Required for taking screenshots and window capture
+- Window listing uses Core Graphics APIs and doesn't require additional permissions
+
+Grant permissions in System Preferences → Security & Privacy → Privacy → Screen Recording.
 
 ### Linux Dependencies
 
@@ -101,6 +128,8 @@ sudo dnf install gnome-screenshot
 - **"Environment variable not set"**: Set `SNAP_HAPPY_SCREENSHOT_PATH`
 - **"Screenshot path is not writable"**: Check directory permissions
 - **"No screenshots found"**: Verify directory contains PNG files
+- **"Window-specific screenshots are only supported on macOS"**: Window capture with `windowId` parameter only works on macOS
+- **Native utility build errors**: Ensure Swift compiler is available on macOS (`xcode-select --install`)
 
 ## License
 

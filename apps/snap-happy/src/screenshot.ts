@@ -1,13 +1,26 @@
 import { execSync } from "child_process";
 import { readFileSync, readdirSync, statSync, mkdirSync, existsSync, writeFileSync, unlinkSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
 import { platform } from "os";
+import { fileURLToPath } from "url";
 
 /**
  * Configuration interface for screenshot operations
  */
 export interface ScreenshotConfig {
 	screenshotPath: string;
+}
+
+/**
+ * Interface for window information
+ */
+export interface WindowInfo {
+	id: number;
+	cgWindowID: number; // Core Graphics window ID for direct capture
+	title: string;
+	app: string;
+	position: { x: number; y: number };
+	size: { width: number; height: number };
 }
 
 /**
@@ -35,20 +48,42 @@ export function validateScreenshotPath(path: string): void {
  * Takes a screenshot and saves it to the specified directory
  * Uses platform-specific commands: screencapture (macOS), gnome-screenshot/scrot (Linux), PowerShell (Windows)
  * @param screenshotPath - Directory where the screenshot should be saved
+ * @param windowId - Optional window ID to capture specific window (macOS only, uses window geometry)
  * @returns The full path to the saved screenshot file
  * @throws Error if screenshot capture fails
  */
-export function takeScreenshot(screenshotPath: string): string {
+export function takeScreenshot(screenshotPath: string, windowId?: number): string {
 	const timestamp = new Date().toISOString().replace(/[:.]/g, "-").split("T").join("-").split(".")[0];
 	const filename = `${timestamp}.png`;
 	const filepath = join(screenshotPath, filename);
 
 	const currentPlatform = platform();
 
+	// Window-specific screenshots only supported on macOS
+	if (windowId && currentPlatform !== "darwin") {
+		throw new Error("Window-specific screenshots are only supported on macOS");
+	}
+
 	try {
 		switch (currentPlatform) {
 			case "darwin": // macOS
-				execSync(`screencapture -x -t png "${filepath}"`, { stdio: "pipe" });
+				if (windowId) {
+					// Find the window by ID and use native window capture
+					const windows = listWindows();
+					const targetWindow = windows.find((w) => w.id === windowId);
+
+					if (!targetWindow) {
+						throw new Error(`Window with ID ${windowId} not found`);
+					}
+
+					// Use native utility to capture window directly by cgWindowID
+					const __filename = fileURLToPath(import.meta.url);
+					const __dirname = dirname(__filename);
+					const captureUtilPath = join(__dirname, "native", "capture-window");
+					execSync(`"${captureUtilPath}" ${targetWindow.cgWindowID} "${filepath}"`, { stdio: "pipe" });
+				} else {
+					execSync(`screencapture -x -t png "${filepath}"`, { stdio: "pipe" });
+				}
 				break;
 
 			case "linux":
@@ -150,4 +185,48 @@ export function getScreenshotConfig(): ScreenshotConfig {
 	}
 
 	return { screenshotPath };
+}
+
+/**
+ * Lists all visible windows on macOS using native utility
+ * Returns window information including position and size for use with screencapture -R
+ * @returns Array of window information (id, title, app, position, size)
+ * @throws Error if not on macOS or native utility fails
+ */
+export function listWindows(): WindowInfo[] {
+	if (platform() !== "darwin") {
+		throw new Error("Window listing is only supported on macOS");
+	}
+
+	try {
+		// Use the native Swift utility to get window information
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const nativeUtilPath = join(__dirname, "native", "list-windows");
+		const result = execSync(nativeUtilPath, {
+			encoding: "utf8",
+			stdio: "pipe",
+		});
+
+		if (!result.trim()) {
+			throw new Error("No windows found");
+		}
+
+		const windows: WindowInfo[] = JSON.parse(result.trim());
+
+		if (windows.length === 0) {
+			throw new Error(
+				"No windows found. This may require granting Screen Recording permissions in System Preferences → Security & Privacy → Privacy → Screen Recording",
+			);
+		}
+
+		return windows;
+	} catch (error) {
+		if (error instanceof SyntaxError) {
+			throw new Error("Failed to parse window information from native utility");
+		}
+		throw new Error(
+			`Failed to list windows: ${error instanceof Error ? error.message : String(error)}. This may require granting Screen Recording permissions in System Preferences → Security & Privacy → Privacy → Screen Recording`,
+		);
+	}
 }

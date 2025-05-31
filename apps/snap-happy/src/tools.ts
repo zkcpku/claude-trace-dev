@@ -18,7 +18,27 @@ export const getLastScreenshotTool: Tool = {
  */
 export const takeScreenshotTool: Tool = {
 	name: "TakeScreenshot",
-	description: "Takes a new screenshot, stores it, and returns as base64 encoded PNG data",
+	description:
+		"Takes a new screenshot, stores it, and returns as base64 encoded PNG data. Optionally capture a specific window by ID (macOS only)",
+	inputSchema: {
+		type: "object",
+		properties: {
+			windowId: {
+				type: "number",
+				description: "Optional window ID to capture specific window (macOS only)",
+			},
+		},
+		required: [],
+	},
+};
+
+/**
+ * MCP tool definition for listing windows (macOS only)
+ */
+export const listWindowsTool: Tool = {
+	name: "ListWindows",
+	description:
+		"Lists all visible windows with their IDs, titles, application names, positions, and sizes (macOS only). Window IDs can be used with TakeScreenshot to capture specific windows.",
 	inputSchema: {
 		type: "object",
 		properties: {},
@@ -29,4 +49,4 @@ export const takeScreenshotTool: Tool = {
 /**
  * Array of all available MCP tools for the snap-happy server
  */
-export const tools: Tool[] = [getLastScreenshotTool, takeScreenshotTool];
+export const tools: Tool[] = [getLastScreenshotTool, takeScreenshotTool, listWindowsTool];
