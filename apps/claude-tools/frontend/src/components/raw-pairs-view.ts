@@ -27,7 +27,8 @@ export class RawPairsView extends LitElement {
 									${pair.request.method} ${this.getUrlPath(pair.request.url)}
 								</div>
 								<div class="text-vs-muted">
-									Raw Pair ${index + 1} • Status ${pair.response.status} • ${new Date().toLocaleString()}
+									Raw Pair ${index + 1} • Status ${pair.response.status_code} •
+									${new Date(pair.logged_at).toLocaleString()}
 								</div>
 							</div>
 

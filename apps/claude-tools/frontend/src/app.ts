@@ -30,9 +30,9 @@ export class ClaudeApp extends LitElement {
 		const rawPairData: RawPairData[] = this.data.rawPairs.map((pair) => ({
 			request_body: pair.request.body,
 			response_body: pair.response.body,
-			body_raw: (pair.response as any).body_raw, // SSE data if available
+			body_raw: pair.response.body_raw, // SSE data if available
 			response_headers: pair.response.headers,
-			timestamp: pair.timestamp,
+			timestamp: pair.logged_at, // Use logged_at from Python logger
 		}));
 
 		this.processedPairs = processRawPairs(rawPairData);
@@ -44,7 +44,7 @@ export class ClaudeApp extends LitElement {
 		// Initialize with all models selected except haiku models
 		const conversationModels = new Set(this.conversations.flatMap((c) => Array.from(c.models)));
 		const processedPairModels = new Set(this.processedPairs.map((p) => p.model));
-		const rawPairModels = new Set(this.data.rawPairs.map((pair) => pair.request?.body?.model || "unknown"));
+		const rawPairModels = new Set(this.data.rawPairs.map((pair) => pair.request.body?.model || "unknown"));
 		const allModels = new Set([...conversationModels, ...processedPairModels, ...rawPairModels]);
 
 		// Filter out haiku models by default
@@ -80,7 +80,7 @@ export class ClaudeApp extends LitElement {
 
 	private get filteredRawPairs() {
 		return this.data.rawPairs.filter((pair) => {
-			const model = pair.request?.body?.model || "unknown";
+			const model = pair.request.body?.model || "unknown";
 			return this.selectedModels.has(model);
 		});
 	}

@@ -5,21 +5,22 @@ export interface ClaudeData {
 }
 
 export interface RawPair {
-	id: string;
 	request: {
-		url: string;
+		timestamp: number;
 		method: string;
+		url: string;
 		headers: Record<string, string>;
 		body: any;
 	};
 	response: {
-		status: number;
+		timestamp: number;
+		status_code: number;
 		headers: Record<string, string>;
-		body: any;
+		body?: any;
+		body_raw?: string;
 		events?: SSEEvent[];
 	};
-	timestamp: string;
-	model?: string;
+	logged_at: string;
 }
 
 export interface SSEEvent {
