@@ -10,7 +10,7 @@
 	"scripts": {
 		"build": "tsc && chmod +x dist/index.js",
 		"start": "node dist/index.js",
-		"dev": "tsx src/index.ts",
+		"dev": "tsc --watch",
 		"test": "npx tsx test/test.ts && npx tsx test/test-config.js && node test/test-e2e.js",
 		"prepublishOnly": "npm run build",
 		"postinstall": "echo 'Snap Happy installed successfully! See README.md for setup instructions.'"
