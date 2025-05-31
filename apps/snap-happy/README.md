@@ -9,7 +9,7 @@ A Model Context Protocol (MCP) server that provides screenshot functionality for
    - `GetLastScreenshot()`: Returns the most recent screenshot as base64 PNG
    - `TakeScreenshot()`: Takes a new screenshot and returns it as base64 PNG
 - **Automatic directory management**: Creates and validates screenshot directories
-- **Environment-based configuration**: Uses `{MCP_SERVER_NAME}_SCREENSHOT_PATH` for flexibility
+- **Environment-based configuration**: Uses `SNAP_HAPPY_SCREENSHOT_PATH` environment variable
 
 ## Installation
 
@@ -69,9 +69,6 @@ Add to your MCP client configuration:
 ```bash
 # Start building in watch mode
 npm run dev
-
-# Build the project
-npm run build
 
 # Add to Claude for testing (after building)
 claude mcp add snap-happy node /path/to/git/clone/of/snap-happy/dist/index.js

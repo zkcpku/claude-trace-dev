@@ -11,7 +11,7 @@
  * - TakeScreenshot: Takes a new screenshot and returns it
  *
  * Environment configuration:
- * - {MCP_SERVER_NAME}_SCREENSHOT_PATH: Directory for storing screenshots
+ * - SNAP_HAPPY_SCREENSHOT_PATH: Directory for storing screenshots
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";

@@ -136,14 +136,12 @@ export function imageToBase64(imagePath: string): string {
 
 /**
  * Reads configuration from environment variables
- * Uses {MCP_SERVER_NAME}_SCREENSHOT_PATH or defaults to SNAP_HAPPY_SCREENSHOT_PATH
+ * Uses SNAP_HAPPY_SCREENSHOT_PATH environment variable
  * Falls back to ~/Desktop/snaphappy if no environment variable is set
  * @returns Screenshot configuration object
  */
 export function getScreenshotConfig(): ScreenshotConfig {
-	const serverName = process.env.MCP_SERVER_NAME || "SNAP_HAPPY";
-	const envVarName = `${serverName}_SCREENSHOT_PATH`;
-	let screenshotPath = process.env[envVarName];
+	let screenshotPath = process.env.SNAP_HAPPY_SCREENSHOT_PATH;
 
 	if (!screenshotPath) {
 		// Default to ~/Desktop/snaphappy if no environment variable is set
