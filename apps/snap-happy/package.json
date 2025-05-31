@@ -8,8 +8,10 @@
 		"snap-happy": "dist/index.js"
 	},
 	"scripts": {
-		"build": "tsc && chmod +x dist/index.js && cd native && make",
-		"build:native": "cd native && make",
+		"build": "tsc && chmod +x dist/index.js && cd native && make universal",
+		"build:dev": "tsc && chmod +x dist/index.js && cd native && make dev",
+		"build:native": "cd native && make universal",
+		"build:native:dev": "cd native && make dev",
 		"start": "node dist/index.js",
 		"dev": "tsc --watch",
 		"test": "npx tsx test/test.ts && npx tsx test/test-config.js && node test/test-e2e.js",
@@ -42,7 +44,6 @@
 	},
 	"files": [
 		"dist/**/*",
-		"native/**/*",
 		"README.md",
 		"LICENSE",
 		"setup-mcp.sh",

@@ -30,9 +30,11 @@ npm install -g @mariozechner/snap-happy
 
 ### Build Requirements
 
-The package includes pre-built native utilities for macOS. If you need to rebuild them:
+The package includes pre-built universal binaries for macOS (Intel + Apple Silicon). End users don't need any additional tools.
 
-- **macOS**: Swift compiler (Xcode or Swift toolchain)
+**For development/publishing:**
+
+- **macOS**: Swift compiler (Xcode or Swift toolchain) to build universal binaries
 - **Linux/Windows**: No additional build requirements
 
 ## Configuration
@@ -82,11 +84,17 @@ Add to your MCP client configuration:
 # Start building in watch mode
 npm run dev
 
-# Build everything (TypeScript + native utilities)
+# Build everything (TypeScript + universal binaries for distribution)
 npm run build
 
-# Build only native utilities
+# Build for development (current architecture only, faster)
+npm run build:dev
+
+# Build only native utilities (universal binaries)
 npm run build:native
+
+# Build only native utilities (development, current architecture)
+npm run build:native:dev
 
 # Add to Claude for testing (after building)
 claude mcp add snap-happy node /path/to/git/clone/of/snap-happy/dist/index.js
@@ -129,7 +137,7 @@ sudo dnf install gnome-screenshot
 - **"Screenshot path is not writable"**: Check directory permissions
 - **"No screenshots found"**: Verify directory contains PNG files
 - **"Window-specific screenshots are only supported on macOS"**: Window capture with `windowId` parameter only works on macOS
-- **Native utility build errors**: Ensure Swift compiler is available on macOS (`xcode-select --install`)
+- **Native utility build errors**: Only relevant for development - end users get pre-built binaries. For development, ensure Swift compiler is available (`xcode-select --install`)
 
 ## License
 

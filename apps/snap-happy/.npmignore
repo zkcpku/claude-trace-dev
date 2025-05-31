@@ -1,15 +1,18 @@
-# Source files
+# NPM package excludes - ship only compiled code and binaries
+
+# Native source files (compiled binaries are in dist/native/)
+native/
+
+# TypeScript source files
 src/
 *.ts
 tsconfig.json
 
 # Test files
-test*.js
-test*.ts
+test/
 
 # Development files
 .env*
-node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -32,4 +35,3 @@ Thumbs.db
 *.tmp
 *.temp
 screenshots/
-EOF < /dev/null
