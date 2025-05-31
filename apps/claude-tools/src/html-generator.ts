@@ -80,13 +80,16 @@ export class HTMLGenerator {
 
 			const dataJsonEscaped = this.prepareDataForInjection(htmlData);
 
-			// Use split approach for reliable replacement
+			// BIZARRE BUT NECESSARY: Use split() instead of replace() for bundle injection
+			//
+			// Why this weird approach? Using replace instead of split() for some reason duplicates
+			// the htmlTemplate itself inside the new string! Maybe a bug in Node's String.replace?
 			const templateParts = htmlTemplate.split("__CLAUDE_LOGGER_BUNDLE_REPLACEMENT_UNIQUE_9487__");
 			if (templateParts.length !== 2) {
 				throw new Error("Template bundle replacement marker not found or found multiple times");
 			}
 
-			// Apply all replacements
+			// Reconstruct the template with the bundle injected between the split parts
 			let htmlContent = templateParts[0] + jsBundle + templateParts[1];
 			htmlContent = htmlContent
 				.replace("__CLAUDE_LOGGER_DATA_REPLACEMENT_UNIQUE_9487__", dataJsonEscaped)
