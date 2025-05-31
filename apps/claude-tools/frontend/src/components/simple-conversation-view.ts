@@ -572,92 +572,200 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 				${this.conversations.map(
 					(conversation) => html`
 						<div class="mt-8 first:mt-0">
-							<!-- Conversation Header -->
-							<div class="border border-vs-highlight p-4 mb-0">
-								<div class="text-vs-assistant font-bold">${Array.from(conversation.models).join(", ")}</div>
-								<div class="text-vs-muted">
-									${new Date(conversation.metadata.startTime).toLocaleString()} •
-									${conversation.messages.length + 1} messages
-								</div>
-							</div>
-
-							<!-- System Prompt (Expandable) -->
-							${conversation.system
+							${conversation.compacted
 								? html`
-										<div class="px-4 mt-4">
-											<div
-												class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
-												@click=${this.toggleContent}
-											>
-												<span class="mr-2">[+]</span>
-												<span>System Prompt</span>
-											</div>
-											<div class="hidden mt-4">
-												<div class="text-vs-text markdown-content">
-													${unsafeHTML(this.formatSystem(conversation.system))}
-												</div>
-											</div>
+										<!-- Compacted Conversation (Collapsed) -->
+										<div
+											class="cursor-pointer text-red-400 hover:text-red-300 transition-colors border border-red-700 p-4"
+											@click=${this.toggleContent}
+										>
+											<span class="mr-2">[+]</span>
+											<span>Compacted (click to view details)</span>
 										</div>
-									`
-								: ""}
-
-							<!-- Tools (Expandable) -->
-							${this.hasTools(conversation)
-								? html`
-										<div class="px-4">
-											<div
-												class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
-												@click=${this.toggleContent}
-											>
-												<span class="mr-2">[+]</span>
-												<span>Tools (${conversation.finalPair.request.tools?.length || 0})</span>
-											</div>
-											<div class="mt-4 hidden">
-												<div class="text-vs-text">
-													${this.renderTools(conversation.finalPair.request.tools || [])}
+										<div class="hidden">
+											<!-- Conversation Header -->
+											<div class="border border-vs-highlight p-4 mb-0">
+												<div class="text-vs-assistant font-bold">
+													${Array.from(conversation.models).join(", ")}
+												</div>
+												<div class="text-vs-muted">
+													${new Date(conversation.metadata.startTime).toLocaleString()} •
+													${conversation.messages.length + 1} messages
 												</div>
 											</div>
-										</div>
-									`
-								: ""}
 
-							<!-- Conversation Messages -->
-							<div class="px-4 mt-4">
-								${conversation.messages
-									.filter((message) => !(message as EnhancedMessageParam).hide)
-									.map(
-										(message, msgIndex) => html`
-											<div class="mb-4">
-												<div
-													class="font-bold uppercase ${message.role === "user"
-														? "text-vs-user"
-														: "text-vs-assistant"}"
-												>
-													<span>${message.role}</span>
-													<span class="ml-1">${msgIndex + 1}</span>
-												</div>
-												<div class="text-vs-text">
-													${this.formatContent(
-														message.content,
-														(message as EnhancedMessageParam).toolResults,
+											<!-- System Prompt (Expandable) -->
+											${conversation.system
+												? html`
+														<div class="px-4 mt-4">
+															<div
+																class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+																@click=${this.toggleContent}
+															>
+																<span class="mr-2">[+]</span>
+																<span>System Prompt</span>
+															</div>
+															<div class="hidden mt-4">
+																<div class="text-vs-text markdown-content">
+																	${unsafeHTML(this.formatSystem(conversation.system))}
+																</div>
+															</div>
+														</div>
+													`
+												: ""}
+
+											<!-- Tools (Expandable) -->
+											${this.hasTools(conversation)
+												? html`
+														<div class="px-4">
+															<div
+																class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+																@click=${this.toggleContent}
+															>
+																<span class="mr-2">[+]</span>
+																<span
+																	>Tools (${conversation.finalPair.request.tools?.length || 0})</span
+																>
+															</div>
+															<div class="mt-4 hidden">
+																<div class="text-vs-text">
+																	${this.renderTools(conversation.finalPair.request.tools || [])}
+																</div>
+															</div>
+														</div>
+													`
+												: ""}
+
+											<!-- Conversation Messages -->
+											<div class="px-4 mt-4">
+												${conversation.messages
+													.filter((message) => !(message as EnhancedMessageParam).hide)
+													.map(
+														(message, msgIndex) => html`
+															<div class="mb-4">
+																<div
+																	class="font-bold uppercase ${message.role === "user"
+																		? "text-vs-user"
+																		: "text-vs-assistant"}"
+																>
+																	<span>${message.role}</span>
+																</div>
+																<div class="text-vs-text">
+																	${this.formatContent(
+																		message.content,
+																		(message as EnhancedMessageParam).toolResults,
+																	)}
+																</div>
+															</div>
+														`,
 													)}
+
+												<!-- Assistant Response -->
+												<div class="mb-4">
+													<div class="font-bold uppercase text-vs-assistant">
+														<span>assistant</span>
+														<span class="font-normal lowercase text-vs-muted ml-2">
+															(${conversation.metadata.inputTokens} in,
+															${conversation.metadata.outputTokens} out)
+														</span>
+													</div>
+													<div class="text-vs-text">
+														${this.formatResponseContent(conversation.response)}
+													</div>
 												</div>
 											</div>
-										`,
-									)}
+										</div>
+									`
+								: html`
+										<!-- Regular Conversation -->
+										<!-- Conversation Header -->
+										<div class="border border-vs-highlight p-4 mb-0">
+											<div class="text-vs-assistant font-bold">
+												${Array.from(conversation.models).join(", ")}
+											</div>
+											<div class="text-vs-muted">
+												${new Date(conversation.metadata.startTime).toLocaleString()} •
+												${conversation.messages.length + 1} messages
+											</div>
+										</div>
 
-								<!-- Assistant Response -->
-								<div class="mb-4">
-									<div class="font-bold uppercase text-vs-assistant">
-										<span>assistant</span>
-										<span class="ml-1">${conversation.messages.length + 1}</span>
-										<span class="font-normal lowercase text-vs-muted ml-2">
-											(${conversation.metadata.inputTokens} in, ${conversation.metadata.outputTokens} out)
-										</span>
-									</div>
-									<div class="text-vs-text">${this.formatResponseContent(conversation.response)}</div>
-								</div>
-							</div>
+										<!-- System Prompt (Expandable) -->
+										${conversation.system
+											? html`
+													<div class="px-4 mt-4">
+														<div
+															class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+															@click=${this.toggleContent}
+														>
+															<span class="mr-2">[+]</span>
+															<span>System Prompt</span>
+														</div>
+														<div class="hidden mt-4">
+															<div class="text-vs-text markdown-content">
+																${unsafeHTML(this.formatSystem(conversation.system))}
+															</div>
+														</div>
+													</div>
+												`
+											: ""}
+
+										<!-- Tools (Expandable) -->
+										${this.hasTools(conversation)
+											? html`
+													<div class="px-4">
+														<div
+															class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+															@click=${this.toggleContent}
+														>
+															<span class="mr-2">[+]</span>
+															<span>Tools (${conversation.finalPair.request.tools?.length || 0})</span>
+														</div>
+														<div class="mt-4 hidden">
+															<div class="text-vs-text">
+																${this.renderTools(conversation.finalPair.request.tools || [])}
+															</div>
+														</div>
+													</div>
+												`
+											: ""}
+
+										<!-- Conversation Messages -->
+										<div class="px-4 mt-4">
+											${conversation.messages
+												.filter((message) => !(message as EnhancedMessageParam).hide)
+												.map(
+													(message, msgIndex) => html`
+														<div class="mb-4">
+															<div
+																class="font-bold uppercase ${message.role === "user"
+																	? "text-vs-user"
+																	: "text-vs-assistant"}"
+															>
+																<span>${message.role}</span>
+															</div>
+															<div class="text-vs-text">
+																${this.formatContent(
+																	message.content,
+																	(message as EnhancedMessageParam).toolResults,
+																)}
+															</div>
+														</div>
+													`,
+												)}
+
+											<!-- Assistant Response -->
+											<div class="mb-4">
+												<div class="font-bold uppercase text-vs-assistant">
+													<span>assistant</span>
+													<span class="font-normal lowercase text-vs-muted ml-2">
+														(${conversation.metadata.inputTokens} in,
+														${conversation.metadata.outputTokens} out)
+													</span>
+												</div>
+												<div class="text-vs-text">${this.formatResponseContent(conversation.response)}</div>
+											</div>
+										</div>
+									`}
 						</div>
 					`,
 				)}

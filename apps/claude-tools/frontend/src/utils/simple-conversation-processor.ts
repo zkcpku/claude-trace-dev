@@ -2,7 +2,6 @@ import type {
 	Message,
 	MessageParam,
 	TextBlockParam,
-	ToolUnion,
 	ToolResultBlockParam,
 	ToolUseBlock,
 	ContentBlockParam,
@@ -23,6 +22,7 @@ export interface SimpleConversation {
 	response: Message;
 	allPairs: ProcessedPair[];
 	finalPair: ProcessedPair;
+	compacted?: boolean; // Flag to indicate this conversation was created by merging compact conversations
 	metadata: {
 		startTime: string;
 		endTime: string;
@@ -60,7 +60,7 @@ export class SimpleConversationProcessor {
 		const allConversations: SimpleConversation[] = [];
 
 		// Process each system group separately
-		for (const [systemKey, systemPairs] of pairsBySystem) {
+		for (const [, systemPairs] of pairsBySystem) {
 			// Sort pairs by timestamp within system group
 			const sortedPairs = [...systemPairs].sort(
 				(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
@@ -138,6 +138,9 @@ export class SimpleConversationProcessor {
 		const mergedConversations = this.detectAndMergeCompactConversations(allConversations);
 
 		console.log(`After compact detection: ${mergedConversations.length} conversations`);
+		mergedConversations.forEach((conv, i) => {
+			console.log(`Conversation ${i}: compacted=${conv.compacted}, pairs=${conv.allPairs.length}`);
+		});
 
 		// Sort by start time
 		return mergedConversations.sort(
@@ -216,153 +219,124 @@ export class SimpleConversationProcessor {
 	 * into a single API call with more messages. This function finds such conversations
 	 * and merges them with their "original" counterparts.
 	 *
-	 * Important: This should only compare conversations within the same system+model group
+	 * Updated: Now compares against ALL conversations since compacted conversations
+	 * may have different system prompts than their originals.
 	 */
 	private detectAndMergeCompactConversations(conversations: SimpleConversation[]): SimpleConversation[] {
 		if (conversations.length <= 1) return conversations;
 
-		// Group conversations by system+model first (like old implementation)
-		const conversationsBySystem = new Map<string, SimpleConversation[]>();
+		// Sort all conversations by start time to process in chronological order
+		const sortedConversations = [...conversations].sort(
+			(a, b) => new Date(a.metadata.startTime).getTime() - new Date(b.metadata.startTime).getTime(),
+		);
 
-		for (const conv of conversations) {
-			// Use the first model from the conversation (should be consistent within a conversation)
-			const firstModel = Array.from(conv.models)[0] || "unknown";
-			const systemKey = JSON.stringify({ system: conv.system, model: firstModel });
-
-			if (!conversationsBySystem.has(systemKey)) {
-				conversationsBySystem.set(systemKey, []);
-			}
-			conversationsBySystem.get(systemKey)!.push(conv);
-		}
-
-		const allMergedConversations: SimpleConversation[] = [];
-
-		// Process each system group separately
-		for (const [systemKey, systemConversations] of conversationsBySystem) {
+		console.log(`Sorted conversations by timestamp:`);
+		sortedConversations.forEach((conv, i) => {
 			console.log(
-				`Processing ${systemConversations.length} conversations for system group: ${systemKey.substring(0, 100)}...`,
+				`  ${i}: ${conv.allPairs.length} pairs, ${conv.messages.length} messages, start: ${conv.metadata.startTime}`,
+			);
+		});
+
+		const usedConversations = new Set<number>();
+		const mergedConversations: SimpleConversation[] = [];
+
+		// Look for compact conversations (1 pair, many messages)
+		for (let i = 0; i < sortedConversations.length; i++) {
+			const currentConv = sortedConversations[i];
+
+			if (usedConversations.has(i)) continue;
+
+			console.log(
+				`Examining conversation ${i}: ${currentConv.allPairs.length} pairs, ${currentConv.messages.length} messages`,
 			);
 
-			// Sort by start time to process in chronological order
-			const sortedConversations = [...systemConversations].sort(
-				(a, b) => new Date(a.metadata.startTime).getTime() - new Date(b.metadata.startTime).getTime(),
-			);
-
-			console.log(`Sorted conversations by timestamp:`);
-			sortedConversations.forEach((conv, i) => {
+			// Check if this is a compact conversation (1 pair with many messages)
+			if (currentConv.allPairs.length === 1) {
 				console.log(
-					`  ${i}: ${conv.allPairs.length} pairs, ${conv.messages.length} messages, start: ${conv.metadata.startTime}`,
-				);
-			});
-
-			const usedConversations = new Set<number>();
-			const mergedConversations: SimpleConversation[] = [];
-
-			// Look for compact conversations (1 pair, many messages)
-			for (let i = 0; i < sortedConversations.length; i++) {
-				const currentConv = sortedConversations[i];
-
-				if (usedConversations.has(i)) continue;
-
-				console.log(
-					`Examining conversation ${i}: ${currentConv.allPairs.length} pairs, ${currentConv.messages.length} messages`,
+					`Found potential compact conversation ${i}: ${currentConv.allPairs.length} pairs, ${currentConv.messages.length} messages`,
 				);
 
-				// Check if this is a compact conversation (1 pair with many messages)
-				if (currentConv.allPairs.length === 1) {
+				// Look for the original conversation across ALL conversations (not just same system group)
+				let originalConv: SimpleConversation | null = null;
+				let originalIndex = -1;
+
+				for (let j = 0; j < sortedConversations.length; j++) {
+					if (j === i || usedConversations.has(j)) continue;
+
+					const otherConv = sortedConversations[j];
+
 					console.log(
-						`Found potential compact conversation ${i}: ${currentConv.allPairs.length} pairs, ${currentConv.messages.length} messages`,
+						`  Comparing with conversation ${j}: ${otherConv.allPairs.length} pairs, ${otherConv.messages.length} messages`,
 					);
 
-					// Look for the original conversation with same system message and 2 fewer messages
-					let originalConv: SimpleConversation | null = null;
-					let originalIndex = -1;
-
-					for (let j = 0; j < sortedConversations.length; j++) {
-						if (j === i || usedConversations.has(j)) continue;
-
-						const otherConv = sortedConversations[j];
-
+					// Check if other conversation has exactly 2 fewer messages
+					if (otherConv.messages.length === currentConv.messages.length - 2) {
 						console.log(
-							`  Comparing with conversation ${j}: ${otherConv.allPairs.length} pairs, ${otherConv.messages.length} messages`,
+							`  ✓ Message count match: ${otherConv.messages.length} vs ${currentConv.messages.length} (diff=2)`,
 						);
 
-						// Check if system messages match and other conversation has exactly 2 fewer messages
-						if (otherConv.messages.length === currentConv.messages.length - 2) {
+						// Check if all messages in otherConv (except first) match messages in currentConv (except first)
+						// Skip first message in both conversations when comparing
+						let messagesMatch = true;
+						console.log(`  Comparing messages 1-${otherConv.messages.length - 1}:`);
+						for (let k = 1; k < otherConv.messages.length; k++) {
+							const match = this.messagesRoughlyEqual(otherConv.messages[k], currentConv.messages[k]);
 							console.log(
-								`  ✓ Message count match: ${otherConv.messages.length} vs ${currentConv.messages.length} (diff=2)`,
+								`    Message ${k}: ${match ? "✓" : "✗"} (roles: ${otherConv.messages[k]?.role} vs ${currentConv.messages[k]?.role})`,
 							);
-
-							// Check if all messages in otherConv (except first) match messages in currentConv (except first)
-							// Skip first message in both conversations when comparing
-							let messagesMatch = true;
-							console.log(`  Comparing messages 1-${otherConv.messages.length - 1}:`);
-							for (let k = 1; k < otherConv.messages.length; k++) {
-								const match = this.messagesRoughlyEqual(otherConv.messages[k], currentConv.messages[k]);
-								console.log(
-									`    Message ${k}: ${match ? "✓" : "✗"} (roles: ${otherConv.messages[k]?.role} vs ${currentConv.messages[k]?.role})`,
-								);
-								if (!match) {
-									messagesMatch = false;
-									break;
-								}
-							}
-
-							if (messagesMatch) {
-								console.log(`  ✓ Found matching original conversation ${j}: messages match after first`);
-								originalConv = otherConv;
-								originalIndex = j;
+							if (!match) {
+								messagesMatch = false;
 								break;
-							} else {
-								console.log(`  ✗ Messages don't match after first`);
 							}
-						} else {
-							console.log(
-								`  ✗ Message count mismatch: ${otherConv.messages.length} vs ${currentConv.messages.length} (need diff=2)`,
-							);
 						}
-					}
 
-					if (originalConv) {
-						console.log(`✓ Merging compact conversation ${i} with original conversation ${originalIndex}`);
-						const mergedConv = this.mergeCompactConversation(originalConv, currentConv);
-						mergedConversations.push(mergedConv);
-						usedConversations.add(i);
-						usedConversations.add(originalIndex);
+						if (messagesMatch) {
+							console.log(`  ✓ Found matching original conversation ${j}: messages match after first`);
+							originalConv = otherConv;
+							originalIndex = j;
+							break;
+						} else {
+							console.log(`  ✗ Messages don't match after first`);
+						}
 					} else {
-						console.log(`✗ No matching original conversation found for compact conversation ${i}`);
-						mergedConversations.push(currentConv);
-						usedConversations.add(i);
+						console.log(
+							`  ✗ Message count mismatch: ${otherConv.messages.length} vs ${currentConv.messages.length} (need diff=2)`,
+						);
 					}
+				}
+
+				if (originalConv) {
+					console.log(`✓ Merging compact conversation ${i} with original conversation ${originalIndex}`);
+					const mergedConv = this.mergeCompactConversation(originalConv, currentConv);
+					mergedConversations.push(mergedConv);
+					usedConversations.add(i);
+					usedConversations.add(originalIndex);
 				} else {
-					console.log(
-						`Conversation ${i} is not compact (has ${currentConv.allPairs.length} pairs), adding directly`,
-					);
+					console.log(`✗ No matching original conversation found for compact conversation ${i}`);
+					// Still mark as compacted since it has the compact pattern (1 pair, many messages)
+					currentConv.compacted = true;
 					mergedConversations.push(currentConv);
 					usedConversations.add(i);
 				}
+			} else {
+				console.log(`Conversation ${i} is not compact (has ${currentConv.allPairs.length} pairs), adding directly`);
+				mergedConversations.push(currentConv);
+				usedConversations.add(i);
 			}
-
-			// Add remaining conversations that weren't part of compact patterns
-			for (let i = 0; i < sortedConversations.length; i++) {
-				if (!usedConversations.has(i)) {
-					console.log(
-						`Adding non-compact conversation ${i}: ${sortedConversations[i].allPairs.length} pairs, ${sortedConversations[i].messages.length} messages`,
-					);
-					mergedConversations.push(sortedConversations[i]);
-				}
-			}
-
-			// Sort final merged conversations by startTime to ensure chronological order
-			const sortedMerged = mergedConversations.sort(
-				(a, b) => new Date(a.metadata.startTime).getTime() - new Date(b.metadata.startTime).getTime(),
-			);
-
-			allMergedConversations.push(...sortedMerged);
 		}
 
-		// Return all merged conversations from all system groups
-		return allMergedConversations.sort(
+		// Add remaining conversations that weren't part of compact patterns
+		for (let i = 0; i < sortedConversations.length; i++) {
+			if (!usedConversations.has(i)) {
+				console.log(
+					`Adding non-compact conversation ${i}: ${sortedConversations[i].allPairs.length} pairs, ${sortedConversations[i].messages.length} messages`,
+				);
+				mergedConversations.push(sortedConversations[i]);
+			}
+		}
+
+		// Sort final merged conversations by startTime to ensure chronological order
+		return mergedConversations.sort(
 			(a, b) => new Date(a.metadata.startTime).getTime() - new Date(b.metadata.startTime).getTime(),
 		);
 	}
@@ -409,6 +383,7 @@ export class SimpleConversationProcessor {
 			response: compactConv.response, // Use compact conversation's response
 			allPairs: allPairs,
 			finalPair: compactConv.finalPair, // Use compact conversation's final pair
+			compacted: true, // Mark as compacted conversation
 			metadata: {
 				startTime: startTime,
 				endTime: endTime,

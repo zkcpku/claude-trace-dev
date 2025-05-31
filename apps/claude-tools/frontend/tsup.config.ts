@@ -8,7 +8,7 @@ export default defineConfig({
 	outDir: "dist",
 	globalName: "ClaudeApp",
 	minify: true,
-	sourcemap: false,
+	sourcemap: "inline",
 	clean: false, // Don't clean CSS file
 	noExternal: ["lit", "marked", "highlight.js"],
 	target: "es2022",
@@ -17,7 +17,7 @@ export default defineConfig({
 			js: "/* Claude Tools Frontend Bundle */",
 		};
 
-		// No source maps for production bundle
+		// Source maps enabled for debugging
 
 		// Inject CSS content - read dynamically on each build
 		options.define = {
