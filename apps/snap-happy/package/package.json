@@ -1,12 +1,10 @@
 {
 	"name": "@mariozechner/snap-happy",
-	"version": "1.0.3",
+	"version": "1.0.2",
 	"description": "MCP server for screenshot functionality",
 	"type": "module",
 	"main": "dist/index.js",
-	"bin": {
-		"snap-happy": "dist/index.js"
-	},
+	"bin": "dist/index.js",
 	"scripts": {
 		"build": "tsc && chmod +x dist/index.js",
 		"start": "node dist/index.js",

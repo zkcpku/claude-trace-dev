@@ -79,7 +79,7 @@ The directory will be created automatically if it doesn't exist.
 1. **Add the MCP server**:
 
 ```bash
-claude mcp add snap-happy "npx @mariozechner/snap-happy"
+claude mcp add snap-happy npx tsx /path/to/snap-happy/src/index.ts
 ```
 
 2. **Set environment variable** (optional, defaults to ~/Desktop):
@@ -104,7 +104,22 @@ Add to your MCP client configuration:
 	"mcpServers": {
 		"snap-happy": {
 			"command": "npx",
-			"args": ["@mariozechner/snap-happy"],
+			"args": ["tsx", "/path/to/snap-happy/src/index.ts"],
+			"env": {
+				"SNAP_HAPPY_SCREENSHOT_PATH": "/Users/username/Screenshots"
+			}
+		}
+	}
+}
+```
+
+Or if installed globally:
+
+```json
+{
+	"mcpServers": {
+		"snap-happy": {
+			"command": "snap-happy",
 			"env": {
 				"SNAP_HAPPY_SCREENSHOT_PATH": "/Users/username/Screenshots"
 			}
@@ -231,34 +246,34 @@ The server provides detailed error messages for common issues:
 
 ### Claude MCP Connection Issues
 
-**Error: `spawn npx @mariozechner/snap-happy ENOENT`**
+**Error: `spawn npx tsx /path/to/file.ts ENOENT`**
 
-This means npx couldn't find or execute the package.
+This means the command wasn't found or the path is incorrect.
 
 **Solutions:**
 
 1. **Use the correct command format**:
 
    ```bash
-   claude mcp add snap-happy "npx @mariozechner/snap-happy"
+   claude mcp add snap-happy npx tsx /full/path/to/snap-happy/src/index.ts
    ```
 
-2. **Test npx directly**:
+2. **Install dependencies**:
 
    ```bash
-   npx @mariozechner/snap-happy
+   cd /path/to/snap-happy
+   npm install
    ```
 
-3. **Clear npm cache if needed**:
+3. **Verify tsx is available**:
 
    ```bash
-   npm cache clean --force
+   npx tsx --version
    ```
 
-4. **Alternative: Use local installation**:
+4. **Run the E2E test**:
    ```bash
-   npm install -g @mariozechner/snap-happy
-   claude mcp add snap-happy snap-happy
+   node test-e2e.js
    ```
 
 ### "Environment variable not set"
