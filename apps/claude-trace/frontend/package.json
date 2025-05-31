@@ -5,12 +5,12 @@
 	"scripts": {
 		"build:css": "npx tailwindcss -i src/styles.css -o dist/styles.css",
 		"build:js": "npx tsup",
-		"build:html": "cd .. && npx tsx src/cli.ts test/test-traffic.jsonl test/index.html",
+		"build:html": "cd .. && npx tsx src/cli.ts --generate-html test/test-traffic.jsonl test/index.html",
 		"build": "npm run build:css && npm run build:js",
 		"rebuild": "npm run build:css && npm run build:js && npm run build:html",
 		"dev": "npx concurrently \"npm run watch:src\" \"npm run serve\"",
 		"watch:src": "npx nodemon --watch src --ext ts,css,html,js --exec \"npm run rebuild\"",
-		"serve": "cd ../test && npx live-server --port=8080 --no-browser --ignore=frontend",
+		"serve": "cd .. && npx browser-sync start --server --port 8080 --files '**/*.html,**/*.css,**/*.js' --no-open",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -25,6 +25,7 @@
 		"concurrently": "^9.1.2",
 		"nodemon": "^3.1.10",
 		"postcss": "^8.5.4",
+		"browser-sync": "^3.0.3",
 		"tailwindcss": "^3.4.17",
 		"tsup": "^8.0.0",
 		"typescript": "^5.0.0"
