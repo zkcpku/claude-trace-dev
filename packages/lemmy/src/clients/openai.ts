@@ -39,12 +39,15 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 		return "openai";
 	}
 
-	private buildOpenAIParams(options: AskOptions<OpenAIAskOptions>): OpenAI.Chat.ChatCompletionCreateParams {
+	private buildOpenAIParams(
+		options: AskOptions<OpenAIAskOptions>,
+		messages: OpenAI.Chat.ChatCompletionMessageParam[],
+	): OpenAI.Chat.ChatCompletionCreateParams {
 		const params: OpenAI.Chat.ChatCompletionCreateParams = {
 			model: this.config.model,
 			stream: true,
 			stream_options: { include_usage: true },
-			messages: [], // Will be set later
+			messages,
 		};
 
 		const modelData = findModelData(this.config.model);
@@ -117,8 +120,7 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 
 			// Build request parameters
 			const mergedOptions = { ...this.config.defaults, ...options };
-			const requestParams = this.buildOpenAIParams(mergedOptions);
-			requestParams.messages = messages;
+			const requestParams = this.buildOpenAIParams(mergedOptions, messages);
 
 			// Execute streaming request
 			const stream = await this.openai.chat.completions.create(requestParams);
