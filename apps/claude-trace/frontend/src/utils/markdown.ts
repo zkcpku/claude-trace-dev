@@ -1,7 +1,26 @@
 import { marked } from "marked";
 
+// Configure marked for safe HTML rendering
+marked.setOptions({
+	sanitize: false, // We'll handle sanitization ourselves
+	gfm: true, // GitHub Flavored Markdown
+	breaks: true, // Convert \n to <br>
+});
+
 /**
- * Convert markdown text to HTML string
+ * Escape HTML entities to prevent XSS
+ */
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+/**
+ * Convert markdown text to HTML string with proper escaping
  * @param markdown - The markdown text to convert
  * @returns HTML string
  */
@@ -9,10 +28,12 @@ export function markdownToHtml(markdown: string): string {
 	if (!markdown) return "";
 
 	try {
-		return marked(markdown) as string;
+		// First escape any existing HTML entities to prevent XSS
+		const escapedMarkdown = escapeHtml(markdown);
+		return marked(escapedMarkdown) as string;
 	} catch (error) {
 		console.warn("Failed to parse markdown:", error);
-		// Fallback to plain text with basic line break handling
-		return markdown.replace(/\n/g, "<br>");
+		// Fallback to plain text with basic line break handling and HTML escaping
+		return escapeHtml(markdown).replace(/\n/g, "<br>");
 	}
 }

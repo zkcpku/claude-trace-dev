@@ -124,18 +124,24 @@ export class SimpleConversationView extends LitElement {
 	}
 
 	private formatStringContent(content: string): TemplateResult {
-		// Check for system reminder blocks (handling HTML-escaped delimiters)
-		const systemReminderRegex = /&lt;system-reminder&gt;([\s\S]*?)&lt;\/system-reminder&gt;/g;
+		// Check for system reminder blocks (handling both raw and HTML-escaped delimiters)
+		const systemReminderRegexEscaped = /&lt;system-reminder&gt;([\s\S]*?)&lt;\/system-reminder&gt;/g;
+		const systemReminderRegexRaw = /<system-reminder>([\s\S]*?)<\/system-reminder>/g;
 		const systemReminders: string[] = [];
 		let match;
 
-		// Extract all system reminder blocks
-		while ((match = systemReminderRegex.exec(content)) !== null) {
+		// Extract all system reminder blocks (escaped)
+		while ((match = systemReminderRegexEscaped.exec(content)) !== null) {
+			systemReminders.push(match[1].trim());
+		}
+
+		// Extract all system reminder blocks (raw)
+		while ((match = systemReminderRegexRaw.exec(content)) !== null) {
 			systemReminders.push(match[1].trim());
 		}
 
 		// Remove system reminder blocks from main content
-		const mainContent = content.replace(systemReminderRegex, "").trim();
+		let mainContent = content.replace(systemReminderRegexEscaped, "").replace(systemReminderRegexRaw, "").trim();
 
 		return html`
 			${mainContent ? html`<div class="markdown-content">${unsafeHTML(markdownToHtml(mainContent))}</div>` : ""}
@@ -143,23 +149,25 @@ export class SimpleConversationView extends LitElement {
 				? html`
 						<div class="mb-4">
 							<div
-								class="cursor-pointer text-vs-muted hover:text-white transition-colors"
+								class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
 								@click=${this.toggleContent}
 							>
 								<span class="mr-2">[+]</span>
-								<span>System Reminder</span>
+								<span>System Reminder${systemReminders.length > 1 ? `s (${systemReminders.length})` : ""}</span>
 							</div>
-							<div class="hidden mt-2 text-vs-muted">
-								${systemReminders.map(
-									(reminder, index) => html`
-										<div>
-											${systemReminders.length > 1
-												? html`<div class="text-vs-function font-bold mb-2">Reminder ${index + 1}:</div>`
-												: ""}
-											<div class="markdown-content">${unsafeHTML(markdownToHtml(reminder))}</div>
-										</div>
-									`,
-								)}
+							<div class="hidden mt-4">
+								<div class="text-vs-text">
+									${systemReminders.map(
+										(reminder, index) => html`
+											<div class="mb-4">
+												${systemReminders.length > 1
+													? html`<div class="text-vs-function font-bold mb-2">Reminder ${index + 1}:</div>`
+													: ""}
+												<div class="markdown-content">${unsafeHTML(markdownToHtml(reminder))}</div>
+											</div>
+										`,
+									)}
+								</div>
 							</div>
 						</div>
 					`
@@ -519,9 +527,9 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 					const description = ("description" in tool && tool.description) || "No description";
 
 					return html`
-						<div class="mb-8">
+						<div class="mb-2">
 							<div
-								class="cursor-pointer text-vs-user font-bold mb-2 border border-vs-user px-4 py-2 inline-block hover:text-white transition-colors"
+								class="cursor-pointer text-vs-user font-bold mb-2 pr-4 py-2 inline-block hover:text-white transition-colors"
 								@click=${this.toggleContent}
 							>
 								<span class="mr-2">[-]</span>
