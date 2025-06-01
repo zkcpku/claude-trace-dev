@@ -102,7 +102,7 @@ export class SimpleConversationView extends LitElement {
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
-									${this.getToolDisplayName(block)}
+									${this.getToolDisplayName(block, toolResult)}
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
@@ -217,7 +217,7 @@ export class SimpleConversationView extends LitElement {
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
-									${this.getToolDisplayName(block)}
+									${this.getToolDisplayName(block, toolResult)}
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
@@ -233,7 +233,7 @@ export class SimpleConversationView extends LitElement {
 		return html`<pre>${JSON.stringify(response, null, 2)}</pre>`;
 	}
 
-	private getToolDisplayName(toolUse: any): TemplateResult {
+	private getToolDisplayName(toolUse: any, toolResult?: any): TemplateResult {
 		const toolName = toolUse.name;
 		const input = toolUse.input;
 
@@ -244,29 +244,36 @@ export class SimpleConversationView extends LitElement {
 			return div.textContent || div.innerText || "";
 		};
 
+		// Helper to add status indicator
+		const withStatus = (content: TemplateResult): TemplateResult => {
+			return html`${content}`;
+		};
+
 		switch (toolName) {
 			case "Read":
 				return input?.file_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
-					: html`${toolName}`;
+					? withStatus(html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`)
+					: withStatus(html`${toolName}`);
 			case "Bash":
 				return input?.command
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.command)}</span>)`
-					: html`${toolName}`;
+					? withStatus(html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.command)}</span>)`)
+					: withStatus(html`${toolName}`);
 			case "Write":
 				return input?.file_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
-					: html`${toolName}`;
+					? withStatus(html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`)
+					: withStatus(html`${toolName}`);
 			case "Glob":
 				if (input?.pattern) {
 					const pattern = unescapeHtml(input.pattern);
 					const path = input?.path ? unescapeHtml(input.path) : null;
 					return path
-						? html`${toolName}(<span class="text-vs-text">${pattern}</span>,
-								<span class="text-vs-text">${path}</span>)`
-						: html`${toolName}(<span class="text-vs-text">${pattern}</span>)`;
+						? withStatus(
+								html`${toolName}(<span class="text-vs-text">${pattern}</span>,
+									<span class="text-vs-text">${path}</span>)`,
+							)
+						: withStatus(html`${toolName}(<span class="text-vs-text">${pattern}</span>)`);
 				}
-				return html`${toolName}`;
+				return withStatus(html`${toolName}`);
 			case "Grep":
 				if (input?.pattern) {
 					const pattern = unescapeHtml(input.pattern);
@@ -277,48 +284,60 @@ export class SimpleConversationView extends LitElement {
 					if (include) params += `, ${include}`;
 					if (path) params += `, ${path}`;
 
-					return html`${toolName}(<span class="text-vs-text">${params}</span>)`;
+					return withStatus(html`${toolName}(<span class="text-vs-text">${params}</span>)`);
 				}
-				return html`${toolName}`;
+				return withStatus(html`${toolName}`);
 			case "LS":
 				if (input?.path) {
 					const path = unescapeHtml(input.path);
 					const ignore = input?.ignore ? input.ignore.map((p: string) => unescapeHtml(p)).join(", ") : null;
 
 					return ignore
-						? html`${toolName}(<span class="text-vs-text">${path}</span>, ignore:
-								<span class="text-vs-text">${ignore}</span>)`
-						: html`${toolName}(<span class="text-vs-text">${path}</span>)`;
+						? withStatus(
+								html`${toolName}(<span class="text-vs-text">${path}</span>, ignore:
+									<span class="text-vs-text">${ignore}</span>)`,
+							)
+						: withStatus(html`${toolName}(<span class="text-vs-text">${path}</span>)`);
 				}
-				return html`${toolName}`;
+				return withStatus(html`${toolName}`);
 			case "Edit":
 				return input?.file_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path).split("/").pop()}</span>)`
-					: html`${toolName}`;
+					? withStatus(
+							html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path).split("/").pop()}</span
+								>)`,
+						)
+					: withStatus(html`${toolName}`);
 			case "MultiEdit":
 				if (input?.file_path) {
 					const fileName = unescapeHtml(input.file_path).split("/").pop();
 					const editCount = input?.edits ? input.edits.length : 0;
-					return html`${toolName}(<span class="text-vs-text">${fileName}</span>,
-						<span class="text-vs-text">${editCount} edits</span>)`;
+					return withStatus(
+						html`${toolName}(<span class="text-vs-text">${fileName}</span>,
+							<span class="text-vs-text">${editCount} edits</span>)`,
+					);
 				}
-				return html`${toolName}`;
+				return withStatus(html`${toolName}`);
 			case "NotebookRead":
 				return input?.notebook_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.notebook_path).split("/").pop()}</span
-							>)`
-					: html`${toolName}`;
+					? withStatus(
+							html`${toolName}(<span class="text-vs-text"
+									>${unescapeHtml(input.notebook_path).split("/").pop()}</span
+								>)`,
+						)
+					: withStatus(html`${toolName}`);
 			case "NotebookEdit":
 				if (input?.notebook_path && input?.cell_number !== undefined) {
 					const fileName = unescapeHtml(input.notebook_path).split("/").pop();
 					const cellNum = input.cell_number;
 					const mode = input?.edit_mode || "replace";
-					return html`${toolName}(<span class="text-vs-text">${fileName}</span>, cell
-						<span class="text-vs-text">${cellNum}</span>, <span class="text-vs-text">${mode}</span>)`;
+					return withStatus(
+						html`${toolName}(<span class="text-vs-text">${fileName}</span>, cell
+							<span class="text-vs-text">${cellNum}</span>, <span class="text-vs-text">${mode}</span>)`,
+					);
 				}
-				return html`${toolName}`;
+				return withStatus(html`${toolName}`);
 			default:
-				return html`${toolName}`;
+				return withStatus(html`${toolName}`);
 		}
 	}
 
@@ -464,6 +483,18 @@ export class SimpleConversationView extends LitElement {
 	private renderToolResult(toolResult: any, toolUse?: any): TemplateResult {
 		return html`
 			<div class="mb-4">
+				<div
+					class="text-vs-muted px-4 py-2 cursor-pointer hover:text-white transition-colors"
+					@click=${this.toggleContent}
+				>
+					<span class="mr-2">[+]</span>
+					Tool Result ${toolResult?.is_error ? "❌" : "✅"}
+				</div>
+				<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+					<pre class="whitespace-pre-wrap overflow-x-auto">
+${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content, null, 2)}</pre
+					>
+				</div>
 				${toolUse
 					? html`
 							<div>
@@ -484,18 +515,6 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 							</div>
 						`
 					: ""}
-				<div
-					class="text-vs-function px-4 py-2 cursor-pointer hover:text-white transition-colors"
-					@click=${this.toggleContent}
-				>
-					<span class="mr-2">[+]</span>
-					Tool Result ${toolResult.is_error ? "❌" : "✅"}
-				</div>
-				<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
-					<pre class="whitespace-pre-wrap overflow-x-auto">
-${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content, null, 2)}</pre
-					>
-				</div>
 			</div>
 		`;
 	}
