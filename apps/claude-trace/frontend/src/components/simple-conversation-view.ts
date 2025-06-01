@@ -576,7 +576,7 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 		}
 
 		return html`
-			<div>
+			<div class="max-w-[60em] mx-auto">
 				${this.conversations.map(
 					(conversation) => html`
 						<div class="mt-8 first:mt-0">

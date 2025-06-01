@@ -102,14 +102,14 @@ export class ClaudeApp extends LitElement {
 
 		return html`
 			<div class="min-h-screen bg-vs-bg text-vs-text font-mono">
-				<div class="mx-auto p-4">
+				<div class="max-w-[60em] mx-auto p-4">
 					<div class="mb-8">
-						<div class="mb-4">
+						<div class="mb-4 text-center">
 							<span class="text-vs-function">~ claude-traffic</span>
 							<span class="text-vs-muted ml-8">${this.data.timestamp || new Date().toISOString()}</span>
 						</div>
 
-						<div class="mb-8">
+						<div class="mb-8 text-center">
 							<span
 								@click=${() => this.switchView("conversations")}
 								class="cursor-pointer mr-12 ${this.currentView === "conversations"
@@ -138,7 +138,7 @@ export class ClaudeApp extends LitElement {
 
 						${modelCounts.size > 1
 							? html`
-									<div class="mb-4">
+									<div class="mb-4 text-center">
 										${Array.from(modelCounts.entries()).map(([model, _count]) => {
 											return html`
 												<span
