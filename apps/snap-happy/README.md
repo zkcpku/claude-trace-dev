@@ -12,9 +12,6 @@ A Model Context Protocol (MCP) server that provides screenshot functionality for
       - **Linux/Windows**: Full screen capture only
    - `ListWindows()`: Lists all visible windows with IDs, titles, and application names (macOS only)
 - **Window-specific screenshots**: On macOS, capture individual windows without interference from overlapping content
-- **Native performance**: Uses Swift-based utilities on macOS for fast, reliable window detection and capture
-- **Automatic directory management**: Creates and validates screenshot directories
-- **Environment-based configuration**: Uses `SNAP_HAPPY_SCREENSHOT_PATH` environment variable
 
 ## Installation
 
@@ -39,7 +36,7 @@ The package includes pre-built universal binaries for macOS (Intel + Apple Silic
 
 ## Configuration
 
-Set the environment variable for your screenshot directory:
+Optionally set an environment variable for your screenshot directory:
 
 ```bash
 export SNAP_HAPPY_SCREENSHOT_PATH="/path/to/screenshots"
@@ -53,7 +50,7 @@ The directory will be created automatically if it doesn't exist.
 
 ```bash
 # Add the MCP server
-claude mcp add snap-happy "npx @mariozechner/snap-happy"
+claude mcp add snap-happy npx @mariozechner/snap-happy
 
 # Use in Claude
 echo "Take a screenshot" | claude -p
@@ -117,7 +114,7 @@ npm test
 On first use, macOS will prompt for permissions:
 
 - **Screen Recording**: Required for taking screenshots and window capture
-- Window listing uses Core Graphics APIs and doesn't require additional permissions
+- Window listing uses Core Graphics APIs and doesn't require additional permissions. Might trigger some macOS security bullshit tho. Works on my machine.
 
 Grant permissions in System Preferences → Security & Privacy → Privacy → Screen Recording.
 
