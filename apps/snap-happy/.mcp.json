@@ -1,0 +1,20 @@
+{
+	"mcpServers": {
+		"snap-happy": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["tsx", "/Users/badlogic/workspaces/lemmy/apps/snap-happy/src/index.ts"],
+			"env": {
+				"NODE_OPTIONS": "--require /Applications/Cursor.app/Contents/Resources/app/extensions/ms-vscode.js-debug/src/bootloader.js  --inspect-publish-uid=http"
+			}
+		},
+		"snap-happy-npx": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["@mariozechner/snap-happy@latest"],
+			"env": {
+				"NODE_OPTIONS": "--require /Applications/Cursor.app/Contents/Resources/app/extensions/ms-vscode.js-debug/src/bootloader.js  --inspect-publish-uid=http"
+			}
+		}
+	}
+}
