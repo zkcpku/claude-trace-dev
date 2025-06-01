@@ -133,7 +133,7 @@ export class HTMLGenerator {
 		jsonlFile: string,
 		outputFile?: string,
 		includeAllRequests: boolean = false,
-	): Promise<void> {
+	): Promise<string> {
 		if (!fs.existsSync(jsonlFile)) {
 			throw new Error(`File '${jsonlFile}' not found.`);
 		}
@@ -166,6 +166,7 @@ export class HTMLGenerator {
 		}
 
 		await this.generateHTML(pairs, outputFile, { includeAllRequests });
+		return outputFile;
 	}
 
 	public getTemplatePaths(): { templatePath: string; bundlePath: string } {

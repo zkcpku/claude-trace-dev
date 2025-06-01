@@ -381,6 +381,10 @@ export class SimpleConversationView extends LitElement {
 					return this.formatMultiParam(toolName, [fileName, `cell ${cellNum}`, mode]);
 				}
 				return html`${toolName}`;
+			case "WebFetch":
+				return input?.url ? this.formatSingleParam(toolName, input.url) : html`${toolName}`;
+			case "WebSearch":
+				return input?.query ? this.formatSingleParam(toolName, input.query) : html`${toolName}`;
 			default:
 				return html`${toolName}`;
 		}
@@ -450,6 +454,52 @@ export class SimpleConversationView extends LitElement {
 			const diffLines = this.renderDiff(oldStr, newStr);
 
 			return this.wrapInScrollable(html`${diffLines}`, false);
+		}
+
+		if (toolName === "WebFetch" && input?.url && input?.prompt) {
+			return this.wrapInScrollable(
+				html`
+					<div class="mb-3">
+						<div class="text-vs-muted mb-1">URL:</div>
+						<div class="text-vs-text">${input.url}</div>
+					</div>
+					<div>
+						<div class="text-vs-muted mb-1">Prompt:</div>
+						<div class="text-vs-text">${input.prompt}</div>
+					</div>
+				`,
+				false,
+			);
+		}
+
+		if (toolName === "WebSearch" && input?.query) {
+			const params = [];
+			params.push(html`
+				<div class="mb-3">
+					<div class="text-vs-muted mb-1">Query:</div>
+					<div class="text-vs-text">${input.query}</div>
+				</div>
+			`);
+
+			if (input?.allowed_domains) {
+				params.push(html`
+					<div class="mb-3">
+						<div class="text-vs-muted mb-1">Allowed Domains:</div>
+						<div class="text-vs-text">${input.allowed_domains.join(", ")}</div>
+					</div>
+				`);
+			}
+
+			if (input?.blocked_domains) {
+				params.push(html`
+					<div class="mb-3">
+						<div class="text-vs-muted mb-1">Blocked Domains:</div>
+						<div class="text-vs-text">${input.blocked_domains.join(", ")}</div>
+					</div>
+				`);
+			}
+
+			return this.wrapInScrollable(html`${params}`, false);
 		}
 
 		// Default: show JSON parameters

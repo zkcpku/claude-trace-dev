@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { spawn } from "child_process";
 import { RawPair } from "./types";
 import { HTMLGenerator } from "./html-generator";
 
@@ -429,6 +430,17 @@ export class ClaudeTrafficLogger {
 
 		this.pendingRequests.clear();
 		console.log(`Cleanup complete. Logged ${this.pairs.length} pairs`);
+
+		// Open browser if requested
+		const shouldOpenBrowser = process.env.CLAUDE_TRACE_OPEN_BROWSER === "true";
+		if (shouldOpenBrowser && fs.existsSync(this.htmlFile)) {
+			try {
+				spawn("open", [this.htmlFile], { detached: true, stdio: "ignore" }).unref();
+				console.log(`🌐 Opening ${this.htmlFile} in browser`);
+			} catch (error) {
+				console.log(`❌ Failed to open browser: ${error}`);
+			}
+		}
 	}
 
 	public getStats() {

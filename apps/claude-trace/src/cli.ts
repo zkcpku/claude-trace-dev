@@ -34,6 +34,7 @@ ${colors.yellow}OPTIONS:${colors.reset}
   --index           Generate conversation summaries and index for .claude-trace/ directory
   --run-with         Pass all following arguments to Claude process
   --include-all-requests Include all requests made through fetch, otherwise only requests to v1/messages with more than 2 messages in the context
+  --no-open          Don't open generated HTML file in browser (works with --generate-html)
   --help, -h         Show this help message
 
 ${colors.yellow}MODES:${colors.reset}
@@ -48,6 +49,8 @@ ${colors.yellow}MODES:${colors.reset}
   ${colors.green}HTML generation:${colors.reset}
     claude-trace --generate-html file.jsonl          Generate HTML from JSONL file
     claude-trace --generate-html file.jsonl out.html Generate HTML with custom output name
+    claude-trace --generate-html file.jsonl          Generate HTML and open in browser (default)
+    claude-trace --generate-html file.jsonl --no-open Generate HTML without opening browser
 
   ${colors.green}Indexing:${colors.reset}
     claude-trace --index                             Generate conversation summaries and index
@@ -70,6 +73,12 @@ ${colors.yellow}EXAMPLES:${colors.reset}
 
   # Generate HTML report
   claude-trace --generate-html logs/traffic.jsonl report.html
+  
+  # Generate HTML report and open in browser (default)
+  claude-trace --generate-html logs/traffic.jsonl
+  
+  # Generate HTML report without opening browser
+  claude-trace --generate-html logs/traffic.jsonl --no-open
 
   # Generate conversation index
   claude-trace --index
@@ -114,6 +123,7 @@ function getLoaderPath(): string {
 async function runClaudeWithInterception(
 	claudeArgs: string[] = [],
 	includeAllRequests: boolean = false,
+	openInBrowser: boolean = false,
 ): Promise<void> {
 	log("🚀 Claude Trace", "blue");
 	log("Starting Claude with traffic logging", "yellow");
@@ -136,6 +146,7 @@ async function runClaudeWithInterception(
 			...process.env,
 			NODE_OPTIONS: "--no-deprecation",
 			CLAUDE_TRACE_INCLUDE_ALL_REQUESTS: includeAllRequests ? "true" : "false",
+			CLAUDE_TRACE_OPEN_BROWSER: openInBrowser ? "true" : "false",
 		},
 		stdio: "inherit",
 		cwd: process.cwd(),
@@ -286,10 +297,17 @@ async function generateHTMLFromCLI(
 	inputFile: string,
 	outputFile?: string,
 	includeAllRequests: boolean = false,
+	openInBrowser: boolean = false,
 ): Promise<void> {
 	try {
 		const htmlGenerator = new HTMLGenerator();
-		await htmlGenerator.generateHTMLFromJSONL(inputFile, outputFile, includeAllRequests);
+		const finalOutputFile = await htmlGenerator.generateHTMLFromJSONL(inputFile, outputFile, includeAllRequests);
+
+		if (openInBrowser) {
+			spawn("open", [finalOutputFile], { detached: true, stdio: "ignore" }).unref();
+			log(`🌐 Opening ${finalOutputFile} in browser`, "green");
+		}
+
 		process.exit(0);
 	} catch (error) {
 		const err = error as Error;
@@ -338,6 +356,9 @@ async function main(): Promise<void> {
 	// Check for include all requests flag
 	const includeAllRequests = claudeTraceArgs.includes("--include-all-requests");
 
+	// Check for no-open flag (inverted logic - open by default)
+	const openInBrowser = !claudeTraceArgs.includes("--no-open");
+
 	// Scenario 2: --extract-token
 	if (claudeTraceArgs.includes("--extract-token")) {
 		await extractToken();
@@ -365,7 +386,7 @@ async function main(): Promise<void> {
 			process.exit(1);
 		}
 
-		await generateHTMLFromCLI(inputFile, outputFile, includeAllRequests);
+		await generateHTMLFromCLI(inputFile, outputFile, includeAllRequests, openInBrowser);
 		return;
 	}
 
@@ -376,7 +397,7 @@ async function main(): Promise<void> {
 	}
 
 	// Scenario 1: No args (or claude with args) -> launch claude with interception
-	await runClaudeWithInterception(claudeArgs, includeAllRequests);
+	await runClaudeWithInterception(claudeArgs, includeAllRequests, openInBrowser);
 }
 
 main().catch((error) => {
