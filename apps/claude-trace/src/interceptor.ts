@@ -146,6 +146,11 @@ export class ClaudeTrafficLogger {
 			return;
 		}
 
+		// Check if already instrumented by checking for our marker
+		if ((global.fetch as any).__claudeTraceInstrumented) {
+			return;
+		}
+
 		const originalFetch = global.fetch;
 		const logger = this;
 
@@ -219,6 +224,9 @@ export class ClaudeTrafficLogger {
 			}
 		};
 
+		// Mark fetch as instrumented
+		(global.fetch as any).__claudeTraceInstrumented = true;
+
 		// Silent initialization
 	}
 
@@ -279,6 +287,9 @@ export class ClaudeTrafficLogger {
 // Global logger instance
 let globalLogger: ClaudeTrafficLogger | null = null;
 
+// Track if event listeners have been set up
+let eventListenersSetup = false;
+
 export function initializeInterceptor(config?: InterceptorConfig): ClaudeTrafficLogger {
 	if (globalLogger) {
 		console.warn("Interceptor already initialized");
@@ -288,21 +299,25 @@ export function initializeInterceptor(config?: InterceptorConfig): ClaudeTraffic
 	globalLogger = new ClaudeTrafficLogger(config);
 	globalLogger.instrumentFetch();
 
-	// Setup cleanup on process exit
-	const cleanup = () => {
-		if (globalLogger) {
-			globalLogger.cleanup();
-		}
-	};
+	// Setup cleanup on process exit only once
+	if (!eventListenersSetup) {
+		const cleanup = () => {
+			if (globalLogger) {
+				globalLogger.cleanup();
+			}
+		};
 
-	process.on("exit", cleanup);
-	process.on("SIGINT", cleanup);
-	process.on("SIGTERM", cleanup);
-	process.on("uncaughtException", (error) => {
-		console.error("Uncaught exception:", error);
-		cleanup();
-		process.exit(1);
-	});
+		process.on("exit", cleanup);
+		process.on("SIGINT", cleanup);
+		process.on("SIGTERM", cleanup);
+		process.on("uncaughtException", (error) => {
+			console.error("Uncaught exception:", error);
+			cleanup();
+			process.exit(1);
+		});
+
+		eventListenersSetup = true;
+	}
 
 	return globalLogger;
 }
