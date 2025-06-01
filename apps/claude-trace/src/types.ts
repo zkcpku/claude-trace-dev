@@ -44,3 +44,50 @@ export interface TemplateReplacements {
 	__CLAUDE_LOGGER_DATA_REPLACEMENT_UNIQUE_9487__: string;
 	__CLAUDE_LOGGER_TITLE_REPLACEMENT_UNIQUE_9487__: string;
 }
+
+// Frontend-specific types
+export interface ProcessedConversation {
+	id: string;
+	model: string;
+	messages: any[]; // Original message format from API
+	system?: any; // System prompt
+	latestResponse?: string; // Latest assistant response
+	pairs: RawPair[]; // All pairs in this conversation
+	metadata: {
+		startTime: string;
+		endTime: string;
+		totalPairs: number;
+		totalTokens?: number;
+		tokenUsage?: {
+			input: number;
+			output: number;
+		};
+	};
+	rawPairs: RawPair[]; // Keep for compatibility
+}
+
+export interface ProcessedMessage {
+	role: "user" | "assistant" | "system";
+	content: string;
+	thinking?: string;
+	toolCalls?: ToolCall[];
+	metadata?: {
+		timestamp: string;
+		model?: string;
+	};
+}
+
+export interface ToolCall {
+	id: string;
+	type: string;
+	name: string;
+	input: any;
+	result?: any;
+	error?: string;
+}
+
+declare global {
+	interface Window {
+		claudeData: ClaudeData;
+	}
+}

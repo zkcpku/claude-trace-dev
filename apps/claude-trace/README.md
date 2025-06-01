@@ -22,9 +22,31 @@ claude-trace --extract-token
 
 # Generate HTML report manually from previously logged .jsonl
 claude-trace --generate-html logs.jsonl report.html
+
+# Generate conversation summaries and searchable index
+claude-trace --index
 ```
 
 Logs are saved to `.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}` in your current directory. The HTML file is self-contained and opens in any browser without needing a server.
+
+## Conversation Indexing
+
+Generate AI-powered summaries of your coding sessions:
+
+```bash
+claude-trace --index
+```
+
+This feature:
+
+- Scans all `.jsonl` log files in `.claude-trace/` directory
+- Filters meaningful conversations (more than 2 messages, non-compacted)
+- Uses Claude CLI to generate titles and summaries for each conversation
+- Creates `summary-YYYY-MM-DD-HH-MM-SS.json` files with conversation metadata
+- Generates a master `index.html` with chronological listing of all sessions
+- Links directly to individual conversation HTML files
+
+**Note:** Indexing will incur additional API token usage as it calls Claude to summarize conversations.
 
 ## What you'll see
 
@@ -35,6 +57,7 @@ Logs are saved to `.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}` in your c
 - **Token usage** - Detailed breakdown including cache hits
 - **Raw JSONL logs** - Complete request/response pairs for analysis
 - **Interactive HTML viewer** - Browse conversations with model filtering
+- **Conversation indexing** - AI-generated summaries and searchable index of all sessions
 
 ## Requirements
 
@@ -97,6 +120,8 @@ The built artifacts are ready for npm publishing and include:
    - **CLI** (`cli.ts`) - Command-line interface and argument parsing. Launches Claude Code and injects interceptors
    - **Interceptor** (`interceptor.ts`) - injects itself into Claude Code, intercepts calls to fetch(), and logs them to JSONL files in .claude-trace/ in the current working dir.
    - **HTML Generator** (`html-generator.ts`) - Embeds frontend into self-contained HTML reports
+   - **Index Generator** (`index-generator.ts`) - Creates AI-powered conversation summaries and searchable index
+   - **Shared Conversation Processor** (`shared-conversation-processor.ts`) - Core conversation processing logic shared between frontend and backend
    - **Token Extractor** (`token-extractor.js`) - A simpler interceptor that extracts Claude Code OAuth tokens
 
 2. **Frontend** (`frontend/src/`)
@@ -104,7 +129,6 @@ The built artifacts are ready for npm publishing and include:
    - **`index.ts`** - Application entry point, injects CSS and initializes app
    - **`types/claude-data.ts`** - TypeScript interfaces for API data structures
    - **`utils/data.ts`** - Processes raw HTTP pairs, reconstructs SSE messages
-   - **`utils/simple-conversation-processor.ts`** - Groups API calls into conversations
    - **`utils/markdown.ts`** - Markdown to HTML conversion utilities
    - **`components/simple-conversation-view.ts`** - Main conversation display with tool visualization
    - **`components/raw-pairs-view.ts`** - Raw HTTP traffic viewer

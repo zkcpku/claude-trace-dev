@@ -379,9 +379,7 @@ export class SimpleConversationView extends LitElement {
 								: "text-vs-muted";
 
 					return html`
-						<div class="mb-1 overflow-hidden whitespace-nowrap text-ellipsis ${statusClass}">
-							• ${todo.content}
-						</div>
+						<div class="overflow-hidden whitespace-nowrap text-ellipsis ${statusClass}">• ${todo.content}</div>
 					`;
 				})}`,
 				false,

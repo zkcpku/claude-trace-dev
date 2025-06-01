@@ -47,5 +47,8 @@
 		"@types/node": "^20.0.0",
 		"concurrently": "^9.1.2",
 		"typescript": "^5.0.0"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.52.0"
 	}
 }

@@ -31,6 +31,7 @@ ${colors.yellow}USAGE:${colors.reset}
 ${colors.yellow}OPTIONS:${colors.reset}
   --extract-token    Extract OAuth token and exit (reproduces claude-token.py)
   --generate-html    Generate HTML report from JSONL file
+  --index           Generate conversation summaries and index for .claude-trace/ directory
   --help, -h         Show this help message
 
 ${colors.yellow}MODES:${colors.reset}
@@ -45,6 +46,9 @@ ${colors.yellow}MODES:${colors.reset}
     claude-trace --generate-html file.jsonl          Generate HTML from JSONL file
     claude-trace --generate-html file.jsonl out.html Generate HTML with custom output name
 
+  ${colors.green}Indexing:${colors.reset}
+    claude-trace --index                             Generate conversation summaries and index
+
 ${colors.yellow}EXAMPLES:${colors.reset}
   # Start Claude with logging
   claude-trace
@@ -57,6 +61,9 @@ ${colors.yellow}EXAMPLES:${colors.reset}
 
   # Generate HTML report
   claude-trace --generate-html logs/traffic.jsonl report.html
+
+  # Generate conversation index
+  claude-trace --index
 
 ${colors.yellow}OUTPUT:${colors.reset}
   Logs are saved to: ${colors.green}.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}${colors.reset}
@@ -270,6 +277,20 @@ async function generateHTMLFromCLI(inputFile: string, outputFile?: string): Prom
 	}
 }
 
+// Scenario 4: --index
+async function generateIndex(): Promise<void> {
+	try {
+		const { IndexGenerator } = await import("./index-generator");
+		const indexGenerator = new IndexGenerator();
+		await indexGenerator.generateIndex();
+		process.exit(0);
+	} catch (error) {
+		const err = error as Error;
+		log(`❌ Error: ${err.message}`, "red");
+		process.exit(1);
+	}
+}
+
 // Main entry point
 async function main(): Promise<void> {
 	const args = process.argv.slice(2);
@@ -299,6 +320,12 @@ async function main(): Promise<void> {
 		}
 
 		await generateHTMLFromCLI(inputFile, outputFile);
+		return;
+	}
+
+	// Scenario 4: --index
+	if (args.includes("--index")) {
+		await generateIndex();
 		return;
 	}
 
