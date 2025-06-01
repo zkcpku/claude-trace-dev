@@ -72,8 +72,10 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "TodoWrite" || block.name === "Edit" || block.name === "MultiEdit") {
 							return html`
 								<div class="mt-4 mb-4">
-									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
-									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
+									<div class="text-vs-type px-4 break-all">${this.getToolDisplayName(block)}</div>
+									<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text">
+										${this.renderToolUseContent(block)}
+									</div>
 									${toolResult ? this.renderToolResult(toolResult, block) : ""}
 								</div>
 							`;
@@ -81,12 +83,12 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "Write") {
 							return html`
 								<div class="mt-4 mb-4">
-									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
+									<div class="text-vs-type px-4 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 										${this.renderToolUseContent(block)}
 									</div>
 									<div
-										class="bg-vs-bg-secondary p-4 text-vs-text cursor-pointer hover:bg-vs-border transition-colors"
+										class="bg-vs-bg-secondary mx-4 p-4 text-vs-text cursor-pointer hover:bg-vs-border transition-colors"
 										@click=${this.toggleWriteContent}
 									>
 										${this.renderWritePreview(block)}
@@ -98,11 +100,11 @@ export class SimpleConversationView extends LitElement {
 						return html`
 							<div class="mt-4 mb-4">
 								<div
-									class="text-vs-type px-4 py-2 break-all cursor-pointer hover:text-white transition-colors"
+									class="text-vs-type px-4 break-all cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
-									${this.getToolDisplayName(block, toolResult)}
+									${this.getToolDisplayName(block)}
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
@@ -205,8 +207,10 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "TodoWrite") {
 							return html`
 								<div class="mt-4 mb-4">
-									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
-									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
+									<div class="text-vs-type px-4 break-all">${this.getToolDisplayName(block)}</div>
+									<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text">
+										${this.renderToolUseContent(block)}
+									</div>
 								</div>
 							`;
 						}
@@ -217,9 +221,9 @@ export class SimpleConversationView extends LitElement {
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
-									${this.getToolDisplayName(block, toolResult)}
+									${this.getToolDisplayName(block)}
 								</div>
-								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+								<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
 								</div>
 							</div>
@@ -244,36 +248,29 @@ export class SimpleConversationView extends LitElement {
 			return div.textContent || div.innerText || "";
 		};
 
-		// Helper to add status indicator
-		const withStatus = (content: TemplateResult): TemplateResult => {
-			return html`${content}`;
-		};
-
 		switch (toolName) {
 			case "Read":
 				return input?.file_path
-					? withStatus(html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`)
-					: withStatus(html`${toolName}`);
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
+					: html`${toolName}`;
 			case "Bash":
 				return input?.command
-					? withStatus(html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.command)}</span>)`)
-					: withStatus(html`${toolName}`);
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.command)}</span>)`
+					: html`${toolName}`;
 			case "Write":
 				return input?.file_path
-					? withStatus(html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`)
-					: withStatus(html`${toolName}`);
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
+					: html`${toolName}`;
 			case "Glob":
 				if (input?.pattern) {
 					const pattern = unescapeHtml(input.pattern);
 					const path = input?.path ? unescapeHtml(input.path) : null;
 					return path
-						? withStatus(
-								html`${toolName}(<span class="text-vs-text">${pattern}</span>,
-									<span class="text-vs-text">${path}</span>)`,
-							)
-						: withStatus(html`${toolName}(<span class="text-vs-text">${pattern}</span>)`);
+						? html`${toolName}(<span class="text-vs-text">${pattern}</span>,
+								<span class="text-vs-text">${path}</span>)`
+						: html`${toolName}(<span class="text-vs-text">${pattern}</span>)`;
 				}
-				return withStatus(html`${toolName}`);
+				return html`${toolName}`;
 			case "Grep":
 				if (input?.pattern) {
 					const pattern = unescapeHtml(input.pattern);
@@ -284,73 +281,54 @@ export class SimpleConversationView extends LitElement {
 					if (include) params += `, ${include}`;
 					if (path) params += `, ${path}`;
 
-					return withStatus(html`${toolName}(<span class="text-vs-text">${params}</span>)`);
+					return html`${toolName}(<span class="text-vs-text">${params}</span>)`;
 				}
-				return withStatus(html`${toolName}`);
+				return html`${toolName}`;
 			case "LS":
 				if (input?.path) {
 					const path = unescapeHtml(input.path);
 					const ignore = input?.ignore ? input.ignore.map((p: string) => unescapeHtml(p)).join(", ") : null;
 
 					return ignore
-						? withStatus(
-								html`${toolName}(<span class="text-vs-text">${path}</span>, ignore:
-									<span class="text-vs-text">${ignore}</span>)`,
-							)
-						: withStatus(html`${toolName}(<span class="text-vs-text">${path}</span>)`);
+						? html`${toolName}(<span class="text-vs-text">${path}</span>, ignore:
+								<span class="text-vs-text">${ignore}</span>)`
+						: html`${toolName}(<span class="text-vs-text">${path}</span>)`;
 				}
-				return withStatus(html`${toolName}`);
+				return html`${toolName}`;
 			case "Edit":
 				return input?.file_path
-					? withStatus(
-							html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path).split("/").pop()}</span
-								>)`,
-						)
-					: withStatus(html`${toolName}`);
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path).split("/").pop()}</span>)`
+					: html`${toolName}`;
 			case "MultiEdit":
 				if (input?.file_path) {
 					const fileName = unescapeHtml(input.file_path).split("/").pop();
 					const editCount = input?.edits ? input.edits.length : 0;
-					return withStatus(
-						html`${toolName}(<span class="text-vs-text">${fileName}</span>,
-							<span class="text-vs-text">${editCount} edits</span>)`,
-					);
+					return html`${toolName}(<span class="text-vs-text">${fileName}</span>,
+						<span class="text-vs-text">${editCount} edits</span>)`;
 				}
-				return withStatus(html`${toolName}`);
+				return html`${toolName}`;
 			case "NotebookRead":
 				return input?.notebook_path
-					? withStatus(
-							html`${toolName}(<span class="text-vs-text"
-									>${unescapeHtml(input.notebook_path).split("/").pop()}</span
-								>)`,
-						)
-					: withStatus(html`${toolName}`);
+					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.notebook_path).split("/").pop()}</span
+							>)`
+					: html`${toolName}`;
 			case "NotebookEdit":
 				if (input?.notebook_path && input?.cell_number !== undefined) {
 					const fileName = unescapeHtml(input.notebook_path).split("/").pop();
 					const cellNum = input.cell_number;
 					const mode = input?.edit_mode || "replace";
-					return withStatus(
-						html`${toolName}(<span class="text-vs-text">${fileName}</span>, cell
-							<span class="text-vs-text">${cellNum}</span>, <span class="text-vs-text">${mode}</span>)`,
-					);
+					return html`${toolName}(<span class="text-vs-text">${fileName}</span>, cell
+						<span class="text-vs-text">${cellNum}</span>, <span class="text-vs-text">${mode}</span>)`;
 				}
-				return withStatus(html`${toolName}`);
+				return html`${toolName}`;
 			default:
-				return withStatus(html`${toolName}`);
+				return html`${toolName}`;
 		}
 	}
 
 	private renderToolUseContent(toolUse: any): TemplateResult {
 		const toolName = toolUse.name;
 		const input = toolUse.input;
-
-		// HTML unescape function
-		const unescapeHtml = (str: string): string => {
-			const div = document.createElement("div");
-			div.innerHTML = str;
-			return div.textContent || div.innerText || "";
-		};
 
 		if (toolName === "TodoWrite" && input?.todos) {
 			const todos = input.todos;
@@ -484,13 +462,13 @@ export class SimpleConversationView extends LitElement {
 		return html`
 			<div class="mb-4">
 				<div
-					class="text-vs-muted px-4 pt-2 pb-0 cursor-pointer hover:text-white transition-colors"
+					class="text-vs-muted px-4 pb-0 cursor-pointer hover:text-white transition-colors"
 					@click=${this.toggleContent}
 				>
 					<span class="mr-2">[+]</span>
 					Tool Result ${toolResult?.is_error ? "❌" : "✅"}
 				</div>
-				<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+				<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text hidden">
 					<pre class="whitespace-pre-wrap overflow-x-auto">
 ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content, null, 2)}</pre
 					>
@@ -499,13 +477,13 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 					? html`
 							<div>
 								<div
-									class="text-vs-muted px-4 pt-0 pb-2 cursor-pointer hover:text-white transition-colors"
+									class="text-vs-muted px-4 cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
 									Raw Tool Call
 								</div>
-								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+								<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text hidden">
 									<div class="overflow-x-auto">
 										<pre style="white-space: pre; font-family: monospace;">
 ${JSON.stringify(toolUse, null, 2)}</pre
@@ -534,11 +512,7 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 			<div class="overflow-x-auto">
 				<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${preview.join("\n")}</pre>
 			</div>
-			${hasMore
-				? html`<div class="text-vs-muted mt-2 border-t border-vs-border pt-2">
-						... ${lines.length - 10} more lines (click to expand)
-					</div>`
-				: ""}
+			${hasMore ? html`<div class="text-vs-muted">... ${lines.length - 10} more lines (click to expand)</div>` : ""}
 		`;
 	}
 
@@ -555,7 +529,7 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 					return html`
 						<div class="mb-4">
 							<div
-								class="cursor-pointer text-vs-user font-bold mb-2 pr-4 py-2 hover:text-white transition-colors"
+								class="cursor-pointer text-vs-type font-bold hover:text-white transition-colors"
 								@click=${this.toggleContent}
 							>
 								<span class="mr-2">[-]</span>
@@ -616,10 +590,10 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 											<span class="mr-2">[+]</span>
 											<span>Compacted (click to view details)</span>
 										</div>
-										<div class="hidden">
+										<div class="hidden mt-4">
 											<!-- Conversation Header -->
-											<div class="border border-vs-highlight p-4 mb-0">
-												<div class="text-vs-assistant">${Array.from(conversation.models).join(", ")}</div>
+											<div class="border border-red-700 p-4 mb-0">
+												<div class="text-red-400">${Array.from(conversation.models).join(", ")}</div>
 												<div class="text-vs-muted">
 													${new Date(conversation.metadata.startTime).toLocaleString()}
 													<span class="ml-4">${conversation.messages.length + 1} messages</span>
@@ -631,7 +605,7 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 												? html`
 														<div class="px-4 mt-4">
 															<div
-																class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+																class="cursor-pointer text-vs-function hover:text-white transition-colors"
 																@click=${this.toggleContent}
 															>
 																<span class="mr-2">[+]</span>
@@ -651,7 +625,7 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 												? html`
 														<div class="px-4">
 															<div
-																class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+																class="cursor-pointer text-vs-type hover:text-white transition-colors"
 																@click=${this.toggleContent}
 															>
 																<span class="mr-2">[+]</span>
@@ -659,7 +633,7 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 																	>Tools (${conversation.finalPair.request.tools?.length || 0})</span
 																>
 															</div>
-															<div class="mt-4 hidden">
+															<div class="mt-4 ml-4 hidden">
 																<div class="text-vs-text">
 																	${this.renderTools(conversation.finalPair.request.tools || [])}
 																</div>
@@ -724,7 +698,7 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 											? html`
 													<div class="px-4 mt-4">
 														<div
-															class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+															class="cursor-pointer text-vs-function hover:text-white transition-colors"
 															@click=${this.toggleContent}
 														>
 															<span class="mr-2">[+]</span>
@@ -744,13 +718,13 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 											? html`
 													<div class="px-4">
 														<div
-															class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+															class="cursor-pointer text-vs-type hover:text-white transition-colors"
 															@click=${this.toggleContent}
 														>
 															<span class="mr-2">[+]</span>
 															<span>Tools (${conversation.finalPair.request.tools?.length || 0})</span>
 														</div>
-														<div class="mt-4 hidden">
+														<div class="mt-4 ml-4 hidden">
 															<div class="text-vs-text">
 																${this.renderTools(conversation.finalPair.request.tools || [])}
 															</div>

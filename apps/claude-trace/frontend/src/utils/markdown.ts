@@ -2,7 +2,6 @@ import { marked } from "marked";
 
 // Configure marked for safe HTML rendering
 marked.setOptions({
-	sanitize: false, // We'll handle sanitization ourselves
 	gfm: true, // GitHub Flavored Markdown
 	breaks: true, // Convert \n to <br>
 });
