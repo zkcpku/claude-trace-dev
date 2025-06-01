@@ -22,34 +22,61 @@ export class SimpleConversationView extends LitElement {
 		return this;
 	}
 
-	private toggleContent(e: Event) {
-		const header = e.currentTarget as HTMLElement;
-		const content = header.nextElementSibling as HTMLElement;
-		const toggle = header.querySelector("span:first-child") as HTMLElement;
+	private handleToggle(
+		e: Event,
+		options: {
+			type?: "content" | "write" | "custom";
+			targetSelector?: string;
+			toggleSelector?: string;
+			customHandler?: (element: HTMLElement, isHidden: boolean) => void;
+		} = {},
+	) {
+		const { type = "content", targetSelector, toggleSelector, customHandler } = options;
+		const currentElement = e.currentTarget as HTMLElement;
 
-		if (content && toggle) {
-			const isHidden = content.classList.contains("hidden");
-			content.classList.toggle("hidden", !isHidden);
-			toggle.textContent = isHidden ? "[-]" : "[+]";
+		if (type === "write") {
+			const fullContent = currentElement.previousElementSibling as HTMLElement;
+			if (fullContent) {
+				const isExpanded = !fullContent.classList.contains("hidden");
+				if (isExpanded) {
+					fullContent.classList.add("hidden");
+					currentElement.classList.remove("hidden");
+				} else {
+					fullContent.classList.remove("hidden");
+					currentElement.classList.add("hidden");
+				}
+			}
+			return;
+		}
+
+		// Default content toggle behavior
+		const target = targetSelector
+			? (currentElement.querySelector(targetSelector) as HTMLElement)
+			: (currentElement.nextElementSibling as HTMLElement);
+		const toggle = toggleSelector
+			? (currentElement.querySelector(toggleSelector) as HTMLElement)
+			: (currentElement.querySelector("span:first-child") as HTMLElement);
+
+		if (target) {
+			const isHidden = target.classList.contains("hidden");
+
+			if (customHandler) {
+				customHandler(target, isHidden);
+			} else {
+				target.classList.toggle("hidden", !isHidden);
+				if (toggle) {
+					toggle.textContent = isHidden ? "[-]" : "[+]";
+				}
+			}
 		}
 	}
 
-	private toggleWriteContent(e: Event) {
-		const preview = e.currentTarget as HTMLElement;
-		const fullContent = preview.previousElementSibling as HTMLElement;
+	private toggleContent(e: Event) {
+		this.handleToggle(e);
+	}
 
-		if (fullContent) {
-			const isExpanded = !fullContent.classList.contains("hidden");
-			if (isExpanded) {
-				// Collapse: hide full content, show preview
-				fullContent.classList.add("hidden");
-				preview.classList.remove("hidden");
-			} else {
-				// Expand: show full content, hide preview
-				fullContent.classList.remove("hidden");
-				preview.classList.add("hidden");
-			}
-		}
+	private toggleWriteContent(e: Event) {
+		this.handleToggle(e, { type: "write" });
 	}
 
 	private formatContent(content: string | ContentBlockParam[], toolResults?: Record<string, any>): TemplateResult {
@@ -70,48 +97,32 @@ export class SimpleConversationView extends LitElement {
 						const toolResult = toolResults?.[toolUse.id];
 
 						if (block.name === "TodoWrite" || block.name === "Edit" || block.name === "MultiEdit") {
-							return html`
-								<div class="mt-4 mb-4">
-									<div class="text-vs-type px-4 break-all">${this.getToolDisplayName(block)}</div>
-									<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text">
-										${this.renderToolUseContent(block)}
-									</div>
-									${toolResult ? this.renderToolResult(toolResult, block) : ""}
-								</div>
-							`;
+							return this.renderToolContainer(block, toolResult);
 						}
 						if (block.name === "Write") {
-							return html`
-								<div class="mt-4 mb-4">
-									<div class="text-vs-type px-4 break-all">${this.getToolDisplayName(block)}</div>
-									<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
-										${this.renderToolUseContent(block)}
-									</div>
-									<div
-										class="bg-vs-bg-secondary mx-4 p-4 text-vs-text cursor-pointer hover:bg-vs-border transition-colors"
-										@click=${this.toggleWriteContent}
-									>
-										${this.renderWritePreview(block)}
-									</div>
-									${toolResult ? this.renderToolResult(toolResult, block) : ""}
-								</div>
-							`;
-						}
-						return html`
-							<div class="mt-4 mb-4">
-								<div
-									class="text-vs-type px-4 break-all cursor-pointer hover:text-white transition-colors"
-									@click=${this.toggleContent}
-								>
-									<span class="mr-2">[+]</span>
-									${this.getToolDisplayName(block)}
-								</div>
+							const customContent = html`
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
 								</div>
-								${toolResult ? this.renderToolResult(toolResult, block) : ""}
-							</div>
-						`;
+								<div
+									class="bg-vs-bg-secondary mx-4 p-4 text-vs-text cursor-pointer hover:bg-vs-border transition-colors"
+									@click=${this.toggleWriteContent}
+								>
+									${this.renderWritePreview(block)}
+								</div>
+							`;
+							return html`
+								<div class="mt-4 mb-4">
+									<div class="text-vs-type px-4 break-all">${this.getToolDisplayName(block)}</div>
+									${customContent} ${toolResult ? this.renderToolResult(toolResult, block) : ""}
+								</div>
+							`;
+						}
+						return this.renderToolContainer(block, toolResult, {
+							isCollapsible: true,
+							isCollapsed: true,
+							isClickToExpand: true,
+						});
 					}
 					return html`<pre class="mb-4">${JSON.stringify(block, null, 2)}</pre>`;
 				})}
@@ -144,31 +155,26 @@ export class SimpleConversationView extends LitElement {
 		return html`
 			${mainContent ? html`<div class="mt-4 markdown-content">${unsafeHTML(markdownToHtml(mainContent))}</div>` : ""}
 			${systemReminders.length > 0
-				? html`
-						<div class="mt-4 mb-4">
-							<div
-								class="cursor-pointer text-vs-muted hover:text-white transition-colors"
-								@click=${this.toggleContent}
-							>
-								<span class="mr-2">[+]</span>
-								<span>System Reminder${systemReminders.length > 1 ? `s (${systemReminders.length})` : ""}</span>
-							</div>
-							<div class="hidden mt-4">
-								<div class="text-vs-muted">
-									${systemReminders.map(
-										(reminder, index) => html`
-											<div class="mb-4">
-												${systemReminders.length > 1
-													? html`<div class="text-vs-function font-bold mb-2">Reminder ${index + 1}:</div>`
-													: ""}
-												<div class="markdown-content">${unsafeHTML(markdownToHtml(reminder))}</div>
-											</div>
-										`,
-									)}
-								</div>
-							</div>
-						</div>
-					`
+				? this.renderCollapsibleSection(
+						"System Reminder",
+						html`<div class="text-vs-muted">
+							${systemReminders.map(
+								(reminder, index) => html`
+									<div class="mb-4">
+										${systemReminders.length > 1
+											? html`<div class="text-vs-function font-bold mb-2">Reminder ${index + 1}:</div>`
+											: ""}
+										<div class="markdown-content">${unsafeHTML(markdownToHtml(reminder))}</div>
+									</div>
+								`,
+							)}
+						</div>`,
+						{
+							titleClasses: "text-vs-muted",
+							containerClasses: "mt-4 mb-4",
+							count: systemReminders.length > 1 ? systemReminders.length : undefined,
+						},
+					)
 				: ""}
 		`;
 	}
@@ -237,88 +243,118 @@ export class SimpleConversationView extends LitElement {
 		return html`<pre>${JSON.stringify(response, null, 2)}</pre>`;
 	}
 
+	private formatSingleParam(toolName: string, paramValue: string | undefined, paramName: string = ""): TemplateResult {
+		return paramValue
+			? html`${toolName}(<span class="text-vs-text">${this.unescapeHtml(paramValue)}</span>)`
+			: html`${toolName}`;
+	}
+
+	private formatMultiParam(toolName: string, params: string[]): TemplateResult {
+		return params.length > 0
+			? html`${toolName}(<span class="text-vs-text">${params.join(", ")}</span>)`
+			: html`${toolName}`;
+	}
+
+	private unescapeHtml(str: string): string {
+		const div = document.createElement("div");
+		div.innerHTML = str;
+		return div.textContent || div.innerText || "";
+	}
+
+	private wrapInScrollable(content: TemplateResult | string, usePreFormatting: boolean = true): TemplateResult {
+		if (usePreFormatting && typeof content === "string") {
+			return html`
+				<div class="overflow-x-auto">
+					<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${content}</pre>
+				</div>
+			`;
+		}
+		return html` <div class="overflow-x-auto">${content}</div> `;
+	}
+
+	private renderCollapsibleSection(
+		title: string,
+		content: TemplateResult,
+		options: {
+			isExpanded?: boolean;
+			titleClasses?: string;
+			containerClasses?: string;
+			count?: number;
+		} = {},
+	): TemplateResult {
+		const { isExpanded = false, titleClasses = "", containerClasses = "", count } = options;
+		const expandedClass = isExpanded ? "" : "hidden";
+		const toggleSymbol = isExpanded ? "[-]" : "[+]";
+		const displayTitle = count !== undefined ? `${title} (${count})` : title;
+
+		return html`
+			<div class="${containerClasses}">
+				<div class="cursor-pointer hover:text-white transition-colors ${titleClasses}" @click=${this.toggleContent}>
+					<span class="mr-2">${toggleSymbol}</span>
+					<span>${displayTitle}</span>
+				</div>
+				<div class="${expandedClass} mt-4">${content}</div>
+			</div>
+		`;
+	}
+
 	private getToolDisplayName(toolUse: any, toolResult?: any): TemplateResult {
 		const toolName = toolUse.name;
 		const input = toolUse.input;
 
-		// HTML unescape function
-		const unescapeHtml = (str: string): string => {
-			const div = document.createElement("div");
-			div.innerHTML = str;
-			return div.textContent || div.innerText || "";
-		};
-
 		switch (toolName) {
 			case "Read":
-				return input?.file_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
-					: html`${toolName}`;
+				return this.formatSingleParam(toolName, input?.file_path);
 			case "Bash":
-				return input?.command
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.command)}</span>)`
-					: html`${toolName}`;
+				return this.formatSingleParam(toolName, input?.command);
 			case "Write":
-				return input?.file_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path)}</span>)`
-					: html`${toolName}`;
+				return this.formatSingleParam(toolName, input?.file_path);
 			case "Glob":
 				if (input?.pattern) {
-					const pattern = unescapeHtml(input.pattern);
-					const path = input?.path ? unescapeHtml(input.path) : null;
-					return path
-						? html`${toolName}(<span class="text-vs-text">${pattern}</span>,
-								<span class="text-vs-text">${path}</span>)`
-						: html`${toolName}(<span class="text-vs-text">${pattern}</span>)`;
+					const params = [this.unescapeHtml(input.pattern)];
+					if (input?.path) params.push(this.unescapeHtml(input.path));
+					return this.formatMultiParam(toolName, params);
 				}
 				return html`${toolName}`;
 			case "Grep":
 				if (input?.pattern) {
-					const pattern = unescapeHtml(input.pattern);
-					const include = input?.include ? unescapeHtml(input.include) : null;
-					const path = input?.path ? unescapeHtml(input.path) : null;
-
-					let params = pattern;
-					if (include) params += `, ${include}`;
-					if (path) params += `, ${path}`;
-
-					return html`${toolName}(<span class="text-vs-text">${params}</span>)`;
+					const params = [this.unescapeHtml(input.pattern)];
+					if (input?.include) params.push(this.unescapeHtml(input.include));
+					if (input?.path) params.push(this.unescapeHtml(input.path));
+					return this.formatMultiParam(toolName, params);
 				}
 				return html`${toolName}`;
 			case "LS":
 				if (input?.path) {
-					const path = unescapeHtml(input.path);
-					const ignore = input?.ignore ? input.ignore.map((p: string) => unescapeHtml(p)).join(", ") : null;
-
-					return ignore
-						? html`${toolName}(<span class="text-vs-text">${path}</span>, ignore:
-								<span class="text-vs-text">${ignore}</span>)`
-						: html`${toolName}(<span class="text-vs-text">${path}</span>)`;
+					const params = [this.unescapeHtml(input.path)];
+					if (input?.ignore) {
+						const ignoreStr = input.ignore.map((p: string) => this.unescapeHtml(p)).join(", ");
+						params.push(`ignore: ${ignoreStr}`);
+					}
+					return this.formatMultiParam(toolName, params);
 				}
 				return html`${toolName}`;
 			case "Edit":
 				return input?.file_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.file_path).split("/").pop()}</span>)`
+					? this.formatSingleParam(toolName, this.unescapeHtml(input.file_path).split("/").pop())
 					: html`${toolName}`;
 			case "MultiEdit":
 				if (input?.file_path) {
-					const fileName = unescapeHtml(input.file_path).split("/").pop();
+					const fileName = this.unescapeHtml(input.file_path).split("/").pop();
 					const editCount = input?.edits ? input.edits.length : 0;
-					return html`${toolName}(<span class="text-vs-text">${fileName}</span>,
-						<span class="text-vs-text">${editCount} edits</span>)`;
+					return this.formatMultiParam(toolName, [fileName, `${editCount} edits`]);
 				}
 				return html`${toolName}`;
 			case "NotebookRead":
 				return input?.notebook_path
-					? html`${toolName}(<span class="text-vs-text">${unescapeHtml(input.notebook_path).split("/").pop()}</span
-							>)`
+					? this.formatSingleParam(toolName, this.unescapeHtml(input.notebook_path).split("/").pop())
 					: html`${toolName}`;
 			case "NotebookEdit":
 				if (input?.notebook_path && input?.cell_number !== undefined) {
-					const fileName = unescapeHtml(input.notebook_path).split("/").pop();
+					const fileName = this.unescapeHtml(input.notebook_path).split("/").pop();
 					const cellNum = input.cell_number;
 					const mode = input?.edit_mode || "replace";
-					return html`${toolName}(<span class="text-vs-text">${fileName}</span>, cell
-						<span class="text-vs-text">${cellNum}</span>, <span class="text-vs-text">${mode}</span>)`;
+					return this.formatMultiParam(toolName, [fileName, `cell ${cellNum}`, mode]);
 				}
 				return html`${toolName}`;
 			default:
@@ -333,129 +369,69 @@ export class SimpleConversationView extends LitElement {
 		if (toolName === "TodoWrite" && input?.todos) {
 			const todos = input.todos;
 
-			return html`
-				<div class="overflow-x-auto">
-					${todos.map((todo: any) => {
-						const statusClass =
-							todo.status === "completed"
-								? "line-through text-vs-text"
-								: todo.status === "in_progress"
-									? "text-green-400"
-									: "text-vs-muted";
+			return this.wrapInScrollable(
+				html`${todos.map((todo: any) => {
+					const statusClass =
+						todo.status === "completed"
+							? "line-through text-vs-text"
+							: todo.status === "in_progress"
+								? "text-green-400"
+								: "text-vs-muted";
 
-						return html`
-							<div class="mb-1 overflow-hidden whitespace-nowrap text-ellipsis ${statusClass}">
-								• ${todo.content}
-							</div>
-						`;
-					})}
-				</div>
-			`;
+					return html`
+						<div class="mb-1 overflow-hidden whitespace-nowrap text-ellipsis ${statusClass}">
+							• ${todo.content}
+						</div>
+					`;
+				})}`,
+				false,
+			);
 		}
 
 		if (toolName === "NotebookEdit" && input?.new_source) {
 			const content = input.new_source;
 
-			return html`
-				<div class="overflow-x-auto">
-					<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${content}</pre>
-				</div>
-			`;
+			return this.wrapInScrollable(content);
 		}
 
 		if (toolName === "Write" && input?.content) {
 			const content = input.content;
 
-			return html`
-				<div class="overflow-x-auto">
-					<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${content}</pre>
-				</div>
-			`;
+			return this.wrapInScrollable(content);
 		}
 
 		if (toolName === "MultiEdit" && input?.edits) {
 			const edits = input.edits;
 
-			return html`
-				<div class="overflow-x-auto">
-					${edits.map((edit: any, index: number) => {
-						const oldStr = edit.old_string;
-						const newStr = edit.new_string;
+			return this.wrapInScrollable(
+				html`${edits.map((edit: any, index: number) => {
+					const oldStr = edit.old_string;
+					const newStr = edit.new_string;
 
-						// Use proper diff algorithm
-						const diff = Diff.diffLines(oldStr, newStr);
-						const diffLines = [];
+					const diffLines = this.renderDiff(oldStr, newStr);
 
-						for (const part of diff) {
-							const lines = part.value.split("\n");
-							// Remove empty last line from split if it exists
-							if (lines[lines.length - 1] === "") {
-								lines.pop();
-							}
-
-							for (const line of lines) {
-								if (part.added) {
-									diffLines.push(
-										html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">+ ${line}</pre></div>`,
-									);
-								} else if (part.removed) {
-									diffLines.push(
-										html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">- ${line}</pre></div>`,
-									);
-								} else {
-									diffLines.push(html`<div><pre class="text-vs-text m-0">  ${line}</pre></div>`);
-								}
-							}
-						}
-
-						return html`
-							<div class="mb-4">
-								<div class="text-vs-muted mb-2">Edit ${index + 1}:</div>
-								<div>${diffLines}</div>
-							</div>
-						`;
-					})}
-				</div>
-			`;
+					return html`
+						<div class="mb-4">
+							<div class="text-vs-muted mb-2">Edit ${index + 1}:</div>
+							<div>${diffLines}</div>
+						</div>
+					`;
+				})}`,
+				false,
+			);
 		}
 
 		if (toolName === "Edit" && input?.old_string && input?.new_string) {
 			const oldStr = input.old_string;
 			const newStr = input.new_string;
 
-			// Use proper diff algorithm
-			const diff = Diff.diffLines(oldStr, newStr);
-			const diffLines = [];
+			const diffLines = this.renderDiff(oldStr, newStr);
 
-			for (const part of diff) {
-				const lines = part.value.split("\n");
-				// Remove empty last line from split if it exists
-				if (lines[lines.length - 1] === "") {
-					lines.pop();
-				}
-
-				for (const line of lines) {
-					if (part.added) {
-						diffLines.push(
-							html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">+ ${line}</pre></div>`,
-						);
-					} else if (part.removed) {
-						diffLines.push(html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">- ${line}</pre></div>`);
-					} else {
-						diffLines.push(html`<div><pre class="text-vs-text m-0">  ${line}</pre></div>`);
-					}
-				}
-			}
-
-			return html` <div class="overflow-x-auto">${diffLines}</div> `;
+			return this.wrapInScrollable(html`${diffLines}`, false);
 		}
 
 		// Default: show JSON parameters
-		return html`
-			<div class="overflow-x-auto">
-				<pre style="white-space: pre; font-family: monospace;">${JSON.stringify(input, null, 2)}</pre>
-			</div>
-		`;
+		return this.wrapInScrollable(JSON.stringify(input, null, 2));
 	}
 
 	private renderToolResult(toolResult: any, toolUse?: any): TemplateResult {
@@ -484,15 +460,43 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 									Raw Tool Call
 								</div>
 								<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text hidden">
-									<div class="overflow-x-auto">
-										<pre style="white-space: pre; font-family: monospace;">
-${JSON.stringify(toolUse, null, 2)}</pre
-										>
-									</div>
+									${this.wrapInScrollable(JSON.stringify(toolUse, null, 2))}
 								</div>
 							</div>
 						`
 					: ""}
+			</div>
+		`;
+	}
+
+	private renderToolContainer(
+		toolUse: any,
+		toolResult?: any,
+		options: {
+			isCollapsible?: boolean;
+			isCollapsed?: boolean;
+			isClickToExpand?: boolean;
+			customContent?: TemplateResult;
+		} = {},
+	): TemplateResult {
+		const { isCollapsible = false, isCollapsed = false, isClickToExpand = false, customContent } = options;
+
+		const contentDiv = customContent || html`${this.renderToolUseContent(toolUse)}`;
+		const headerClasses = isClickToExpand
+			? "text-vs-type px-4 break-all cursor-pointer hover:text-white transition-colors"
+			: "text-vs-type px-4 break-all";
+		const contentClasses = isCollapsed
+			? "bg-vs-bg-secondary mx-4 p-4 text-vs-text hidden"
+			: "bg-vs-bg-secondary mx-4 p-4 text-vs-text";
+
+		return html`
+			<div class="mt-4 mb-4">
+				<div class="${headerClasses}" @click=${isClickToExpand ? this.toggleContent : undefined}>
+					${isCollapsible ? html`<span class="mr-2">[${isCollapsed ? "+" : "-"}]</span>` : ""}
+					${this.getToolDisplayName(toolUse)}
+				</div>
+				<div class="${contentClasses}">${contentDiv}</div>
+				${toolResult ? this.renderToolResult(toolResult, toolUse) : ""}
 			</div>
 		`;
 	}
@@ -509,11 +513,34 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 		const hasMore = lines.length > 10;
 
 		return html`
-			<div class="overflow-x-auto">
-				<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${preview.join("\n")}</pre>
-			</div>
+			${this.wrapInScrollable(preview.join("\n"))}
 			${hasMore ? html`<div class="text-vs-muted">... ${lines.length - 10} more lines (click to expand)</div>` : ""}
 		`;
+	}
+
+	private renderDiff(oldStr: string, newStr: string): TemplateResult[] {
+		const diff = Diff.diffLines(oldStr, newStr);
+		const diffLines = [];
+
+		for (const part of diff) {
+			const lines = part.value.split("\n");
+			// Remove empty last line from split if it exists
+			if (lines[lines.length - 1] === "") {
+				lines.pop();
+			}
+
+			for (const line of lines) {
+				if (part.added) {
+					diffLines.push(html`<div class="bg-green-600/20"><pre class="text-vs-text m-0">+ ${line}</pre></div>`);
+				} else if (part.removed) {
+					diffLines.push(html`<div class="bg-red-600/20"><pre class="text-vs-text m-0">- ${line}</pre></div>`);
+				} else {
+					diffLines.push(html`<div><pre class="text-vs-text m-0">  ${line}</pre></div>`);
+				}
+			}
+		}
+
+		return diffLines;
 	}
 
 	private hasTools(conversation: SimpleConversation): boolean {
@@ -526,44 +553,41 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 				if ("name" in tool && tool.name) {
 					const description = ("description" in tool && tool.description) || "No description";
 
-					return html`
-						<div class="mb-4">
-							<div
-								class="cursor-pointer text-vs-type font-bold hover:text-white transition-colors"
-								@click=${this.toggleContent}
-							>
-								<span class="mr-2">[-]</span>
-								${tool.name}
-							</div>
-							<div>
-								<div class="text-vs-text mb-3 markdown-content">${unsafeHTML(markdownToHtml(description))}</div>
+					return this.renderCollapsibleSection(
+						tool.name,
+						html`
+							<div class="text-vs-text mb-3 markdown-content">${unsafeHTML(markdownToHtml(description))}</div>
 
-								${"input_schema" in tool && tool.input_schema && typeof tool.input_schema === "object"
-									? (() => {
-											const schema = tool.input_schema as any;
-											if (schema.properties) {
-												return html`
-													<div class="text-vs-muted mb-2">Parameters:</div>
-													${Object.entries(schema.properties).map(([paramName, paramDef]) => {
-														const def = paramDef as any;
-														const required = schema.required?.includes(paramName) ? " (required)" : "";
-														const type = def.type ? ` [${def.type}]` : "";
-														const desc = def.description ? ` - ${def.description}` : "";
-														return html`
-															<div class="ml-4 mb-1">
-																<span class="text-vs-type">${paramName}</span>
-																<span class="text-vs-muted">${type}${required}${desc}</span>
-															</div>
-														`;
-													})}
-												`;
-											}
-											return html``;
-										})()
-									: html``}
-							</div>
-						</div>
-					`;
+							${"input_schema" in tool && tool.input_schema && typeof tool.input_schema === "object"
+								? (() => {
+										const schema = tool.input_schema as any;
+										if (schema.properties) {
+											return html`
+												<div class="text-vs-muted mb-2">Parameters:</div>
+												${Object.entries(schema.properties).map(([paramName, paramDef]) => {
+													const def = paramDef as any;
+													const required = schema.required?.includes(paramName) ? " (required)" : "";
+													const type = def.type ? ` [${def.type}]` : "";
+													const desc = def.description ? ` - ${def.description}` : "";
+													return html`
+														<div class="ml-4 mb-1">
+															<span class="text-vs-type">${paramName}</span>
+															<span class="text-vs-muted">${type}${required}${desc}</span>
+														</div>
+													`;
+												})}
+											`;
+										}
+										return html``;
+									})()
+								: html``}
+						`,
+						{
+							titleClasses: "text-vs-type font-bold",
+							containerClasses: "mb-4",
+							isExpanded: true,
+						},
+					);
 				}
 				return html`<pre class="mb-4">${JSON.stringify(tool, null, 2)}</pre>`;
 			})}
@@ -574,40 +598,31 @@ ${JSON.stringify(toolUse, null, 2)}</pre
 		return html`
 			<!-- System Prompt (Expandable) -->
 			${conversation.system
-				? html`
-						<div class="px-4 mt-4">
-							<div
-								class="cursor-pointer text-vs-function hover:text-white transition-colors"
-								@click=${this.toggleContent}
-							>
-								<span class="mr-2">[+]</span>
-								<span>System Prompt</span>
-							</div>
-							<div class="hidden mt-4">
-								<div class="text-vs-text markdown-content">
-									${unsafeHTML(this.formatSystem(conversation.system))}
-								</div>
-							</div>
-						</div>
-					`
+				? this.renderCollapsibleSection(
+						"System Prompt",
+						html`<div class="text-vs-text markdown-content">
+							${unsafeHTML(this.formatSystem(conversation.system))}
+						</div>`,
+						{
+							titleClasses: "text-vs-function",
+							containerClasses: "px-4 mt-4",
+						},
+					)
 				: ""}
 
 			<!-- Tools (Expandable) -->
 			${this.hasTools(conversation)
-				? html`
-						<div class="px-4">
-							<div
-								class="cursor-pointer text-vs-type hover:text-white transition-colors"
-								@click=${this.toggleContent}
-							>
-								<span class="mr-2">[+]</span>
-								<span>Tools (${conversation.finalPair.request.tools?.length || 0})</span>
-							</div>
-							<div class="mt-4 ml-4 hidden">
-								<div class="text-vs-text">${this.renderTools(conversation.finalPair.request.tools || [])}</div>
-							</div>
-						</div>
-					`
+				? this.renderCollapsibleSection(
+						"Tools",
+						html`<div class="ml-4">
+							<div class="text-vs-text">${this.renderTools(conversation.finalPair.request.tools || [])}</div>
+						</div>`,
+						{
+							titleClasses: "text-vs-type",
+							containerClasses: "px-4",
+							count: conversation.finalPair.request.tools?.length || 0,
+						},
+					)
 				: ""}
 
 			<!-- Conversation Messages -->
