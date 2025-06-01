@@ -241,9 +241,11 @@ export class ClaudeTrafficLogger {
 
 	private async generateHTML(): Promise<void> {
 		try {
+			const includeCosmetics = process.env.CLAUDE_TRACE_INCLUDE_COSMETICS === "true";
 			await this.htmlGenerator.generateHTML(this.pairs, this.htmlFile, {
 				title: `${this.pairs.length} API Calls`,
 				timestamp: new Date().toISOString().replace("T", " ").slice(0, -5),
+				includeCosmetics,
 			});
 			// Silent HTML generation
 		} catch (error) {

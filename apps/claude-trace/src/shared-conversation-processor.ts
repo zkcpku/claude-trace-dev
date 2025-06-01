@@ -165,7 +165,10 @@ export class SharedConversationProcessor {
 	/**
 	 * Group processed pairs into conversations
 	 */
-	mergeConversations(pairs: ProcessedPair[]): SimpleConversation[] {
+	mergeConversations(
+		pairs: ProcessedPair[],
+		options: { includeShortConversations?: boolean } = {},
+	): SimpleConversation[] {
 		if (!pairs || pairs.length === 0) return [];
 
 		// Group pairs by system instructions + model
@@ -248,8 +251,13 @@ export class SharedConversationProcessor {
 		// Apply compact conversation detection
 		const mergedConversations = this.detectAndMergeCompactConversations(allConversations);
 
+		// Filter out short conversations unless explicitly included
+		const filteredConversations = options.includeShortConversations
+			? mergedConversations
+			: mergedConversations.filter((conv) => conv.messages.length > 2);
+
 		// Sort by start time
-		return mergedConversations.sort(
+		return filteredConversations.sort(
 			(a, b) => new Date(a.metadata.startTime).getTime() - new Date(b.metadata.startTime).getTime(),
 		);
 	}

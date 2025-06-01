@@ -37,6 +37,7 @@ export interface HTMLGenerationData {
 	rawPairs: RawPair[];
 	timestamp: string;
 	title?: string;
+	includeCosmetics?: boolean;
 }
 
 export interface TemplateReplacements {

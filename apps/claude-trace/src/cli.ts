@@ -26,21 +26,24 @@ ${colors.blue}Claude Trace${colors.reset}
 Record all your interactions with Claude Code as you develop your projects
 
 ${colors.yellow}USAGE:${colors.reset}
-  claude-trace [OPTIONS] [COMMAND]
+  claude-trace [OPTIONS] [--run-with CLAUDE_ARG...]
 
 ${colors.yellow}OPTIONS:${colors.reset}
   --extract-token    Extract OAuth token and exit (reproduces claude-token.py)
   --generate-html    Generate HTML report from JSONL file
   --index           Generate conversation summaries and index for .claude-trace/ directory
+  --run-with         Pass all following arguments to Claude process
+  --include-cosmetics Include short conversations (<=2 messages) in logs
   --help, -h         Show this help message
 
 ${colors.yellow}MODES:${colors.reset}
   ${colors.green}Interactive logging:${colors.reset}
-    claude-trace                     Start Claude with traffic logging
-    claude-trace claude chat         Run specific Claude command with logging
+    claude-trace                               Start Claude with traffic logging
+    claude-trace --run-with chat                    Run Claude with specific command
+    claude-trace --run-with chat --model sonnet-3.5 Run Claude with multiple arguments
 
   ${colors.green}Token extraction:${colors.reset}
-    claude-trace --extract-token     Extract OAuth token for SDK usage
+    claude-trace --extract-token               Extract OAuth token for SDK usage
 
   ${colors.green}HTML generation:${colors.reset}
     claude-trace --generate-html file.jsonl          Generate HTML from JSONL file
@@ -53,8 +56,14 @@ ${colors.yellow}EXAMPLES:${colors.reset}
   # Start Claude with logging
   claude-trace
 
-  # Run specific command with logging
-  claude-trace claude chat --model sonnet-3.5
+  # Run Claude chat with logging
+  claude-trace --run-with chat
+
+  # Run Claude with specific model
+  claude-trace --run-with chat --model sonnet-3.5
+
+  # Pass multiple arguments to Claude
+  claude-trace --run-with --model gpt-4o --temperature 0.7
 
   # Extract token for Anthropic SDK
   export ANTHROPIC_API_KEY=$(claude-trace --extract-token)
@@ -102,9 +111,12 @@ function getLoaderPath(): string {
 }
 
 // Scenario 1: No args -> launch node with interceptor and absolute path to claude
-async function runClaudeWithInterception(): Promise<void> {
+async function runClaudeWithInterception(claudeArgs: string[] = [], includeCosmetics: boolean = false): Promise<void> {
 	log("🚀 Claude Trace", "blue");
 	log("Starting Claude with traffic logging", "yellow");
+	if (claudeArgs.length > 0) {
+		log(`🔧 Claude arguments: ${claudeArgs.join(" ")}`, "blue");
+	}
 	console.log("");
 
 	const claudePath = getClaudeAbsolutePath();
@@ -114,11 +126,13 @@ async function runClaudeWithInterception(): Promise<void> {
 	log("📁 Logs will be written to: .claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}", "blue");
 	console.log("");
 
-	// Launch node with interceptor and absolute path to claude
-	const child: ChildProcess = spawn("node", ["--require", loaderPath, claudePath], {
+	// Launch node with interceptor and absolute path to claude, plus any additional arguments
+	const spawnArgs = ["--require", loaderPath, claudePath, ...claudeArgs];
+	const child: ChildProcess = spawn("node", spawnArgs, {
 		env: {
 			...process.env,
 			NODE_OPTIONS: "--no-deprecation",
+			CLAUDE_TRACE_INCLUDE_COSMETICS: includeCosmetics ? "true" : "false",
 		},
 		stdio: "inherit",
 		cwd: process.cwd(),
@@ -265,10 +279,14 @@ async function extractToken(): Promise<void> {
 }
 
 // Scenario 3: --generate-html input.jsonl output.html
-async function generateHTMLFromCLI(inputFile: string, outputFile?: string): Promise<void> {
+async function generateHTMLFromCLI(
+	inputFile: string,
+	outputFile?: string,
+	includeCosmetics: boolean = false,
+): Promise<void> {
 	try {
 		const htmlGenerator = new HTMLGenerator();
-		await htmlGenerator.generateHTMLFromJSONL(inputFile, outputFile);
+		await htmlGenerator.generateHTMLFromJSONL(inputFile, outputFile, includeCosmetics);
 		process.exit(0);
 	} catch (error) {
 		const err = error as Error;
@@ -295,23 +313,39 @@ async function generateIndex(): Promise<void> {
 async function main(): Promise<void> {
 	const args = process.argv.slice(2);
 
+	// Split arguments at --run-with flag
+	const argIndex = args.indexOf("--run-with");
+	let claudeTraceArgs: string[];
+	let claudeArgs: string[];
+
+	if (argIndex !== -1) {
+		claudeTraceArgs = args.slice(0, argIndex);
+		claudeArgs = args.slice(argIndex + 1);
+	} else {
+		claudeTraceArgs = args;
+		claudeArgs = [];
+	}
+
 	// Check for help flags
-	if (args.includes("--help") || args.includes("-h")) {
+	if (claudeTraceArgs.includes("--help") || claudeTraceArgs.includes("-h")) {
 		showHelp();
 		process.exit(0);
 	}
 
+	// Check for include cosmetics flag
+	const includeCosmetics = claudeTraceArgs.includes("--include-cosmetics");
+
 	// Scenario 2: --extract-token
-	if (args.includes("--extract-token")) {
+	if (claudeTraceArgs.includes("--extract-token")) {
 		await extractToken();
 		return;
 	}
 
 	// Scenario 3: --generate-html input.jsonl [output.html]
-	if (args.includes("--generate-html")) {
-		const flagIndex = args.indexOf("--generate-html");
-		const inputFile = args[flagIndex + 1];
-		const outputFile = args[flagIndex + 2];
+	if (claudeTraceArgs.includes("--generate-html")) {
+		const flagIndex = claudeTraceArgs.indexOf("--generate-html");
+		const inputFile = claudeTraceArgs[flagIndex + 1];
+		const outputFile = claudeTraceArgs[flagIndex + 2];
 
 		if (!inputFile) {
 			log(`❌ Missing input file for --generate-html`, "red");
@@ -319,18 +353,18 @@ async function main(): Promise<void> {
 			process.exit(1);
 		}
 
-		await generateHTMLFromCLI(inputFile, outputFile);
+		await generateHTMLFromCLI(inputFile, outputFile, includeCosmetics);
 		return;
 	}
 
 	// Scenario 4: --index
-	if (args.includes("--index")) {
+	if (claudeTraceArgs.includes("--index")) {
 		await generateIndex();
 		return;
 	}
 
 	// Scenario 1: No args (or claude with args) -> launch claude with interception
-	await runClaudeWithInterception();
+	await runClaudeWithInterception(claudeArgs, includeCosmetics);
 }
 
 main().catch((error) => {

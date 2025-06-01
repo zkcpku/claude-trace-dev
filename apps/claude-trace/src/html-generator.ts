@@ -34,11 +34,21 @@ export class HTMLGenerator {
 		return pairs.filter((pair) => pair.request.url.includes("/v1/messages"));
 	}
 
+	private filterShortConversations(pairs: RawPair[]): RawPair[] {
+		return pairs.filter((pair) => {
+			const messages = pair.request?.body?.messages;
+			if (!Array.isArray(messages)) return true;
+			return messages.length > 2;
+		});
+	}
+
 	private prepareDataForInjection(data: HTMLGenerationData): string {
 		const claudeData: ClaudeData = {
 			rawPairs: data.rawPairs,
 			timestamp: data.timestamp,
-			metadata: {},
+			metadata: {
+				includeCosmetics: data.includeCosmetics || false,
+			},
 		};
 
 		// Convert to JSON with minimal whitespace
@@ -63,11 +73,17 @@ export class HTMLGenerator {
 		options: {
 			title?: string;
 			timestamp?: string;
+			includeCosmetics?: boolean;
 		} = {},
 	): Promise<void> {
 		try {
 			// Filter to only include v1/messages pairs (like Python version)
-			const filteredPairs = this.filterV1MessagesPairs(pairs);
+			let filteredPairs = this.filterV1MessagesPairs(pairs);
+
+			// Filter out short conversations unless includeCosmetics is true
+			if (!options.includeCosmetics) {
+				filteredPairs = this.filterShortConversations(filteredPairs);
+			}
 
 			// Load template and bundle files
 			const { htmlTemplate, jsBundle } = this.loadTemplateFiles();
@@ -76,6 +92,7 @@ export class HTMLGenerator {
 			const htmlData: HTMLGenerationData = {
 				rawPairs: filteredPairs,
 				timestamp: options.timestamp || new Date().toISOString().replace("T", " ").slice(0, -5),
+				includeCosmetics: options.includeCosmetics || false,
 			};
 
 			const dataJsonEscaped = this.prepareDataForInjection(htmlData);
@@ -112,7 +129,11 @@ export class HTMLGenerator {
 		}
 	}
 
-	public async generateHTMLFromJSONL(jsonlFile: string, outputFile?: string): Promise<void> {
+	public async generateHTMLFromJSONL(
+		jsonlFile: string,
+		outputFile?: string,
+		includeCosmetics: boolean = false,
+	): Promise<void> {
 		if (!fs.existsSync(jsonlFile)) {
 			throw new Error(`File '${jsonlFile}' not found.`);
 		}
@@ -149,7 +170,7 @@ export class HTMLGenerator {
 			outputFile = path.join(logDir, `log-${timestamp}.html`);
 		}
 
-		await this.generateHTML(pairs, outputFile);
+		await this.generateHTML(pairs, outputFile, { includeCosmetics });
 	}
 
 	public getTemplatePaths(): { templatePath: string; bundlePath: string } {

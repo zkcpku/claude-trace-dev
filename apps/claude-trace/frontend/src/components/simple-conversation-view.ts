@@ -89,6 +89,18 @@ export class SimpleConversationView extends LitElement {
 				${content.map((block) => {
 					if (block.type === "text") {
 						return this.formatStringContent(block.text);
+					} else if (block.type === "thinking") {
+						const thinkingBlock = block as any;
+						return html`
+							<div class="mt-4 mb-4">
+								<div class="text-gray-500 italic">
+									<em>Thinking</em>
+								</div>
+								<div class="text-gray-400 mt-2 markdown-content">
+									${unsafeHTML(markdownToHtml(thinkingBlock.thinking || ""))}
+								</div>
+							</div>
+						`;
 					} else if (block.type === "tool_result") {
 						// Skip standalone tool_result blocks - they will be paired with tool_use
 						return html``;
@@ -209,6 +221,18 @@ export class SimpleConversationView extends LitElement {
 				${response.content.map((block) => {
 					if (block.type === "text") {
 						return html`<div class="mt-4 markdown-content">${unsafeHTML(markdownToHtml(block.text))}</div>`;
+					} else if (block.type === "thinking") {
+						const thinkingBlock = block as any;
+						return html`
+							<div class="mt-4 mb-4">
+								<div class="text-gray-500 italic">
+									<em>Thinking</em>
+								</div>
+								<div class="text-gray-400 mt-2 markdown-content">
+									${unsafeHTML(markdownToHtml(thinkingBlock.thinking || ""))}
+								</div>
+							</div>
+						`;
 					} else if (block.type === "tool_use") {
 						if (block.name === "TodoWrite") {
 							return html`
@@ -442,8 +466,8 @@ export class SimpleConversationView extends LitElement {
 					<span class="mr-2">[+]</span>
 					Tool Result ${toolResult?.is_error ? "❌" : "✅"}
 				</div>
-				<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text hidden">
-					<pre class="whitespace-pre-wrap overflow-x-auto">
+				<div class="bg-vs-bg-secondary mx-4 p-4 text-vs-text hidden overflow-x-auto">
+					<pre class="whitespace-pre overflow-x-auto" style="white-space: pre; font-family: monospace;">
 ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content, null, 2)}</pre
 					>
 				</div>

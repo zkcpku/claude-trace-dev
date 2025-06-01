@@ -45,7 +45,11 @@ export class ClaudeApp extends LitElement {
 
 		// Process conversations using shared processor
 		const processor = new SharedConversationProcessor();
-		this.conversations = processor.mergeConversations(this.processedPairs);
+		// Check for include cosmetics flag from environment or data
+		const includeCosmetics = this.data.metadata?.includeCosmetics || false;
+		this.conversations = processor.mergeConversations(this.processedPairs, {
+			includeShortConversations: includeCosmetics,
+		});
 
 		// Initialize with all models available, but haiku models disabled by default in UI
 		const conversationModels = new Set(this.conversations.flatMap((c) => Array.from(c.models)));
