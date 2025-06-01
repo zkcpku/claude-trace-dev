@@ -670,9 +670,6 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 				<div class="mb-4">
 					<div class="font-bold uppercase text-vs-assistant">
 						<span>assistant</span>
-						<span class="font-normal lowercase text-vs-muted ml-2">
-							(${conversation.metadata.inputTokens} in, ${conversation.metadata.outputTokens} out)
-						</span>
 					</div>
 					<div class="text-vs-text">${this.formatResponseContent(conversation.response)}</div>
 				</div>
