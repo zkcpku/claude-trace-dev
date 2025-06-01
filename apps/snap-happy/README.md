@@ -1,5 +1,7 @@
 # Snap Happy
 
+https://github.com/user-attachments/assets/f2a96139-70ae-44db-b924-ac7b043a9f00
+
 A Model Context Protocol (MCP) server that provides screenshot functionality for AI assistants. Take screenshots and retrieve recent captures programmatically across macOS, Linux, and Windows.
 
 ## Features
