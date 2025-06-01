@@ -6,7 +6,7 @@ A Model Context Protocol (MCP) server that provides screenshot functionality for
 
 ## Features
 
-- **Cross-platform screenshot capture**: Works on macOS, Linux, and Windows
+- **Cross-platform screenshot capture**: Works on macOS, Linux, and Windows (only tested on macOS. Works on my machine)
 - **Three main tools**:
    - `GetLastScreenshot()`: Returns the most recent screenshot as base64 PNG
    - `TakeScreenshot()`: Takes a new screenshot and returns it as base64 PNG
