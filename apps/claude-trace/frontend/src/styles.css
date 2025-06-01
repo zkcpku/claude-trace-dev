@@ -120,3 +120,8 @@ html, body {
     margin-top: 0;
 }
 
+/* Remove bottom margin from last element to avoid extra spacing */
+.markdown-content > *:last-child {
+    margin-bottom: 0;
+}
+

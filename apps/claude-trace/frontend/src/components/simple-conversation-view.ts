@@ -72,7 +72,7 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "TodoWrite" || block.name === "Edit" || block.name === "MultiEdit") {
 							return html`
 								<div class="mb-4">
-									<div class="text-vs-type px-4 py-4 mb-4 break-all">${this.getToolDisplayName(block)}</div>
+									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
 									${toolResult ? this.renderToolResult(toolResult, block) : ""}
 								</div>
@@ -81,7 +81,7 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "Write") {
 							return html`
 								<div class="mb-4">
-									<div class="text-vs-type px-4 py-4 mb-4 break-all">${this.getToolDisplayName(block)}</div>
+									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 										${this.renderToolUseContent(block)}
 									</div>
@@ -98,7 +98,7 @@ export class SimpleConversationView extends LitElement {
 						return html`
 							<div class="mb-4">
 								<div
-									class="text-vs-type px-4 py-4 mb-4 break-all cursor-pointer hover:text-white transition-colors"
+									class="text-vs-type px-4 py-2 break-all cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
@@ -143,21 +143,21 @@ export class SimpleConversationView extends LitElement {
 			${mainContent ? html`<div class="markdown-content">${unsafeHTML(markdownToHtml(mainContent))}</div>` : ""}
 			${systemReminders.length > 0
 				? html`
-						<div class="mb-4">
+						<div class="mt-4 mb-4">
 							<div
-								class="cursor-pointer text-vs-assistant hover:text-white transition-colors"
+								class="cursor-pointer text-vs-muted hover:text-white transition-colors"
 								@click=${this.toggleContent}
 							>
 								<span class="mr-2">[+]</span>
 								<span>System Reminder${systemReminders.length > 1 ? `s (${systemReminders.length})` : ""}</span>
 							</div>
 							<div class="hidden mt-4">
-								<div class="text-vs-text">
+								<div class="text-vs-muted">
 									${systemReminders.map(
 										(reminder, index) => html`
 											<div class="mb-4">
 												${systemReminders.length > 1
-													? html`<div class="text-vs-function font-bold mb-4">Reminder ${index + 1}:</div>`
+													? html`<div class="text-vs-function font-bold mb-2">Reminder ${index + 1}:</div>`
 													: ""}
 												<div class="markdown-content">${unsafeHTML(markdownToHtml(reminder))}</div>
 											</div>
@@ -205,7 +205,7 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "TodoWrite") {
 							return html`
 								<div class="mb-4">
-									<div class="text-vs-type px-4 py-4 mb-4 break-all">${this.getToolDisplayName(block)}</div>
+									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
 								</div>
 							`;
@@ -213,7 +213,7 @@ export class SimpleConversationView extends LitElement {
 						return html`
 							<div class="mb-4">
 								<div
-									class="text-vs-type px-4 py-4 mb-4 break-all cursor-pointer hover:text-white transition-colors"
+									class="text-vs-type px-4 py-2 break-all cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
@@ -413,7 +413,7 @@ export class SimpleConversationView extends LitElement {
 
 						return html`
 							<div class="mb-4">
-								<div class="text-vs-muted mb-4">Edit ${index + 1}:</div>
+								<div class="text-vs-muted mb-2">Edit ${index + 1}:</div>
 								<div>${diffLines}</div>
 							</div>
 						`;
@@ -468,22 +468,24 @@ export class SimpleConversationView extends LitElement {
 					? html`
 							<div>
 								<div
-									class="text-vs-muted px-4 py-4 mb-4 cursor-pointer hover:text-white transition-colors"
+									class="text-vs-muted px-4 py-2 cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
 									Raw Tool Call
 								</div>
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
-									<pre style="white-space: pre; font-family: monospace;">
+									<div class="overflow-x-auto">
+										<pre style="white-space: pre; font-family: monospace;">
 ${JSON.stringify(toolUse, null, 2)}</pre
-									>
+										>
+									</div>
 								</div>
 							</div>
 						`
 					: ""}
 				<div
-					class="text-vs-function px-4 py-4 mb-4 cursor-pointer hover:text-white transition-colors"
+					class="text-vs-function px-4 py-2 cursor-pointer hover:text-white transition-colors"
 					@click=${this.toggleContent}
 				>
 					<span class="mr-2">[+]</span>
@@ -514,7 +516,7 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 				<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${preview.join("\n")}</pre>
 			</div>
 			${hasMore
-				? html`<div class="text-vs-muted mt-4 border-t border-vs-border pt-4">
+				? html`<div class="text-vs-muted mt-2 border-t border-vs-border pt-2">
 						... ${lines.length - 10} more lines (click to expand)
 					</div>`
 				: ""}
@@ -534,7 +536,7 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 					return html`
 						<div class="mb-4">
 							<div
-								class="cursor-pointer text-vs-user font-bold mb-4 pr-4 py-4 hover:text-white transition-colors"
+								class="cursor-pointer text-vs-user font-bold mb-2 pr-4 py-2 hover:text-white transition-colors"
 								@click=${this.toggleContent}
 							>
 								<span class="mr-2">[-]</span>
@@ -548,7 +550,7 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 											const schema = tool.input_schema as any;
 											if (schema.properties) {
 												return html`
-													<div class="text-vs-muted mb-4">Parameters:</div>
+													<div class="text-vs-muted mb-2">Parameters:</div>
 													${Object.entries(schema.properties).map(([paramName, paramDef]) => {
 														const def = paramDef as any;
 														const required = schema.required?.includes(paramName) ? " (required)" : "";
