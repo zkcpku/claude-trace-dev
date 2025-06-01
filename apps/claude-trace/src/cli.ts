@@ -33,7 +33,7 @@ ${colors.yellow}OPTIONS:${colors.reset}
   --generate-html    Generate HTML report from JSONL file
   --index           Generate conversation summaries and index for .claude-trace/ directory
   --run-with         Pass all following arguments to Claude process
-  --include-cosmetics Include short conversations (<=2 messages) in logs
+  --include-all-requests Include all requests made through fetch, otherwise only requests to v1/messages with more than 2 messages in the context
   --help, -h         Show this help message
 
 ${colors.yellow}MODES:${colors.reset}
@@ -111,7 +111,10 @@ function getLoaderPath(): string {
 }
 
 // Scenario 1: No args -> launch node with interceptor and absolute path to claude
-async function runClaudeWithInterception(claudeArgs: string[] = [], includeCosmetics: boolean = false): Promise<void> {
+async function runClaudeWithInterception(
+	claudeArgs: string[] = [],
+	includeAllRequests: boolean = false,
+): Promise<void> {
 	log("🚀 Claude Trace", "blue");
 	log("Starting Claude with traffic logging", "yellow");
 	if (claudeArgs.length > 0) {
@@ -132,7 +135,7 @@ async function runClaudeWithInterception(claudeArgs: string[] = [], includeCosme
 		env: {
 			...process.env,
 			NODE_OPTIONS: "--no-deprecation",
-			CLAUDE_TRACE_INCLUDE_COSMETICS: includeCosmetics ? "true" : "false",
+			CLAUDE_TRACE_INCLUDE_ALL_REQUESTS: includeAllRequests ? "true" : "false",
 		},
 		stdio: "inherit",
 		cwd: process.cwd(),
@@ -282,11 +285,11 @@ async function extractToken(): Promise<void> {
 async function generateHTMLFromCLI(
 	inputFile: string,
 	outputFile?: string,
-	includeCosmetics: boolean = false,
+	includeAllRequests: boolean = false,
 ): Promise<void> {
 	try {
 		const htmlGenerator = new HTMLGenerator();
-		await htmlGenerator.generateHTMLFromJSONL(inputFile, outputFile, includeCosmetics);
+		await htmlGenerator.generateHTMLFromJSONL(inputFile, outputFile, includeAllRequests);
 		process.exit(0);
 	} catch (error) {
 		const err = error as Error;
@@ -332,8 +335,8 @@ async function main(): Promise<void> {
 		process.exit(0);
 	}
 
-	// Check for include cosmetics flag
-	const includeCosmetics = claudeTraceArgs.includes("--include-cosmetics");
+	// Check for include all requests flag
+	const includeAllRequests = claudeTraceArgs.includes("--include-all-requests");
 
 	// Scenario 2: --extract-token
 	if (claudeTraceArgs.includes("--extract-token")) {
@@ -345,7 +348,16 @@ async function main(): Promise<void> {
 	if (claudeTraceArgs.includes("--generate-html")) {
 		const flagIndex = claudeTraceArgs.indexOf("--generate-html");
 		const inputFile = claudeTraceArgs[flagIndex + 1];
-		const outputFile = claudeTraceArgs[flagIndex + 2];
+
+		// Find the next argument that's not a flag as the output file
+		let outputFile: string | undefined;
+		for (let i = flagIndex + 2; i < claudeTraceArgs.length; i++) {
+			const arg = claudeTraceArgs[i];
+			if (!arg.startsWith("--")) {
+				outputFile = arg;
+				break;
+			}
+		}
 
 		if (!inputFile) {
 			log(`❌ Missing input file for --generate-html`, "red");
@@ -353,7 +365,7 @@ async function main(): Promise<void> {
 			process.exit(1);
 		}
 
-		await generateHTMLFromCLI(inputFile, outputFile, includeCosmetics);
+		await generateHTMLFromCLI(inputFile, outputFile, includeAllRequests);
 		return;
 	}
 
@@ -364,7 +376,7 @@ async function main(): Promise<void> {
 	}
 
 	// Scenario 1: No args (or claude with args) -> launch claude with interception
-	await runClaudeWithInterception(claudeArgs, includeCosmetics);
+	await runClaudeWithInterception(claudeArgs, includeAllRequests);
 }
 
 main().catch((error) => {

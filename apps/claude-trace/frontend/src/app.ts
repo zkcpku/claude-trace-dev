@@ -45,10 +45,10 @@ export class ClaudeApp extends LitElement {
 
 		// Process conversations using shared processor
 		const processor = new SharedConversationProcessor();
-		// Check for include cosmetics flag from environment or data
-		const includeCosmetics = this.data.metadata?.includeCosmetics || false;
+		// Check for include all requests flag from environment or data
+		const includeAllRequests = this.data.metadata?.includeAllRequests || false;
 		this.conversations = processor.mergeConversations(this.processedPairs, {
-			includeShortConversations: includeCosmetics,
+			includeShortConversations: includeAllRequests,
 		});
 
 		// Initialize with all models available, but haiku models disabled by default in UI
@@ -57,9 +57,8 @@ export class ClaudeApp extends LitElement {
 		const rawPairModels = new Set(this.data.rawPairs.map((pair) => pair.request.body?.model || "unknown"));
 		const allModels = new Set([...conversationModels, ...processedPairModels, ...rawPairModels]);
 
-		// Disable haiku models by default in UI (but include them in data)
-		const selectedModels = new Set([...allModels].filter((model) => !model.toLowerCase().includes("haiku")));
-		this.selectedModels = selectedModels;
+		// Select all models by default (including haiku)
+		this.selectedModels = allModels;
 		console.log(`Processed data in ${performance.now() - start}ms`);
 	}
 
@@ -93,6 +92,11 @@ export class ClaudeApp extends LitElement {
 			const model = pair.request.body?.model || "unknown";
 			return this.selectedModels.has(model);
 		});
+	}
+
+	private get allRawPairs() {
+		// Debug view shows ALL raw pairs without any filtering
+		return this.data.rawPairs.filter((pair) => pair.response !== null);
 	}
 
 	private get modelCounts() {
@@ -134,7 +138,7 @@ export class ClaudeApp extends LitElement {
 									? "text-vs-nav-active"
 									: "text-vs-text hover:text-vs-accent"}"
 							>
-								raw calls (${this.filteredRawPairs.length})
+								raw calls (${this.allRawPairs.length})
 							</span>
 							<span
 								@click=${() => this.switchView("json")}
@@ -146,7 +150,7 @@ export class ClaudeApp extends LitElement {
 							</span>
 						</div>
 
-						${modelCounts.size > 1
+						${modelCounts.size > 1 && this.currentView !== "raw"
 							? html`
 									<div class="mb-4 text-center">
 										${Array.from(modelCounts.entries()).map(([model, _count]) => {
@@ -179,9 +183,9 @@ export class ClaudeApp extends LitElement {
 						${this.currentView === "raw"
 							? html`
 									<div id="raw-view">
-										${this.filteredRawPairs.length === 0
-											? html`<div>No raw pairs found for selected models.</div>`
-											: html`<raw-pairs-view .rawPairs=${this.filteredRawPairs}></raw-pairs-view>`}
+										${this.allRawPairs.length === 0
+											? html`<div>No raw pairs found.</div>`
+											: html`<raw-pairs-view .rawPairs=${this.allRawPairs}></raw-pairs-view>`}
 									</div>
 								`
 							: ""}

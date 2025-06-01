@@ -47,10 +47,13 @@ export class ClaudeTrafficLogger {
 
 	private isAnthropicAPI(url: string | URL): boolean {
 		const urlString = typeof url === "string" ? url : url.toString();
-		return (
-			urlString.includes("api.anthropic.com") &&
-			(urlString.includes("/v1/messages") || urlString.includes("/chat/completions"))
-		);
+		const includeAllRequests = process.env.CLAUDE_TRACE_INCLUDE_ALL_REQUESTS === "true";
+
+		if (includeAllRequests) {
+			return urlString.includes("api.anthropic.com"); // Capture all Anthropic API requests
+		}
+
+		return urlString.includes("api.anthropic.com") && urlString.includes("/v1/messages");
 	}
 
 	private generateRequestId(): string {
@@ -138,6 +141,11 @@ export class ClaudeTrafficLogger {
 			// Silent error handling during runtime
 			return {};
 		}
+	}
+
+	public instrumentAll(): void {
+		this.instrumentFetch();
+		this.instrumentNodeHTTP();
 	}
 
 	public instrumentFetch(): void {
@@ -230,6 +238,153 @@ export class ClaudeTrafficLogger {
 		// Silent initialization
 	}
 
+	public instrumentNodeHTTP(): void {
+		try {
+			const http = require("http");
+			const https = require("https");
+			const logger = this;
+
+			// Instrument http.request
+			if (http.request && !(http.request as any).__claudeTraceInstrumented) {
+				const originalHttpRequest = http.request;
+				http.request = function (options: any, callback?: any) {
+					return logger.interceptNodeRequest(originalHttpRequest, options, callback, false);
+				};
+				(http.request as any).__claudeTraceInstrumented = true;
+			}
+
+			// Instrument http.get
+			if (http.get && !(http.get as any).__claudeTraceInstrumented) {
+				const originalHttpGet = http.get;
+				http.get = function (options: any, callback?: any) {
+					return logger.interceptNodeRequest(originalHttpGet, options, callback, false);
+				};
+				(http.get as any).__claudeTraceInstrumented = true;
+			}
+
+			// Instrument https.request
+			if (https.request && !(https.request as any).__claudeTraceInstrumented) {
+				const originalHttpsRequest = https.request;
+				https.request = function (options: any, callback?: any) {
+					return logger.interceptNodeRequest(originalHttpsRequest, options, callback, true);
+				};
+				(https.request as any).__claudeTraceInstrumented = true;
+			}
+
+			// Instrument https.get
+			if (https.get && !(https.get as any).__claudeTraceInstrumented) {
+				const originalHttpsGet = https.get;
+				https.get = function (options: any, callback?: any) {
+					return logger.interceptNodeRequest(originalHttpsGet, options, callback, true);
+				};
+				(https.get as any).__claudeTraceInstrumented = true;
+			}
+		} catch (error) {
+			// Silent error handling
+		}
+	}
+
+	private interceptNodeRequest(originalRequest: any, options: any, callback: any, isHttps: boolean) {
+		// Parse URL from options
+		const url = this.parseNodeRequestURL(options, isHttps);
+
+		if (!this.isAnthropicAPI(url)) {
+			return originalRequest.call(this, options, callback);
+		}
+
+		const requestId = this.generateRequestId();
+		const requestTimestamp = Date.now();
+		let requestBody = "";
+
+		// Create the request
+		const req = originalRequest.call(this, options, (res: any) => {
+			const responseTimestamp = Date.now();
+			let responseBody = "";
+
+			// Capture response data
+			res.on("data", (chunk: any) => {
+				responseBody += chunk;
+			});
+
+			res.on("end", async () => {
+				// Process the captured request/response
+				const requestData = {
+					timestamp: requestTimestamp / 1000,
+					method: options.method || "GET",
+					url: url,
+					headers: this.redactSensitiveHeaders(options.headers || {}),
+					body: requestBody ? await this.parseRequestBody(requestBody) : null,
+				};
+
+				const responseData = {
+					timestamp: responseTimestamp / 1000,
+					status_code: res.statusCode,
+					headers: this.redactSensitiveHeaders(res.headers || {}),
+					...(await this.parseResponseBodyFromString(responseBody, res.headers["content-type"])),
+				};
+
+				const pair: RawPair = {
+					request: requestData,
+					response: responseData,
+					logged_at: new Date().toISOString(),
+				};
+
+				this.pairs.push(pair);
+				await this.writePairToLog(pair);
+
+				if (this.config.enableRealTimeHTML) {
+					await this.generateHTML();
+				}
+			});
+
+			// Call original callback if provided
+			if (callback) {
+				callback(res);
+			}
+		});
+
+		// Capture request body
+		const originalWrite = req.write;
+		req.write = function (chunk: any) {
+			if (chunk) {
+				requestBody += chunk;
+			}
+			return originalWrite.call(this, chunk);
+		};
+
+		return req;
+	}
+
+	private parseNodeRequestURL(options: any, isHttps: boolean): string {
+		if (typeof options === "string") {
+			return options;
+		}
+
+		const protocol = isHttps ? "https:" : "http:";
+		const hostname = options.hostname || options.host || "localhost";
+		const port = options.port ? `:${options.port}` : "";
+		const path = options.path || "/";
+
+		return `${protocol}//${hostname}${port}${path}`;
+	}
+
+	private async parseResponseBodyFromString(
+		body: string,
+		contentType?: string,
+	): Promise<{ body?: any; body_raw?: string }> {
+		try {
+			if (contentType && contentType.includes("application/json")) {
+				return { body: JSON.parse(body) };
+			} else if (contentType && contentType.includes("text/event-stream")) {
+				return { body_raw: body };
+			} else {
+				return { body_raw: body };
+			}
+		} catch (error) {
+			return { body_raw: body };
+		}
+	}
+
 	private async writePairToLog(pair: RawPair): Promise<void> {
 		try {
 			const jsonLine = JSON.stringify(pair) + "\n";
@@ -241,11 +396,11 @@ export class ClaudeTrafficLogger {
 
 	private async generateHTML(): Promise<void> {
 		try {
-			const includeCosmetics = process.env.CLAUDE_TRACE_INCLUDE_COSMETICS === "true";
+			const includeAllRequests = process.env.CLAUDE_TRACE_INCLUDE_ALL_REQUESTS === "true";
 			await this.htmlGenerator.generateHTML(this.pairs, this.htmlFile, {
 				title: `${this.pairs.length} API Calls`,
 				timestamp: new Date().toISOString().replace("T", " ").slice(0, -5),
-				includeCosmetics,
+				includeAllRequests,
 			});
 			// Silent HTML generation
 		} catch (error) {
@@ -299,7 +454,7 @@ export function initializeInterceptor(config?: InterceptorConfig): ClaudeTraffic
 	}
 
 	globalLogger = new ClaudeTrafficLogger(config);
-	globalLogger.instrumentFetch();
+	globalLogger.instrumentAll();
 
 	// Setup cleanup on process exit only once
 	if (!eventListenersSetup) {

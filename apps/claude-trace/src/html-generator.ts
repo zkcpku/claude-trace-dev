@@ -47,7 +47,7 @@ export class HTMLGenerator {
 			rawPairs: data.rawPairs,
 			timestamp: data.timestamp,
 			metadata: {
-				includeCosmetics: data.includeCosmetics || false,
+				includeAllRequests: data.includeAllRequests || false,
 			},
 		};
 
@@ -73,15 +73,15 @@ export class HTMLGenerator {
 		options: {
 			title?: string;
 			timestamp?: string;
-			includeCosmetics?: boolean;
+			includeAllRequests?: boolean;
 		} = {},
 	): Promise<void> {
 		try {
-			// Filter to only include v1/messages pairs (like Python version)
-			let filteredPairs = this.filterV1MessagesPairs(pairs);
+			let filteredPairs = pairs;
 
-			// Filter out short conversations unless includeCosmetics is true
-			if (!options.includeCosmetics) {
+			if (!options.includeAllRequests) {
+				// Filter to only include v1/messages pairs with messages.length >= 2
+				filteredPairs = this.filterV1MessagesPairs(pairs);
 				filteredPairs = this.filterShortConversations(filteredPairs);
 			}
 
@@ -92,7 +92,7 @@ export class HTMLGenerator {
 			const htmlData: HTMLGenerationData = {
 				rawPairs: filteredPairs,
 				timestamp: options.timestamp || new Date().toISOString().replace("T", " ").slice(0, -5),
-				includeCosmetics: options.includeCosmetics || false,
+				includeAllRequests: options.includeAllRequests || false,
 			};
 
 			const dataJsonEscaped = this.prepareDataForInjection(htmlData);
@@ -132,7 +132,7 @@ export class HTMLGenerator {
 	public async generateHTMLFromJSONL(
 		jsonlFile: string,
 		outputFile?: string,
-		includeCosmetics: boolean = false,
+		includeAllRequests: boolean = false,
 	): Promise<void> {
 		if (!fs.existsSync(jsonlFile)) {
 			throw new Error(`File '${jsonlFile}' not found.`);
@@ -162,15 +162,10 @@ export class HTMLGenerator {
 
 		// Determine output file
 		if (!outputFile) {
-			const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").slice(0, -5);
-			const logDir = ".claude-trace";
-			if (!fs.existsSync(logDir)) {
-				fs.mkdirSync(logDir, { recursive: true });
-			}
-			outputFile = path.join(logDir, `log-${timestamp}.html`);
+			outputFile = jsonlFile.replace(/\.jsonl$/, ".html");
 		}
 
-		await this.generateHTML(pairs, outputFile, { includeCosmetics });
+		await this.generateHTML(pairs, outputFile, { includeAllRequests });
 	}
 
 	public getTemplatePaths(): { templatePath: string; bundlePath: string } {

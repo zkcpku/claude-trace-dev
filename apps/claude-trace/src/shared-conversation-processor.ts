@@ -334,7 +334,7 @@ export class SharedConversationProcessor {
 			if (usedConversations.has(i)) continue;
 
 			// Check if this is a compact conversation (1 pair with many messages)
-			if (currentConv.allPairs.length === 1) {
+			if (currentConv.allPairs.length === 1 && currentConv.messages.length > 2) {
 				let originalConv: SimpleConversation | null = null;
 				let originalIndex = -1;
 

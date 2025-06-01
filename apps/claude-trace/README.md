@@ -14,6 +14,12 @@ npm install -g @mariozechner/claude-trace
 # Start Claude Code with logging
 claude-trace
 
+# Include all API requests (by default, only substantial conversations are logged)
+claude-trace --include-all-requests
+
+# Run Claude with specific arguments
+claude-trace --run-with chat --model sonnet-3.5
+
 # Show help
 claude-trace --help
 
@@ -23,11 +29,23 @@ claude-trace --extract-token
 # Generate HTML report manually from previously logged .jsonl
 claude-trace --generate-html logs.jsonl report.html
 
+# Generate HTML including all requests (not just substantial conversations)
+claude-trace --generate-html logs.jsonl --include-all-requests
+
 # Generate conversation summaries and searchable index
 claude-trace --index
 ```
 
 Logs are saved to `.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}` in your current directory. The HTML file is self-contained and opens in any browser without needing a server.
+
+## Request Filtering
+
+By default, claude-trace filters logs to focus on substantial conversations:
+
+- **Default behavior**: Only logs requests to `/v1/messages` with more than 2 messages in the conversation
+- **With `--include-all-requests`**: Logs all requests made to `api.anthropic.com` including single-message requests and other endpoints
+
+This filtering reduces log file size and focuses on meaningful development sessions, while still allowing you to capture everything when needed for debugging.
 
 ## Conversation Indexing
 
@@ -57,6 +75,7 @@ This feature:
 - **Token usage** - Detailed breakdown including cache hits
 - **Raw JSONL logs** - Complete request/response pairs for analysis
 - **Interactive HTML viewer** - Browse conversations with model filtering
+- **Debug views** - Raw calls shows all HTTP requests without filtering; JSON debug shows processed API data
 - **Conversation indexing** - AI-generated summaries and searchable index of all sessions
 
 ## Requirements

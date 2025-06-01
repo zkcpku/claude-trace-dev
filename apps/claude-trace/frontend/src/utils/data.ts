@@ -23,26 +23,32 @@ export interface RawPairData {
  * Convert raw mitmproxy data to typed ProcessedPair array
  */
 export function processRawPairs(rawData: RawPairData[]): ProcessedPair[] {
-	return rawData.map((pair, index) => {
-		const request = pair.request_body;
-		const isStreaming = request.stream === true;
+	return rawData
+		.map((pair, index) => {
+			const request = pair.request_body;
+			if (!request) {
+				// Skip pairs without request body
+				return null;
+			}
+			const isStreaming = request.stream === true;
 
-		let response: Message;
-		if (isStreaming) {
-			response = reconstructMessageFromSSE(pair.body_raw || "");
-		} else {
-			response = pair.response_body!; // Non-streaming must have response_body
-		}
+			let response: Message;
+			if (isStreaming) {
+				response = reconstructMessageFromSSE(pair.body_raw || "");
+			} else {
+				response = pair.response_body!; // Non-streaming must have response_body
+			}
 
-		return {
-			id: `pair-${index}`,
-			timestamp: pair.timestamp || new Date().toISOString(),
-			request,
-			response,
-			model: request.model,
-			isStreaming,
-		};
-	});
+			return {
+				id: `pair-${index}`,
+				timestamp: pair.timestamp || new Date().toISOString(),
+				request,
+				response,
+				model: request.model,
+				isStreaming,
+			};
+		})
+		.filter((pair) => pair !== null) as ProcessedPair[];
 }
 
 /**
