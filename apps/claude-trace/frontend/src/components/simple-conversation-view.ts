@@ -340,7 +340,7 @@ export class SimpleConversationView extends LitElement {
 					: html`${toolName}`;
 			case "MultiEdit":
 				if (input?.file_path) {
-					const fileName = this.unescapeHtml(input.file_path).split("/").pop();
+					const fileName = this.unescapeHtml(input.file_path).split("/").pop() || input.file_path;
 					const editCount = input?.edits ? input.edits.length : 0;
 					return this.formatMultiParam(toolName, [fileName, `${editCount} edits`]);
 				}

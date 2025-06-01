@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { RawPair } from "../types/claude-data";
+import { RawPair } from "../../../src/types";
 
 @customElement("raw-pairs-view")
 export class RawPairsView extends LitElement {
@@ -16,9 +16,12 @@ export class RawPairsView extends LitElement {
 			return html`<div class="text-vs-muted">No raw pairs found.</div>`;
 		}
 
+		// Filter out pairs with null responses for display
+		const validPairs = this.rawPairs.filter((pair) => pair.response !== null);
+
 		return html`
 			<div>
-				${this.rawPairs.map(
+				${validPairs.map(
 					(pair, index) => html`
 						<div class="mt-8 first:mt-0">
 							<!-- Pair Header -->
@@ -27,7 +30,7 @@ export class RawPairsView extends LitElement {
 									${pair.request.method} ${this.getUrlPath(pair.request.url)}
 								</div>
 								<div class="text-vs-muted">
-									Raw Pair ${index + 1} • ${this.getModelName(pair)} • Status ${pair.response.status_code} •
+									Raw Pair ${index + 1} • ${this.getModelName(pair)} • Status ${pair.response!.status_code} •
 									${new Date(pair.logged_at).toLocaleString()}
 								</div>
 							</div>
@@ -66,7 +69,7 @@ export class RawPairsView extends LitElement {
 								</div>
 
 								<!-- SSE Events Section -->
-								${pair.response.events && pair.response.events.length > 0
+								${pair.response!.events && pair.response!.events.length > 0
 									? html`
 											<div class="mb-4">
 												<div
@@ -74,12 +77,12 @@ export class RawPairsView extends LitElement {
 													@click=${(e: Event) => this.toggleContent(e)}
 												>
 													<span class="mr-2">[+]</span>
-													<span>SSE Events (${pair.response.events.length})</span>
+													<span>SSE Events (${pair.response!.events.length})</span>
 												</div>
 												<div class="hidden mt-2">
 													<div class="bg-vs-bg-secondary p-4 text-vs-text overflow-x-auto">
 														<pre class="whitespace-pre text-vs-text m-0">
-${this.formatJson(pair.response.events)}</pre
+${this.formatJson(pair.response!.events)}</pre
 														>
 													</div>
 												</div>

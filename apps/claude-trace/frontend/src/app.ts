@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
-import { ClaudeData } from "./types/claude-data";
+import { ClaudeData } from "../../src/types";
 import { processRawPairs, ProcessedPair, RawPairData } from "./utils/data";
 import { SimpleConversationProcessor, SimpleConversation } from "./utils/simple-conversation-processor";
 
@@ -27,13 +27,15 @@ export class ClaudeApp extends LitElement {
 	private processData() {
 		const start = performance.now();
 		// Process raw pairs with new typed approach
-		const rawPairData: RawPairData[] = this.data.rawPairs.map((pair) => ({
-			request_body: pair.request.body,
-			response_body: pair.response.body,
-			body_raw: pair.response.body_raw, // SSE data if available
-			response_headers: pair.response.headers,
-			timestamp: pair.logged_at, // Use logged_at from Python logger
-		}));
+		const rawPairData: RawPairData[] = this.data.rawPairs
+			.filter((pair) => pair.response !== null) // Filter out orphaned requests
+			.map((pair) => ({
+				request_body: pair.request.body,
+				response_body: pair.response!.body,
+				body_raw: pair.response!.body_raw, // SSE data if available
+				response_headers: pair.response!.headers,
+				timestamp: pair.logged_at, // Use logged_at from Python logger
+			}));
 
 		this.processedPairs = processRawPairs(rawPairData);
 
