@@ -1,8 +1,12 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ClaudeData } from "../../src/types";
-import { processRawPairs, ProcessedPair, RawPairData } from "./utils/data";
-import { SimpleConversationProcessor, SimpleConversation } from "./utils/simple-conversation-processor";
+import { processRawPairs, RawPairData } from "./utils/data";
+import {
+	SharedConversationProcessor,
+	SimpleConversation,
+	ProcessedPair,
+} from "../../src/shared-conversation-processor";
 
 @customElement("claude-app")
 export class ClaudeApp extends LitElement {
@@ -39,8 +43,8 @@ export class ClaudeApp extends LitElement {
 
 		this.processedPairs = processRawPairs(rawPairData);
 
-		// Process conversations using new simple processor
-		const processor = new SimpleConversationProcessor();
+		// Process conversations using shared processor
+		const processor = new SharedConversationProcessor();
 		this.conversations = processor.mergeConversations(this.processedPairs);
 
 		// Initialize with all models available, but haiku models disabled by default in UI

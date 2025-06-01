@@ -10,7 +10,7 @@ import type {
 	Message,
 	ToolUnion,
 } from "@anthropic-ai/sdk/resources/messages";
-import { SimpleConversation, EnhancedMessageParam } from "../utils/simple-conversation-processor";
+import { SimpleConversation, EnhancedMessageParam } from "../../../src/shared-conversation-processor";
 import { markdownToHtml } from "../utils/markdown";
 
 @customElement("simple-conversation-view")
