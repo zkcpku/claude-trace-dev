@@ -102,39 +102,35 @@ export class ClaudeApp extends LitElement {
 
 		return html`
 			<div class="min-h-screen bg-vs-bg text-vs-text font-mono">
-				<div class="max-w-[600px] mx-auto p-4">
-					<div class="text-center mb-8 mt-4">
+				<div class="mx-auto p-4">
+					<div class="mb-8">
 						<div class="mb-4">
-							<span>~</span>
-							<span>claude-traffic</span>
-							<div>
-								<span class="text-vs-muted">${this.data.timestamp || new Date().toISOString()}</span>
-							</div>
+							<span class="text-vs-function">~ claude-traffic</span>
+							<span class="text-vs-muted ml-8">${this.data.timestamp || new Date().toISOString()}</span>
 						</div>
 
 						<div class="mb-8">
 							<span
 								@click=${() => this.switchView("conversations")}
-								class="cursor-pointer py-2 px-4 mr-4 inline-block leading-tight ${this.currentView ===
-								"conversations"
-									? "bg-vs-nav-active text-black"
-									: "bg-vs-nav text-vs-text hover:bg-vs-nav-hover"}"
+								class="cursor-pointer mr-12 ${this.currentView === "conversations"
+									? "text-vs-nav-active"
+									: "text-vs-text hover:text-vs-accent"}"
 							>
 								conversations (${filteredConversations.length})
 							</span>
 							<span
 								@click=${() => this.switchView("raw")}
-								class="cursor-pointer py-2 px-4 mr-4 inline-block leading-tight ${this.currentView === "raw"
-									? "bg-vs-nav-active text-black"
-									: "bg-vs-nav text-vs-text hover:bg-vs-nav-hover"}"
+								class="cursor-pointer mr-12 ${this.currentView === "raw"
+									? "text-vs-nav-active"
+									: "text-vs-text hover:text-vs-accent"}"
 							>
 								raw calls (${this.filteredRawPairs.length})
 							</span>
 							<span
 								@click=${() => this.switchView("json")}
-								class="cursor-pointer py-2 px-4 mr-4 inline-block leading-tight ${this.currentView === "json"
-									? "bg-vs-nav-active text-black"
-									: "bg-vs-nav text-vs-text hover:bg-vs-nav-hover"}"
+								class="cursor-pointer mr-12 ${this.currentView === "json"
+									? "text-vs-nav-active"
+									: "text-vs-text hover:text-vs-accent"}"
 							>
 								json debug (${this.filteredProcessedPairs.length})
 							</span>
@@ -142,19 +138,17 @@ export class ClaudeApp extends LitElement {
 
 						${modelCounts.size > 1
 							? html`
-									<div>
-										<div>
-											${Array.from(modelCounts.entries()).map(([model, _count]) => {
-												return html`
-													<span
-														@click=${() => this.toggleModel(model)}
-														class="cursor-pointer mr-4 hover:text-vs-accent"
-													>
-														${this.selectedModels.has(model) ? "[x]" : "[ ]"} ${model}
-													</span>
-												`;
-											})}
-										</div>
+									<div class="mb-4">
+										${Array.from(modelCounts.entries()).map(([model, _count]) => {
+											return html`
+												<span
+													@click=${() => this.toggleModel(model)}
+													class="cursor-pointer hover:text-vs-accent mr-8"
+												>
+													${this.selectedModels.has(model) ? "[x]" : "[ ]"} ${model}
+												</span>
+											`;
+										})}
 									</div>
 								`
 							: ""}

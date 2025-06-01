@@ -72,20 +72,16 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "TodoWrite" || block.name === "Edit" || block.name === "MultiEdit") {
 							return html`
 								<div class="mb-4">
-									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
-										${this.getToolDisplayName(block)}
-									</div>
+									<div class="text-vs-type px-4 py-2 mb-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
-									${toolResult ? this.renderToolResult(toolResult) : ""}
+									${toolResult ? this.renderToolResult(toolResult, block) : ""}
 								</div>
 							`;
 						}
 						if (block.name === "Write") {
 							return html`
 								<div class="mb-4">
-									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
-										${this.getToolDisplayName(block)}
-									</div>
+									<div class="text-vs-type px-4 py-2 mb-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 										${this.renderToolUseContent(block)}
 									</div>
@@ -95,14 +91,14 @@ export class SimpleConversationView extends LitElement {
 									>
 										${this.renderWritePreview(block)}
 									</div>
-									${toolResult ? this.renderToolResult(toolResult) : ""}
+									${toolResult ? this.renderToolResult(toolResult, block) : ""}
 								</div>
 							`;
 						}
 						return html`
 							<div class="mb-4">
 								<div
-									class="text-vs-type font-bold  px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+									class="text-vs-type px-4 py-2 mb-2 break-all cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
@@ -111,7 +107,7 @@ export class SimpleConversationView extends LitElement {
 								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 									${this.renderToolUseContent(block)}
 								</div>
-								${toolResult ? this.renderToolResult(toolResult) : ""}
+								${toolResult ? this.renderToolResult(toolResult, block) : ""}
 							</div>
 						`;
 					}
@@ -209,9 +205,7 @@ export class SimpleConversationView extends LitElement {
 						if (block.name === "TodoWrite") {
 							return html`
 								<div class="mb-4">
-									<div class="text-vs-type font-bold  px-4 py-2 inline-block mb-2">
-										${this.getToolDisplayName(block)}
-									</div>
+									<div class="text-vs-type px-4 py-2 mb-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
 								</div>
 							`;
@@ -219,7 +213,7 @@ export class SimpleConversationView extends LitElement {
 						return html`
 							<div class="mb-4">
 								<div
-									class="text-vs-type font-bold  px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+									class="text-vs-type px-4 py-2 mb-2 break-all cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
@@ -363,21 +357,21 @@ export class SimpleConversationView extends LitElement {
 		}
 
 		if (toolName === "NotebookEdit" && input?.new_source) {
-			const content = unescapeHtml(input.new_source);
+			const content = input.new_source;
 
 			return html`
 				<div class="overflow-x-auto">
-					<pre class="whitespace-pre text-vs-text m-0">${content}</pre>
+					<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${content}</pre>
 				</div>
 			`;
 		}
 
 		if (toolName === "Write" && input?.content) {
-			const content = unescapeHtml(input.content);
+			const content = input.content;
 
 			return html`
 				<div class="overflow-x-auto">
-					<pre class="whitespace-pre text-vs-text m-0">${content}</pre>
+					<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${content}</pre>
 				</div>
 			`;
 		}
@@ -388,8 +382,8 @@ export class SimpleConversationView extends LitElement {
 			return html`
 				<div class="overflow-x-auto">
 					${edits.map((edit: any, index: number) => {
-						const oldStr = unescapeHtml(edit.old_string);
-						const newStr = unescapeHtml(edit.new_string);
+						const oldStr = edit.old_string;
+						const newStr = edit.new_string;
 
 						// Use proper diff algorithm
 						const diff = Diff.diffLines(oldStr, newStr);
@@ -429,8 +423,8 @@ export class SimpleConversationView extends LitElement {
 		}
 
 		if (toolName === "Edit" && input?.old_string && input?.new_string) {
-			const oldStr = unescapeHtml(input.old_string);
-			const newStr = unescapeHtml(input.new_string);
+			const oldStr = input.old_string;
+			const newStr = input.new_string;
 
 			// Use proper diff algorithm
 			const diff = Diff.diffLines(oldStr, newStr);
@@ -462,16 +456,34 @@ export class SimpleConversationView extends LitElement {
 		// Default: show JSON parameters
 		return html`
 			<div class="overflow-x-auto">
-				<pre class="whitespace-pre">${JSON.stringify(input, null, 2)}</pre>
+				<pre style="white-space: pre; font-family: monospace;">${JSON.stringify(input, null, 2)}</pre>
 			</div>
 		`;
 	}
 
-	private renderToolResult(toolResult: any): TemplateResult {
+	private renderToolResult(toolResult: any, toolUse?: any): TemplateResult {
 		return html`
 			<div class="mb-4">
+				${toolUse
+					? html`
+							<div class="mb-2">
+								<div
+									class="text-vs-muted px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+									@click=${this.toggleContent}
+								>
+									<span class="mr-2">[+]</span>
+									Raw Tool Call
+								</div>
+								<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
+									<pre style="white-space: pre; font-family: monospace;">
+${JSON.stringify(toolUse, null, 2)}</pre
+									>
+								</div>
+							</div>
+						`
+					: ""}
 				<div
-					class="text-vs-function font-bold px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
+					class="text-vs-function px-4 py-2 inline-block mb-2 cursor-pointer hover:text-white transition-colors"
 					@click=${this.toggleContent}
 				>
 					<span class="mr-2">[+]</span>
@@ -492,21 +504,14 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 			return html`<div class="text-vs-muted">No content</div>`;
 		}
 
-		// HTML unescape function
-		const unescapeHtml = (str: string): string => {
-			const div = document.createElement("div");
-			div.innerHTML = str;
-			return div.textContent || div.innerText || "";
-		};
-
-		const content = unescapeHtml(input.content);
+		const content = input.content;
 		const lines = content.split("\n");
 		const preview = lines.slice(0, 10);
 		const hasMore = lines.length > 10;
 
 		return html`
 			<div class="overflow-x-auto">
-				<pre class="whitespace-pre text-vs-text m-0">${preview.join("\n")}</pre>
+				<pre class="text-vs-text m-0" style="white-space: pre; font-family: monospace;">${preview.join("\n")}</pre>
 			</div>
 			${hasMore
 				? html`<div class="text-vs-muted mt-2 border-t border-vs-border pt-2">
@@ -593,12 +598,10 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 										<div class="hidden">
 											<!-- Conversation Header -->
 											<div class="border border-vs-highlight p-4 mb-0">
-												<div class="text-vs-assistant font-bold">
-													${Array.from(conversation.models).join(", ")}
-												</div>
+												<div class="text-vs-assistant">${Array.from(conversation.models).join(", ")}</div>
 												<div class="text-vs-muted">
-													${new Date(conversation.metadata.startTime).toLocaleString()} •
-													${conversation.messages.length + 1} messages
+													${new Date(conversation.metadata.startTime).toLocaleString()}
+													<span class="ml-4">${conversation.messages.length + 1} messages</span>
 												</div>
 											</div>
 
@@ -688,12 +691,10 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 										<!-- Regular Conversation -->
 										<!-- Conversation Header -->
 										<div class="border border-vs-highlight p-4 mb-0">
-											<div class="text-vs-assistant font-bold">
-												${Array.from(conversation.models).join(", ")}
-											</div>
+											<div class="text-vs-assistant">${Array.from(conversation.models).join(", ")}</div>
 											<div class="text-vs-muted">
-												${new Date(conversation.metadata.startTime).toLocaleString()} •
-												${conversation.messages.length + 1} messages
+												${new Date(conversation.metadata.startTime).toLocaleString()}
+												<span class="ml-4">${conversation.messages.length + 1} messages</span>
 											</div>
 										</div>
 
