@@ -79,7 +79,14 @@ export function takeScreenshot(screenshotPath: string, windowId?: number): strin
 					// Use native utility to capture window directly by cgWindowID
 					const __filename = fileURLToPath(import.meta.url);
 					const __dirname = dirname(__filename);
-					const captureUtilPath = join(__dirname, "native", "capture-window");
+					let captureUtilPath = join(__dirname, "native", "capture-window");
+
+					// If the captureUtilPath doesn't exist, we might be running via tsx
+					// so we need to adjust to __dirname/../dist/native/capture-window
+					if (!existsSync(captureUtilPath)) {
+						captureUtilPath = join(__dirname, "../dist/native", "capture-window");
+					}
+
 					execSync(`"${captureUtilPath}" ${targetWindow.cgWindowID} "${filepath}"`, { stdio: "pipe" });
 				} else {
 					execSync(`screencapture -x -t png "${filepath}"`, { stdio: "pipe" });
@@ -202,7 +209,14 @@ export function listWindows(): WindowInfo[] {
 		// Use the native Swift utility to get window information
 		const __filename = fileURLToPath(import.meta.url);
 		const __dirname = dirname(__filename);
-		const nativeUtilPath = join(__dirname, "native", "list-windows");
+		let nativeUtilPath = join(__dirname, "native", "list-windows");
+
+		// If the nativeUtilPath doesn't exist, we might be running via tsx
+		// so we need to adjust to __dirname/../dist/native/list-windows
+		if (!existsSync(nativeUtilPath)) {
+			nativeUtilPath = join(__dirname, "../dist/native", "list-windows");
+		}
+
 		const result = execSync(nativeUtilPath, {
 			encoding: "utf8",
 			stdio: "pipe",
