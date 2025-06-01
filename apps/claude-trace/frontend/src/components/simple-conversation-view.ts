@@ -578,7 +578,9 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 					return this.renderCollapsibleSection(
 						tool.name,
 						html`
-							<div class="text-vs-text mb-3 markdown-content">${unsafeHTML(markdownToHtml(description))}</div>
+							<div class="text-vs-text ml-4 mb-3 markdown-content">
+								${unsafeHTML(markdownToHtml(description))}
+							</div>
 
 							${"input_schema" in tool && tool.input_schema && typeof tool.input_schema === "object"
 								? (() => {
@@ -593,7 +595,7 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 													const desc = def.description ? ` - ${def.description}` : "";
 													return html`
 														<div class="ml-4 mb-1">
-															<span class="text-vs-type">${paramName}</span>
+															<span class="text-vs-user">${paramName}</span>
 															<span class="text-vs-muted">${type}${required}${desc}</span>
 														</div>
 													`;
@@ -622,7 +624,7 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 			${conversation.system
 				? this.renderCollapsibleSection(
 						"System Prompt",
-						html`<div class="text-vs-text markdown-content">
+						html`<div class="text-vs-text markdown-content mb-4">
 							${unsafeHTML(this.formatSystem(conversation.system))}
 						</div>`,
 						{
