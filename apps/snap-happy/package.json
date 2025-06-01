@@ -1,6 +1,6 @@
 {
 	"name": "@mariozechner/snap-happy",
-	"version": "1.0.5",
+	"version": "1.0.7",
 	"description": "MCP server for screenshot functionality",
 	"type": "module",
 	"main": "dist/index.js",
