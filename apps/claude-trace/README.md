@@ -49,13 +49,11 @@ Logs are saved to `.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}` in your c
 # Install dependencies
 npm install
 
-# Start development server
+# Start dev mode
 npm run dev
 ```
 
-Dev mode compiles both the main app (`src/`) and frontend (`frontend/src/`) with file watching. It serves the project at `http://localhost:8080`.
-
-For frontend development, open `http://localhost:8080/test` to see live updates as you modify frontend code.
+Dev mode compiles both the main app (`src/`) and frontend (`frontend/src/`) with file watching. For frontend development, open `http://localhost:8080/test` to see live updates as you modify frontend code.
 
 ### Testing the CLI
 
@@ -67,7 +65,7 @@ node --no-deprecation dist/cli.js
 npx tsx --no-deprecation src/cli.ts
 ```
 
-### Building for publishing
+### Building
 
 ```bash
 # Build everything
@@ -112,5 +110,3 @@ The built artifacts are ready for npm publishing and include:
    - **`components/raw-pairs-view.ts`** - Raw HTTP traffic viewer
    - **`components/json-view.ts`** - JSON debug data viewer
    - **`styles.css`** - Tailwind CSS with VS Code theme variables
-
-**Data flow:** HTTP traffic → mitmproxy → JSONL logs → HTML generator → Self-contained viewer
