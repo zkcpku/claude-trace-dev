@@ -71,7 +71,7 @@ export class SimpleConversationView extends LitElement {
 
 						if (block.name === "TodoWrite" || block.name === "Edit" || block.name === "MultiEdit") {
 							return html`
-								<div class="mb-4">
+								<div class="mt-4 mb-4">
 									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
 									${toolResult ? this.renderToolResult(toolResult, block) : ""}
@@ -80,7 +80,7 @@ export class SimpleConversationView extends LitElement {
 						}
 						if (block.name === "Write") {
 							return html`
-								<div class="mb-4">
+								<div class="mt-4 mb-4">
 									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text hidden">
 										${this.renderToolUseContent(block)}
@@ -96,7 +96,7 @@ export class SimpleConversationView extends LitElement {
 							`;
 						}
 						return html`
-							<div class="mb-4">
+							<div class="mt-4 mb-4">
 								<div
 									class="text-vs-type px-4 py-2 break-all cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
@@ -140,7 +140,7 @@ export class SimpleConversationView extends LitElement {
 		let mainContent = content.replace(systemReminderRegexEscaped, "").replace(systemReminderRegexRaw, "").trim();
 
 		return html`
-			${mainContent ? html`<div class="markdown-content">${unsafeHTML(markdownToHtml(mainContent))}</div>` : ""}
+			${mainContent ? html`<div class="mt-4 markdown-content">${unsafeHTML(markdownToHtml(mainContent))}</div>` : ""}
 			${systemReminders.length > 0
 				? html`
 						<div class="mt-4 mb-4">
@@ -200,18 +200,18 @@ export class SimpleConversationView extends LitElement {
 			return html`
 				${response.content.map((block) => {
 					if (block.type === "text") {
-						return html`<div class="markdown-content">${unsafeHTML(markdownToHtml(block.text))}</div>`;
+						return html`<div class="mt-4 markdown-content">${unsafeHTML(markdownToHtml(block.text))}</div>`;
 					} else if (block.type === "tool_use") {
 						if (block.name === "TodoWrite") {
 							return html`
-								<div class="mb-4">
+								<div class="mt-4 mb-4">
 									<div class="text-vs-type px-4 py-2 break-all">${this.getToolDisplayName(block)}</div>
 									<div class="bg-vs-bg-secondary p-4 text-vs-text">${this.renderToolUseContent(block)}</div>
 								</div>
 							`;
 						}
 						return html`
-							<div class="mb-4">
+							<div class="mt-4 mb-4">
 								<div
 									class="text-vs-type px-4 py-2 break-all cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
@@ -484,7 +484,7 @@ export class SimpleConversationView extends LitElement {
 		return html`
 			<div class="mb-4">
 				<div
-					class="text-vs-muted px-4 py-2 cursor-pointer hover:text-white transition-colors"
+					class="text-vs-muted px-4 pt-2 pb-0 cursor-pointer hover:text-white transition-colors"
 					@click=${this.toggleContent}
 				>
 					<span class="mr-2">[+]</span>
@@ -499,7 +499,7 @@ ${typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(t
 					? html`
 							<div>
 								<div
-									class="text-vs-muted px-4 py-2 cursor-pointer hover:text-white transition-colors"
+									class="text-vs-muted px-4 pt-0 pb-2 cursor-pointer hover:text-white transition-colors"
 									@click=${this.toggleContent}
 								>
 									<span class="mr-2">[+]</span>
