@@ -12,6 +12,44 @@ import type {
 	SerializedToolDefinition,
 } from "./types.js";
 
+/**
+ * Deep comparison of JSON schemas, ignoring metadata and property order
+ * Focuses on the structural definition of the schema
+ */
+function deepSchemaEquals(schema1: object, schema2: object): boolean {
+	// Convert both schemas to normalized strings for comparison
+	const normalize = (obj: any): any => {
+		if (obj === null || typeof obj !== "object") {
+			return obj;
+		}
+
+		if (Array.isArray(obj)) {
+			return obj.map(normalize).sort();
+		}
+
+		const normalized: Record<string, any> = {};
+		const keys = Object.keys(obj)
+			.filter(
+				(key) =>
+					// Filter out metadata keys that don't affect the schema structure
+					!["$schema", "title", "description", "$id"].includes(key),
+			)
+			.sort();
+
+		for (const key of keys) {
+			normalized[key] = normalize(obj[key]);
+		}
+
+		return normalized;
+	};
+
+	try {
+		return JSON.stringify(normalize(schema1)) === JSON.stringify(normalize(schema2));
+	} catch {
+		return false;
+	}
+}
+
 export class Context {
 	private systemMessage?: string;
 	private messages: Message[] = [];
@@ -221,12 +259,26 @@ export class Context {
 			context.addMessage(message);
 		}
 
-		// Restore tools by matching names
+		// Restore tools by matching names and validating schemas
 		for (const serializedTool of serialized.tools) {
 			const matchingTool = tools.find((tool) => tool.name === serializedTool.name);
 			if (!matchingTool) {
 				throw new Error(`Cannot restore tool '${serializedTool.name}': no matching tool definition provided`);
 			}
+
+			// Validate that the tool's Zod schema matches the serialized JSON schema
+			const expectedJsonSchema = zodToJsonSchema(matchingTool.schema, {
+				name: matchingTool.name,
+				target: "jsonSchema7",
+			});
+
+			// Deep comparison of the schemas (ignoring order and extra metadata)
+			if (!deepSchemaEquals(serializedTool.jsonSchema, expectedJsonSchema)) {
+				throw new Error(
+					`Tool schema mismatch for '${serializedTool.name}': serialized schema does not match the provided tool definition schema`,
+				);
+			}
+
 			context.addTool(matchingTool);
 		}
 

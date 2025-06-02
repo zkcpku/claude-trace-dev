@@ -438,5 +438,39 @@ describe("Context", () => {
 				Context.deserialize(serialized, [tool1]);
 			}).toThrow("Cannot restore tool 'tool2': no matching tool definition provided");
 		});
+
+		it("should throw error when tool schema doesn't match", () => {
+			const originalTool = defineTool({
+				name: "calculator",
+				description: "Math tool",
+				schema: z.object({
+					a: z.number(),
+					b: z.number(),
+				}),
+				execute: async (args) => args.a + args.b,
+			});
+
+			const modifiedTool = defineTool({
+				name: "calculator", // Same name
+				description: "Math tool", // Same description
+				schema: z.object({
+					x: z.number(), // Different schema!
+					y: z.number(),
+				}),
+				execute: async (args) => args.x + args.y,
+			});
+
+			const original = new Context();
+			original.addTool(originalTool);
+
+			const serialized = original.serialize();
+
+			// Try to restore with a tool that has the same name but different schema
+			expect(() => {
+				Context.deserialize(serialized, [modifiedTool]);
+			}).toThrow(
+				"Tool schema mismatch for 'calculator': serialized schema does not match the provided tool definition schema",
+			);
+		});
 	});
 });
