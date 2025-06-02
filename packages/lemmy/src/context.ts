@@ -1,6 +1,16 @@
 import { findModelData, type ModelData } from "./model-registry.js";
 import { validateAndExecute } from "./tools/index.js";
-import type { Message, TokenUsage, ToolCall, ToolDefinition, ToolError, ExecuteToolResult } from "./types.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import type {
+	Message,
+	TokenUsage,
+	ToolCall,
+	ToolDefinition,
+	ToolError,
+	ExecuteToolResult,
+	SerializedContext,
+	SerializedToolDefinition,
+} from "./types.js";
 
 export class Context {
 	private systemMessage?: string;
@@ -164,5 +174,62 @@ export class Context {
 	 */
 	async executeTools(toolCalls: ToolCall[]): Promise<ExecuteToolResult[]> {
 		return Promise.all(toolCalls.map((toolCall) => this.executeTool(toolCall)));
+	}
+
+	/**
+	 * Serialize context to JSON-compatible format
+	 * @returns Serialized context with JSON schemas for tools
+	 */
+	serialize(): SerializedContext {
+		const serializedTools: SerializedToolDefinition[] = [];
+
+		for (const tool of this.tools.values()) {
+			const jsonSchema = zodToJsonSchema(tool.schema, {
+				name: tool.name,
+				target: "jsonSchema7",
+			});
+
+			serializedTools.push({
+				name: tool.name,
+				description: tool.description,
+				jsonSchema,
+			});
+		}
+
+		return {
+			...(this.systemMessage && { systemMessage: this.systemMessage }),
+			messages: [...this.messages],
+			tools: serializedTools,
+		};
+	}
+
+	/**
+	 * Deserialize context from JSON-compatible format
+	 * @param serialized Serialized context data
+	 * @param tools Array of tool definitions to restore (must match serialized tools)
+	 * @returns New Context instance with restored data
+	 * @throws Error if a serialized tool cannot be matched with provided tools
+	 */
+	static deserialize(serialized: SerializedContext, tools: ToolDefinition<any, any>[] = []): Context {
+		const context = new Context();
+
+		if (serialized.systemMessage) {
+			context.setSystemMessage(serialized.systemMessage);
+		}
+
+		for (const message of serialized.messages) {
+			context.addMessage(message);
+		}
+
+		// Restore tools by matching names
+		for (const serializedTool of serialized.tools) {
+			const matchingTool = tools.find((tool) => tool.name === serializedTool.name);
+			if (!matchingTool) {
+				throw new Error(`Cannot restore tool '${serializedTool.name}': no matching tool definition provided`);
+			}
+			context.addTool(matchingTool);
+		}
+
+		return context;
 	}
 }

@@ -167,6 +167,33 @@ while (currentResult.type === "success" && currentResult.stopReason === "tool_ca
 console.log(currentResult.message.content); // Final response
 ```
 
+## Context Serialization
+
+Contexts can be serialized to JSON for persistence and restored later:
+
+```typescript
+// Serialize context with tools and messages
+const context = new Context();
+context.setSystemMessage("You are a helpful assistant");
+context.addTool(calculatorTool);
+
+// Add some conversation history
+await claude.ask("Calculate 15 + 27", { context });
+
+// Serialize to JSON-compatible format
+const serialized = context.serialize();
+localStorage.setItem("conversation", JSON.stringify(serialized));
+
+// Later: restore from serialized data
+const restored = JSON.parse(localStorage.getItem("conversation"));
+const newContext = Context.deserialize(restored, [calculatorTool]);
+
+// Continue conversation with restored context
+await claude.ask("What was that result again?", { context: newContext });
+```
+
+**Note**: Tool implementations with `execute` functions cannot be serialized. You must provide the original tool definitions when deserializing.
+
 ## What Doesn't Work Yet
 
 - **MCP (Model Context Protocol)**: Not implemented yet

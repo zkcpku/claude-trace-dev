@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Context } from "../src/context.js";
+import { defineTool } from "../src/tools/index.js";
+import { z } from "zod";
 import type { Message } from "../src/types.js";
 
 describe("Context", () => {
@@ -303,6 +305,138 @@ describe("Context", () => {
 
 			context.addMessage(message);
 			expect(context.getTotalCost()).toBe(0);
+		});
+	});
+
+	describe("serialization", () => {
+		it("should serialize context with tools to JSON", () => {
+			const context = new Context();
+			context.setSystemMessage("You are a helpful assistant");
+
+			const message: Message = {
+				role: "user",
+				content: "Hello",
+				timestamp: new Date(),
+			};
+			context.addMessage(message);
+
+			const serialized = context.serialize();
+
+			expect(serialized.systemMessage).toBe("You are a helpful assistant");
+			expect(serialized.messages).toHaveLength(1);
+			expect(serialized.messages[0]).toEqual(message);
+			expect(serialized.tools).toHaveLength(0);
+			expect(() => JSON.stringify(serialized)).not.toThrow();
+		});
+
+		it("should serialize context with tools", () => {
+			const context = new Context();
+			context.setSystemMessage("Test system");
+
+			const testTool = defineTool({
+				name: "test",
+				description: "Test tool",
+				schema: z.object({
+					value: z.string(),
+				}),
+				execute: async (args) => args.value.toUpperCase(),
+			});
+
+			context.addTool(testTool);
+
+			const serialized = context.serialize();
+
+			expect(serialized.tools).toHaveLength(1);
+			expect(serialized.tools[0].name).toBe("test");
+			expect(serialized.tools[0].description).toBe("Test tool");
+			expect(serialized.tools[0].jsonSchema).toBeDefined();
+			expect(typeof serialized.tools[0].jsonSchema).toBe("object");
+		});
+
+		it("should deserialize context without tools", () => {
+			const original = new Context();
+			original.setSystemMessage("Test message");
+
+			const message: Message = {
+				role: "user",
+				content: "Hello",
+				timestamp: new Date(),
+			};
+			original.addMessage(message);
+
+			const serialized = original.serialize();
+			const restored = Context.deserialize(serialized);
+
+			expect(restored.getSystemMessage()).toBe("Test message");
+			expect(restored.getMessages()).toHaveLength(1);
+			expect(restored.getMessages()[0]).toEqual(message);
+			expect(restored.listTools()).toHaveLength(0);
+		});
+
+		it("should deserialize context with tools", () => {
+			const testTool = defineTool({
+				name: "calculator",
+				description: "Math tool",
+				schema: z.object({
+					a: z.number(),
+					b: z.number(),
+				}),
+				execute: async (args) => args.a + args.b,
+			});
+
+			const original = new Context();
+			original.addTool(testTool);
+
+			const serialized = original.serialize();
+			const restored = Context.deserialize(serialized, [testTool]);
+
+			expect(restored.listTools()).toHaveLength(1);
+			expect(restored.listTools()[0].name).toBe("calculator");
+		});
+
+		it("should throw error when deserializing with missing tools", () => {
+			const testTool = defineTool({
+				name: "missing-tool",
+				description: "Tool that will be missing",
+				schema: z.object({}),
+				execute: async () => "result",
+			});
+
+			const original = new Context();
+			original.addTool(testTool);
+
+			const serialized = original.serialize();
+
+			expect(() => {
+				Context.deserialize(serialized, []); // No tools provided
+			}).toThrow("Cannot restore tool 'missing-tool': no matching tool definition provided");
+		});
+
+		it("should handle partial tool restoration", () => {
+			const tool1 = defineTool({
+				name: "tool1",
+				description: "First tool",
+				schema: z.object({}),
+				execute: async () => "1",
+			});
+
+			const tool2 = defineTool({
+				name: "tool2",
+				description: "Second tool",
+				schema: z.object({}),
+				execute: async () => "2",
+			});
+
+			const original = new Context();
+			original.addTool(tool1);
+			original.addTool(tool2);
+
+			const serialized = original.serialize();
+
+			// Only provide tool1 for restoration
+			expect(() => {
+				Context.deserialize(serialized, [tool1]);
+			}).toThrow("Cannot restore tool 'tool2': no matching tool definition provided");
 		});
 	});
 });

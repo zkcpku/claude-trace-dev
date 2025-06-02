@@ -387,4 +387,69 @@ describe("Context Tool Execution", () => {
 			expect(result.result).toBe("pong");
 		}
 	});
+
+	it("should serialize and deserialize context with tools and execute them", async () => {
+		const context = new Context();
+		context.setSystemMessage("Test serialization");
+
+		const calculatorTool = defineTool({
+			name: "calculator",
+			description: "Perform basic arithmetic",
+			schema: z.object({
+				operation: z.enum(["add", "subtract", "multiply", "divide"]),
+				a: z.number(),
+				b: z.number(),
+			}),
+			execute: async (args) => {
+				switch (args.operation) {
+					case "add":
+						return args.a + args.b;
+					case "subtract":
+						return args.a - args.b;
+					case "multiply":
+						return args.a * args.b;
+					case "divide":
+						return args.a / args.b;
+					default:
+						throw new Error("Unknown operation");
+				}
+			},
+		});
+
+		context.addTool(calculatorTool);
+
+		// Add a message
+		const userMessage: UserMessage = {
+			role: "user",
+			content: "Calculate 5 + 3",
+			timestamp: new Date(),
+		};
+		context.addMessage(userMessage);
+
+		// Serialize the context
+		const serialized = context.serialize();
+		expect(serialized.tools).toHaveLength(1);
+		expect(serialized.tools[0]!.name).toBe("calculator");
+		expect(serialized.messages).toHaveLength(1);
+
+		// Deserialize with tools
+		const restored = Context.deserialize(serialized, [calculatorTool]);
+		expect(restored.listTools()).toHaveLength(1);
+		expect(restored.getMessages()).toHaveLength(1);
+		expect(restored.getSystemMessage()).toBe("Test serialization");
+
+		// Execute tool on restored context
+		const toolCall: ToolCall = {
+			id: "calc_1",
+			name: "calculator",
+			arguments: { operation: "add", a: 5, b: 3 },
+		};
+
+		const result = await restored.executeTool(toolCall);
+
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.result).toBe(8);
+		}
+	});
 });

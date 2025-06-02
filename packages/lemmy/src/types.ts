@@ -221,6 +221,30 @@ export interface DefineToolParams<T = Record<string, unknown>, R = unknown> {
 }
 
 /**
+ * Serializable tool definition for Context serialization
+ */
+export interface SerializedToolDefinition {
+	/** Unique name of the tool */
+	name: string;
+	/** Description of what the tool does */
+	description: string;
+	/** JSON Schema representation of the tool's parameters */
+	jsonSchema: object;
+}
+
+/**
+ * Serializable context representation
+ */
+export interface SerializedContext {
+	/** System message for the conversation */
+	systemMessage?: string;
+	/** All messages in the conversation history */
+	messages: Message[];
+	/** Tool definitions in JSON-serializable format */
+	tools: SerializedToolDefinition[];
+}
+
+/**
  * Result of tool execution with type-safe discriminated union
  */
 export type ExecuteToolResult =
