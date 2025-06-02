@@ -347,10 +347,10 @@ describe("Context", () => {
 			const serialized = context.serialize();
 
 			expect(serialized.tools).toHaveLength(1);
-			expect(serialized.tools[0].name).toBe("test");
-			expect(serialized.tools[0].description).toBe("Test tool");
-			expect(serialized.tools[0].jsonSchema).toBeDefined();
-			expect(typeof serialized.tools[0].jsonSchema).toBe("object");
+			expect(serialized.tools[0]?.name).toBe("test");
+			expect(serialized.tools[0]?.description).toBe("Test tool");
+			expect(serialized.tools[0]?.jsonSchema).toBeDefined();
+			expect(typeof serialized.tools[0]?.jsonSchema).toBe("object");
 		});
 
 		it("should deserialize context without tools", () => {
@@ -391,7 +391,7 @@ describe("Context", () => {
 			const restored = Context.deserialize(serialized, [testTool]);
 
 			expect(restored.listTools()).toHaveLength(1);
-			expect(restored.listTools()[0].name).toBe("calculator");
+			expect(restored.listTools()[0]?.name).toBe("calculator");
 		});
 
 		it("should throw error when deserializing with missing tools", () => {
