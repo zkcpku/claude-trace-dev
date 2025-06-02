@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { RawPair, BridgeConfig } from "./types.js";
+import { transformAnthropicToLemmy, type TransformResult } from "./transform.js";
+import type { MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages/messages.js";
 
 interface Logger {
 	log(message: string): void;
@@ -38,6 +40,7 @@ class FileLogger implements Logger {
 export class ClaudeBridgeInterceptor {
 	private logDir: string;
 	private requestsFile: string;
+	private transformedFile: string;
 	private logger: Logger;
 	private pendingRequests: Map<string, any> = new Map();
 	private pairs: RawPair[] = [];
@@ -61,10 +64,13 @@ export class ClaudeBridgeInterceptor {
 		// Generate timestamped filename for requests
 		const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").slice(0, -5);
 		this.requestsFile = path.join(this.logDir, `requests-${timestamp}.jsonl`);
+		this.transformedFile = path.join(this.logDir, `transformed-${timestamp}.jsonl`);
 
-		// Clear requests file
+		// Clear files
 		fs.writeFileSync(this.requestsFile, "");
+		fs.writeFileSync(this.transformedFile, "");
 		this.logger.log(`Initialized Claude Bridge Interceptor - requests logged to ${this.requestsFile}`);
+		this.logger.log(`Transformed requests logged to ${this.transformedFile}`);
 	}
 
 	private isAnthropicAPI(url: string | URL): boolean {
@@ -183,6 +189,9 @@ export class ClaudeBridgeInterceptor {
 				body: await interceptor.parseRequestBody(init.body),
 			};
 
+			// Transform Anthropic request to lemmy format
+			await interceptor.transformAndLogRequest(requestData);
+
 			interceptor.pendingRequests.set(requestId, requestData);
 
 			try {
@@ -231,6 +240,42 @@ export class ClaudeBridgeInterceptor {
 			fs.appendFileSync(this.requestsFile, jsonLine);
 		} catch (error) {
 			this.logger.error(`Failed to write request pair: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	private async transformAndLogRequest(requestData: any): Promise<void> {
+		try {
+			// Only transform POST requests to /v1/messages
+			if (requestData.method !== "POST" || !requestData.body) {
+				return;
+			}
+
+			const anthropicRequest = requestData.body as MessageCreateParamsBase;
+
+			// Transform to lemmy format
+			const transformResult: TransformResult = transformAnthropicToLemmy(anthropicRequest);
+
+			// Create transformation log entry
+			const transformationEntry = {
+				timestamp: Date.now() / 1000,
+				request_id: this.generateRequestId(),
+				original_anthropic: anthropicRequest,
+				lemmy_context: transformResult.context,
+				anthropic_params: transformResult.anthropicParams,
+				bridge_config: {
+					provider: this.config.provider || "unknown",
+					model: this.config.model || "unknown",
+				},
+				logged_at: new Date().toISOString(),
+			};
+
+			// Write to transformed.jsonl
+			const jsonLine = JSON.stringify(transformationEntry) + "\n";
+			fs.appendFileSync(this.transformedFile, jsonLine);
+
+			this.logger.log(`Transformed and logged request to ${this.transformedFile}`);
+		} catch (error) {
+			this.logger.error(`Failed to transform request: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 

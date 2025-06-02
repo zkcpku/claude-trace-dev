@@ -56,16 +56,18 @@ Claude Code → claude-bridge (intercept) → Transform → Provider API → Tra
 1. **Interception**: Instruments `global.fetch()` to catch calls to `api.anthropic.com/v1/messages`
 2. **Logging**: Raw requests logged to `{logDir}/requests-{timestamp}.jsonl`
 3. **Debug Info**: Interceptor logs to `{logDir}/log.txt` (avoids stdout pollution)
-4. **Transformation**: _(TODO)_ Convert Anthropic format → lemmy unified → target provider
-5. **Forwarding**: _(TODO)_ Send to OpenAI/Google APIs and stream response back
+4. **Transformation**: ✅ Convert Anthropic requests → lemmy UserMessage/AssistantMessage format
+5. **Logging Transformed**: Converted messages logged to `{logDir}/transformed-{timestamp}.jsonl`
+6. **Forwarding**: _(TODO)_ Send to OpenAI/Google APIs and stream response back
 
 ### Project Structure
 
 ```
 src/
 ├── cli.ts                  # CLI entry point with commander
-├── interceptor.ts          # Fetch interception + file logging
+├── interceptor.ts          # Fetch interception + file logging + transformation
 ├── interceptor-loader.js   # CommonJS loader for tsx compatibility
+├── transform.ts           # Anthropic → lemmy Message conversion
 ├── types.ts               # TypeScript interfaces
 └── index.ts               # Package exports
 
@@ -133,6 +135,9 @@ cat .claude-bridge/log.txt
 
 # Check raw requests (when Claude actually makes calls)
 cat .claude-bridge/requests-*.jsonl | jq
+
+# Check transformed lemmy messages
+cat .claude-bridge/transformed-*.jsonl | jq
 ```
 
 ### Current Status
@@ -141,13 +146,61 @@ cat .claude-bridge/requests-*.jsonl | jq
 - ✅ **File Logging**: Working - requests.jsonl + log.txt
 - ✅ **CLI Interface**: Working - all arguments and validation
 - ✅ **Testing**: Working - 4 smoke tests passing
-- 🔄 **Request Transformation**: TODO - Anthropic → lemmy → provider format
+- ✅ **Request Transformation**: Working - Anthropic → lemmy UserMessage/AssistantMessage
+- ✅ **Transformation Logging**: Working - transformed.jsonl with lemmy messages + anthropic params
 - 🔄 **Provider Forwarding**: TODO - Call OpenAI/Google APIs
 - 🔄 **Response Streaming**: TODO - Forward SSE back to Claude Code
 
 ### Next Steps
 
-1. Implement request transformation using lemmy package
+1. ✅ ~~Implement request transformation using lemmy package~~
 2. Add provider-specific API calls (OpenAI/Google)
 3. Stream provider responses back as Anthropic-compatible SSE
 4. Add more comprehensive testing with real API calls
+
+### Transformation Details
+
+The `transform.ts` module converts Anthropic API requests to lemmy's unified format:
+
+- **Input**: Anthropic `MessageCreateParamsBase` (from `@anthropic-ai/sdk`)
+- **Output**: `TransformResult` containing:
+   - `context`: Lemmy `Context` object with system message, messages, and tools
+   - `anthropicParams`: Anthropic-specific parameters not stored in Context
+
+**Context includes:**
+
+- **System message** → `context.setSystemMessage()`
+- **Messages** → `context.addMessage()` for each `UserMessage`/`AssistantMessage`
+- **Tools** → Preserved in `anthropicParams.tools` (not converted to lemmy format)
+
+**Supported conversions:**
+
+- Text content → `UserMessage.content` / `AssistantMessage.content`
+- Images → `UserMessage.attachments[]` with proper mime types
+- Tool results → `UserMessage.toolResults[]`
+- Tool calls → `AssistantMessage.toolCalls[]`
+- Thinking blocks → `AssistantMessage.thinking` + `thinkingSignature`
+- Tool definitions → Preserved as original Anthropic format in `anthropicParams.tools`
+
+**Log format** (`transformed-{timestamp}.jsonl`):
+
+```json
+{
+	"timestamp": 1640995200.123,
+	"request_id": "req_123_abc",
+	"original_anthropic": {
+		/* raw anthropic request */
+	},
+	"lemmy_context": {
+		"system_message": "You are a helpful assistant",
+		"messages": [
+			/* UserMessage/AssistantMessage[] */
+		]
+	},
+	"anthropic_params": {
+		/* model, max_tokens, temperature, etc. */
+	},
+	"bridge_config": { "provider": "openai", "model": "gpt-4o" },
+	"logged_at": "2023-01-01T00:00:00.000Z"
+}
+```
