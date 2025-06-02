@@ -1,0 +1,52 @@
+{
+	"name": "@mariozechner/claude-bridge",
+	"version": "1.0.0",
+	"description": "Use non-Anthropic models with Claude Code by proxying requests through the lemmy unified interface",
+	"type": "module",
+	"main": "dist/index.js",
+	"bin": {
+		"claude-bridge": "dist/cli.js"
+	},
+	"scripts": {
+		"build": "tsc && cp src/interceptor-loader.js dist/",
+		"dev": "tsc --watch --preserveWatchOutput",
+		"clean": "rm -rf dist",
+		"prepublishOnly": "npm run clean && npm run build",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest",
+		"test:run": "vitest run"
+	},
+	"files": [
+		"dist/**/*",
+		"README.md"
+	],
+	"keywords": [
+		"claude",
+		"claude-code",
+		"proxy",
+		"openai",
+		"google",
+		"anthropic",
+		"llm",
+		"api",
+		"bridge"
+	],
+	"author": "Mario Zechner",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/mariozechner/lemmy.git"
+	},
+	"engines": {
+		"node": ">=16.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.13.10",
+		"typescript": "^5.8.3",
+		"vitest": "3.2.0"
+	},
+	"dependencies": {
+		"@mariozechner/lemmy": "file:../../packages/lemmy",
+		"commander": "^12.1.0"
+	}
+}

@@ -36,6 +36,7 @@
 		{ "path": "./packages/lemmy" },
 		{ "path": "./packages/lemmy-tui" },
 		{ "path": "./apps/lemmy-chat" },
-		{ "path": "./apps/red-teaming" }
+		{ "path": "./apps/red-teaming" },
+		{ "path": "./apps/claude-bridge" }
 	]
 }
