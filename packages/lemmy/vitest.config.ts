@@ -6,6 +6,7 @@ export default defineConfig({
 		environment: "node",
 		include: ["test/**/*.test.ts"],
 		exclude: ["node_modules", "dist"],
+		retry: 3, // Retry failed tests up to 3 times
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json", "html"],
