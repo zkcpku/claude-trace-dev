@@ -4,7 +4,8 @@ import { Command } from "commander";
 import { spawn, spawnSync } from "child_process";
 import { getDefaultApiKeyEnvVar, getProviders } from "@mariozechner/lemmy";
 import path from "path";
-import { initializeInterceptor } from "./interceptor.js";
+import { fileURLToPath } from "url";
+import { patchClaudeBinary } from "./patch-claude.js";
 
 interface ClaudeArgs {
 	provider: string;
@@ -12,6 +13,7 @@ interface ClaudeArgs {
 	apiKey?: string;
 	logDir?: string;
 	runWith?: string[];
+	patchClaude?: boolean;
 }
 
 function setupProgram(): Command {
@@ -35,6 +37,11 @@ function setupProgram(): Command {
 	program.option("--log-dir <dir>", "Directory for log files (default: .claude-bridge)");
 
 	program.option("--run-with <args...>", "Arguments to pass to Claude Code (default: chat)");
+
+	program.option(
+		"--patch-claude",
+		"Patch Claude binary to disable anti-debugging checks (allows debugging interceptor)",
+	);
 
 	program.addHelpText(
 		"after",
@@ -67,17 +74,19 @@ function findClaudeExecutable(): string {
 
 	for (const name of possibleNames) {
 		try {
-			const result = spawnSync("which", [name], { stdio: "pipe" });
+			const result = spawnSync("which", [name], { stdio: "pipe", encoding: "utf-8" });
 			if (result.status === 0) {
-				return name;
+				return result.stdout.trim();
 			}
 		} catch {
 			// Continue searching
 		}
 	}
 
-	// Default to 'claude' and let it fail if not found
-	return "claude";
+	// If not found, show error and exit
+	console.error("❌ Claude CLI not found in PATH");
+	console.error("❌ Please install Claude Code CLI first");
+	process.exit(1);
 }
 
 async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
@@ -92,7 +101,7 @@ async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
 	}
 
 	// Default to chat if no run-with args provided
-	const claudeArgs = args.runWith && args.runWith.length > 0 ? args.runWith : ["chat"];
+	const claudeArgs = args.runWith && args.runWith.length > 0 ? args.runWith : [];
 
 	let apiKey = args.apiKey;
 	if (!apiKey) {
@@ -104,30 +113,50 @@ async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
 		}
 	}
 
-	initializeInterceptor({
-		provider: args.provider,
-		model: args.model,
-		apiKey: apiKey,
-		logDirectory: args.logDir || undefined,
-	});
-
 	console.log(`🌉 Claude Bridge starting:`);
 	console.log(`   Provider: ${args.provider}`);
 	console.log(`   Model: ${args.model}`);
 	console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
 
-	const claudeExe = findClaudeExecutable();
+	let claudeExe = findClaudeExecutable();
 
+	// Patch Claude binary if requested
+	if (args.patchClaude) {
+		console.log("🔧 Patching Claude binary to disable anti-debugging...");
+		const logDir = args.logDir || ".claude-bridge";
+		claudeExe = patchClaudeBinary(claudeExe, logDir);
+	}
+
+	const __dirname = path.dirname(fileURLToPath(import.meta.url));
 	const interceptorLoader = path.join(__dirname, "interceptor-loader.js");
 
-	const spawnArgs = ["--require", interceptorLoader, claudeExe, ...claudeArgs];
+	// Filter out debugging flags from node arguments
+	const cleanNodeArgs = ["--import", interceptorLoader];
+
+	const spawnArgs = [...cleanNodeArgs, claudeExe, ...claudeArgs];
 
 	console.log(`🚀 Launching: node ${spawnArgs.join(" ")}`);
+
+	// Clean environment to avoid Claude's anti-debugging checks
+	const cleanEnv = { ...process.env };
+
+	// Remove debugging-related environment variables
+	if (cleanEnv["NODE_OPTIONS"]) {
+		// Remove debugging flags and other problematic options
+		cleanEnv["NODE_OPTIONS"] = cleanEnv["NODE_OPTIONS"]
+			.replace(/--inspect(-brk)?|--debug(-brk)?/g, "")
+			.replace(/-publish-uid=\S+/g, "")
+			.replace(/\s+/g, " ")
+			.trim();
+		if (!cleanEnv["NODE_OPTIONS"]) {
+			delete cleanEnv["NODE_OPTIONS"];
+		}
+	}
 
 	const childProcess = spawn("node", spawnArgs, {
 		stdio: "inherit",
 		env: {
-			...process.env,
+			...cleanEnv,
 			CLAUDE_BRIDGE_PROVIDER: args.provider,
 			CLAUDE_BRIDGE_MODEL: args.model,
 			CLAUDE_BRIDGE_API_KEY: apiKey,
@@ -170,6 +199,7 @@ async function main(argv: string[] = process.argv) {
 			apiKey: options.apiKey,
 			logDir: options.logDir,
 			runWith: options.runWith,
+			patchClaude: options.patchClaude,
 		});
 	});
 

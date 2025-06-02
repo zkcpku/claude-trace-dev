@@ -281,7 +281,7 @@ export function initializeInterceptor(config?: BridgeConfig): ClaudeBridgeInterc
 		provider: process.env["CLAUDE_BRIDGE_PROVIDER"] || "openai",
 		model: process.env["CLAUDE_BRIDGE_MODEL"] || "gpt-4o",
 		apiKey: process.env["CLAUDE_BRIDGE_API_KEY"],
-		logDirectory: process.env["CLAUDE_BRIDGE_LOG_DIR"],
+		logDirectory: process.env["CLAUDE_BRIDGE_LOG_DIR"] || ".claude-bridge",
 	};
 
 	globalInterceptor = new ClaudeBridgeInterceptor({ ...defaultConfig, ...config });

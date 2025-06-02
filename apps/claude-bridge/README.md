@@ -29,6 +29,7 @@ claude-bridge --provider google --model gemini-1.5-pro --log-dir ./my-logs
 - `--apiKey <key>` - API key (optional, uses env vars)
 - `--log-dir <dir>` - Log directory (default: .claude-bridge)
 - `--run-with <args...>` - Claude Code arguments (default: chat)
+- `--patch-claude` - Patch Claude binary to disable anti-debugging (development only)
 
 ### Environment Variables
 
@@ -98,10 +99,18 @@ npm run typecheck
 
 **VSCode Debug Setup:**
 
-1. Set breakpoints in `src/cli.ts` or `src/interceptor.ts`
-2. Open JavaScript Debug Terminal in VSCode
-3. Run: `npx tsx --inspect src/cli.ts --provider openai --model gpt-4o`
-4. Debugger will attach automatically
+Claude Code includes anti-debugging protection that prevents debuggers from attaching. For development, you can patch the Claude binary:
+
+2. Set breakpoints in `src/cli.ts` or `src/interceptor.ts`
+3. Open JavaScript Debug Terminal in VSCode
+4. Run: `npx tsx --inspect src/cli.ts --provider openai --model gpt-4o --patch-code`, `--patch-code` will disable the anti-debug in Claude Code.
+5. Debugger will attach automatically
+
+**⚠️ Warning**: `--patch-claude` modifies your Claude binary in-place. A backup is saved to `{logDir}/claude.backup`. Restore with:
+
+```bash
+cp .claude-bridge/claude.backup /opt/homebrew/bin/claude
+```
 
 **Quick Testing:**
 
@@ -112,8 +121,8 @@ npx tsx src/cli.ts --help
 # Test with minimal args (defaults to chat)
 npx tsx src/cli.ts --provider openai --model gpt-4o
 
-# Test interception (will fail on claude executable but logs are created)
-OPENAI_API_KEY=sk-test npx tsx src/cli.ts --provider openai --model gpt-4o --log-dir ./test-logs
+# For debugging/development with patched Claude
+npx tsx src/cli.ts --provider openai --model gpt-4o --patch-claude
 ```
 
 **Log Inspection:**
