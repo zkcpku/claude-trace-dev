@@ -30,7 +30,8 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
-		"composite": true
+		"composite": true,
+		"preserveWatchOutput": true
 	},
 	"references": [
 		{ "path": "./packages/lemmy" },

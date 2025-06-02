@@ -103,3 +103,4 @@ apps/claude-tools/intercept.log
 .claude-logger
 apps/claude-trace/test/index.html
 .claude-trace
+apps/claude-bridge/.claude-bridge

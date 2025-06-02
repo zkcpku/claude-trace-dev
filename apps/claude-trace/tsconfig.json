@@ -16,7 +16,8 @@
 		"declaration": true,
 		"declarationMap": true,
 		"sourceMap": true,
-		"types": ["node"]
+		"types": ["node"],
+		"preserveWatchOutput": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist", "test", "frontend"]
