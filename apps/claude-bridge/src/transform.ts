@@ -22,9 +22,21 @@ import type {
 /**
  * Convert JSON Schema to Zod schema
  */
-function jsonSchemaToZod(jsonSchema: any): z.ZodSchema {
+export function jsonSchemaToZod(jsonSchema: any): z.ZodSchema {
 	if (!jsonSchema || typeof jsonSchema !== "object") {
 		return z.any();
+	}
+
+	// Handle $ref resolution
+	if (jsonSchema.$ref && jsonSchema.definitions) {
+		const refPath = jsonSchema.$ref;
+		if (refPath.startsWith("#/definitions/")) {
+			const definitionName = refPath.substring("#/definitions/".length);
+			const definition = jsonSchema.definitions[definitionName];
+			if (definition) {
+				return jsonSchemaToZod(definition);
+			}
+		}
 	}
 
 	const type = jsonSchema.type;

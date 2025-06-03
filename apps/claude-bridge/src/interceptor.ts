@@ -1,8 +1,17 @@
 import fs from "fs";
 import path from "path";
 import { RawPair, BridgeConfig } from "./types.js";
-import { transformAnthropicToLemmy, type TransformResult } from "./transform.js";
+import { transformAnthropicToLemmy, jsonSchemaToZod, type TransformResult } from "./transform.js";
 import type { MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages/messages.js";
+import {
+	Context,
+	type AskOptions,
+	type OpenAIAskOptions,
+	type AskResult,
+	type ToolDefinition,
+} from "@mariozechner/lemmy";
+import { lemmy } from "@mariozechner/lemmy";
+import { z } from "zod";
 
 interface Logger {
 	log(message: string): void;
@@ -45,6 +54,7 @@ export class ClaudeBridgeInterceptor {
 	private pendingRequests: Map<string, any> = new Map();
 	private pairs: RawPair[] = [];
 	private config: BridgeConfig;
+	private openaiClient: ReturnType<typeof lemmy.openai>;
 
 	constructor(config: BridgeConfig) {
 		this.config = {
@@ -71,6 +81,14 @@ export class ClaudeBridgeInterceptor {
 		fs.writeFileSync(this.transformedFile, "");
 		this.logger.log(`Initialized Claude Bridge Interceptor - requests logged to ${this.requestsFile}`);
 		this.logger.log(`Transformed requests logged to ${this.transformedFile}`);
+
+		// Initialize OpenAI client with API key from environment
+		const apiKey = process.env["CLAUDE_BRIDGE_API_KEY"];
+		if (!apiKey) {
+			throw new Error("CLAUDE_BRIDGE_API_KEY environment variable is required");
+		}
+		const model = this.config.model || "gpt-4o";
+		this.openaiClient = lemmy.openai({ apiKey, model });
 	}
 
 	private isAnthropicAPI(url: string | URL): boolean {
@@ -189,13 +207,21 @@ export class ClaudeBridgeInterceptor {
 				body: await interceptor.parseRequestBody(init.body),
 			};
 
-			// Transform Anthropic request to lemmy format
-			await interceptor.transformAndLogRequest(requestData);
+			// Transform Anthropic request to lemmy format and get transformation result
+			const transformResult = await interceptor.transformAndLogRequest(requestData);
 
 			interceptor.pendingRequests.set(requestId, requestData);
 
 			try {
-				const response = await originalFetch(input, init);
+				// Call OpenAI instead of Anthropic if transformation succeeded
+				let response: Response;
+				if (transformResult) {
+					response = await interceptor.callOpenAIAndFormatResponse(transformResult, requestData);
+				} else {
+					// Fallback to original fetch if transformation failed
+					response = await originalFetch(input, init);
+				}
+
 				const responseTimestamp = Date.now();
 
 				const clonedResponse = response.clone();
@@ -243,11 +269,11 @@ export class ClaudeBridgeInterceptor {
 		}
 	}
 
-	private async transformAndLogRequest(requestData: any): Promise<void> {
+	private async transformAndLogRequest(requestData: any): Promise<TransformResult | null> {
 		try {
 			// Only transform POST requests to /v1/messages
 			if (requestData.method !== "POST" || !requestData.body) {
-				return;
+				return null;
 			}
 
 			const anthropicRequest = requestData.body as MessageCreateParamsBase;
@@ -255,7 +281,7 @@ export class ClaudeBridgeInterceptor {
 			// Skip requests with haiku models
 			if (anthropicRequest.model && anthropicRequest.model.toLowerCase().includes("haiku")) {
 				this.logger.log(`Skipping transformation for haiku model: ${anthropicRequest.model}`);
-				return;
+				return null;
 			}
 
 			// Transform to lemmy format
@@ -280,9 +306,287 @@ export class ClaudeBridgeInterceptor {
 			fs.appendFileSync(this.transformedFile, jsonLine);
 
 			this.logger.log(`Transformed and logged request to ${this.transformedFile}`);
+
+			return transformResult;
 		} catch (error) {
 			this.logger.error(`Failed to transform request: ${error instanceof Error ? error.message : String(error)}`);
+			return null;
 		}
+	}
+
+	private async callOpenAIAndFormatResponse(transformResult: TransformResult, requestData: any): Promise<Response> {
+		try {
+			// Create dummy tool definitions for deserialization
+			const dummyTools: ToolDefinition[] = transformResult.context.tools.map((serializedTool) => ({
+				name: serializedTool.name,
+				description: serializedTool.description,
+				schema: jsonSchemaToZod(serializedTool.jsonSchema),
+				execute: async () => {
+					throw new Error("Tool execution not supported in bridge mode");
+				},
+			}));
+
+			// Deserialize the context with dummy tool definitions
+			const context = Context.deserialize(transformResult.context, dummyTools);
+
+			// Convert Anthropic parameters to OpenAI AskOptions
+			const askOptions: AskOptions<OpenAIAskOptions> = this.convertAnthropicParamsToOpenAI(
+				transformResult.anthropicParams,
+			);
+
+			this.logger.log(`Calling OpenAI with configured model: ${this.config.model || "gpt-4o"}`);
+
+			// Call OpenAI via lemmy - use the last user message content or empty string
+			const lastMessage = context.getMessages().slice(-1)[0];
+			const inputText =
+				lastMessage?.role === "user" && typeof lastMessage.content === "string" ? lastMessage.content : "";
+
+			const askResult: AskResult = await this.openaiClient.ask(inputText, {
+				context,
+				...askOptions,
+			});
+
+			// Convert OpenAI result to Anthropic SSE format
+			const sseStream = this.convertOpenAIResultToAnthropicSSE(askResult, transformResult.anthropicParams);
+
+			// Create a streaming Response object that looks like it came from Anthropic
+			const response = new Response(sseStream, {
+				status: 200,
+				statusText: "OK",
+				headers: {
+					"Content-Type": "text/event-stream",
+					"Cache-Control": "no-cache",
+					Connection: "keep-alive",
+					"anthropic-request-id": this.generateRequestId(),
+				},
+			});
+
+			this.logger.log(`Successfully forwarded request to OpenAI and converted response`);
+			return response;
+		} catch (error) {
+			this.logger.error(`Failed to call OpenAI: ${error instanceof Error ? error.message : String(error)}`);
+
+			// Return error response in Anthropic format
+			const errorResponse = {
+				type: "error",
+				error: {
+					type: "internal_server_error",
+					message: error instanceof Error ? error.message : "Unknown error occurred",
+				},
+			};
+
+			return new Response(JSON.stringify(errorResponse), {
+				status: 500,
+				statusText: "Internal Server Error",
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+	}
+
+	private convertAnthropicParamsToOpenAI(
+		anthropicParams: TransformResult["anthropicParams"],
+	): AskOptions<OpenAIAskOptions> {
+		const askOptions: AskOptions<OpenAIAskOptions> = {};
+
+		// Convert optional parameters
+		if (anthropicParams.temperature !== undefined) {
+			askOptions.temperature = anthropicParams.temperature;
+		}
+		if (anthropicParams.top_p !== undefined) {
+			askOptions.topP = anthropicParams.top_p;
+		}
+		if (anthropicParams.stop_sequences && anthropicParams.stop_sequences.length > 0) {
+			askOptions.stop = anthropicParams.stop_sequences[0]; // OpenAI only supports single stop string
+		}
+		if (anthropicParams.tool_choice) {
+			if (typeof anthropicParams.tool_choice === "string") {
+				if (anthropicParams.tool_choice === "any") {
+					askOptions.toolChoice = "required";
+				} else if (anthropicParams.tool_choice === "auto") {
+					askOptions.toolChoice = "auto";
+				}
+			} else if (typeof anthropicParams.tool_choice === "object" && anthropicParams.tool_choice.type === "tool") {
+				askOptions.toolChoice = "required"; // Approximate mapping
+			}
+		}
+
+		return askOptions;
+	}
+
+	private convertOpenAIResultToAnthropicSSE(
+		askResult: AskResult,
+		originalParams: TransformResult["anthropicParams"],
+	): ReadableStream<Uint8Array> {
+		const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+		return new ReadableStream({
+			start(controller) {
+				const encoder = new TextEncoder();
+
+				const writeSSEEvent = (eventType: string, data: any) => {
+					const jsonData = JSON.stringify(data);
+					const sseData = `event: ${eventType}\ndata: ${jsonData}\n\n`;
+					controller.enqueue(encoder.encode(sseData));
+				};
+
+				if (askResult.type !== "success") {
+					// Handle error case
+					writeSSEEvent("error", {
+						type: "error",
+						error: {
+							type: "internal_server_error",
+							message: "OpenAI request failed",
+						},
+					});
+					controller.close();
+					return;
+				}
+
+				// 1. message_start event
+				writeSSEEvent("message_start", {
+					type: "message_start",
+					message: {
+						id: messageId,
+						type: "message",
+						role: "assistant",
+						model: originalParams.model,
+						content: [],
+						stop_reason: null,
+						stop_sequence: null,
+						usage: {
+							input_tokens: askResult.tokens?.input || 0,
+							output_tokens: 0, // Will be updated in message_delta
+						},
+					},
+				});
+
+				let contentBlockIndex = 0;
+
+				// 2. Handle thinking content if present
+				if (askResult.message.thinking) {
+					writeSSEEvent("content_block_start", {
+						type: "content_block_start",
+						index: contentBlockIndex,
+						content_block: {
+							type: "thinking",
+						},
+					});
+
+					// Stream thinking in chunks
+					const thinkingText = askResult.message.thinking;
+					for (let i = 0; i < thinkingText.length; i += 50) {
+						const chunk = thinkingText.slice(i, i + 50);
+						writeSSEEvent("content_block_delta", {
+							type: "content_block_delta",
+							index: contentBlockIndex,
+							delta: {
+								type: "thinking_delta",
+								thinking: chunk,
+							},
+						});
+					}
+
+					writeSSEEvent("content_block_stop", {
+						type: "content_block_stop",
+						index: contentBlockIndex,
+					});
+
+					contentBlockIndex++;
+				}
+
+				// 3. Handle text content if present
+				if (askResult.message.content) {
+					writeSSEEvent("content_block_start", {
+						type: "content_block_start",
+						index: contentBlockIndex,
+						content_block: {
+							type: "text",
+							text: "",
+						},
+					});
+
+					// Stream text in chunks
+					const textContent = askResult.message.content;
+					for (let i = 0; i < textContent.length; i += 50) {
+						const chunk = textContent.slice(i, i + 50);
+						writeSSEEvent("content_block_delta", {
+							type: "content_block_delta",
+							index: contentBlockIndex,
+							delta: {
+								type: "text_delta",
+								text: chunk,
+							},
+						});
+					}
+
+					writeSSEEvent("content_block_stop", {
+						type: "content_block_stop",
+						index: contentBlockIndex,
+					});
+
+					contentBlockIndex++;
+				}
+
+				// 4. Handle tool calls if present
+				if (askResult.message.toolCalls && askResult.message.toolCalls.length > 0) {
+					for (const toolCall of askResult.message.toolCalls) {
+						writeSSEEvent("content_block_start", {
+							type: "content_block_start",
+							index: contentBlockIndex,
+							content_block: {
+								type: "tool_use",
+								id: toolCall.id,
+								name: toolCall.name,
+								input: {},
+							},
+						});
+
+						// Stream tool arguments as JSON
+						const argsJson = JSON.stringify(toolCall.arguments);
+						for (let i = 0; i < argsJson.length; i += 50) {
+							const chunk = argsJson.slice(i, i + 50);
+							writeSSEEvent("content_block_delta", {
+								type: "content_block_delta",
+								index: contentBlockIndex,
+								delta: {
+									type: "input_json_delta",
+									partial_json: chunk,
+								},
+							});
+						}
+
+						writeSSEEvent("content_block_stop", {
+							type: "content_block_stop",
+							index: contentBlockIndex,
+						});
+
+						contentBlockIndex++;
+					}
+				}
+
+				// 5. message_delta event with final usage and stop reason
+				const stopReason =
+					askResult.message.toolCalls && askResult.message.toolCalls.length > 0 ? "tool_use" : "end_turn";
+				writeSSEEvent("message_delta", {
+					type: "message_delta",
+					delta: {
+						stop_reason: stopReason,
+						stop_sequence: null,
+					},
+					usage: {
+						output_tokens: askResult.tokens?.output || 0,
+					},
+				});
+
+				// 6. message_stop event
+				writeSSEEvent("message_stop", {
+					type: "message_stop",
+				});
+
+				// Close the stream
+				controller.close();
+			},
+		});
 	}
 
 	public cleanup(): void {

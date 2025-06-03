@@ -3,7 +3,6 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import cliMain from "../src/cli.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,25 +23,19 @@ async function runClaudeBridgeTest(): Promise<TestResult> {
 		console.log("🧪 Running Claude Bridge E2E test...");
 		console.log(`📁 Test directory: ${testDir}`);
 
-		const testArgs = [
-			"node",
-			"cli.js",
-			"--provider",
-			"openai",
-			"--model",
-			"gpt-4o",
-			"--log-dir",
-			testDir,
-			"--run-with",
-			"-p",
-			"What is 2+2?",
-		];
-
 		const originalCwd = process.cwd();
 		process.chdir(testDir);
 
 		try {
-			await cliMain(testArgs);
+			// Import the runClaudeWithBridge function directly to avoid process.exit
+			const { runClaudeWithBridge } = await import("../src/cli.js");
+			const exitCode = runClaudeWithBridge({
+				provider: "openai",
+				model: "gpt-4o",
+				logDir: testDir,
+				runWith: ["-p", "What is 2+2?"],
+			});
+			console.log(`Claude exited with code: ${exitCode}`);
 		} catch (error) {
 			console.log("Main function completed with error (expected):", error);
 		} finally {
@@ -76,16 +69,36 @@ async function runClaudeBridgeTest(): Promise<TestResult> {
 			(log) => log.includes("transformed-") && log.includes(".jsonl") && log.split("\n").length > 3, // More than just the header
 		);
 
-		if (hasInterceptorLogs && hasClaudeRequests && hasTransformations) {
+		// Check for OpenAI integration - these indicate successful bridging
+		const hasOpenAICalls = logFiles.some((log) => log.includes("Calling OpenAI with configured model:"));
+		const hasSuccessfulForwarding = logFiles.some((log) =>
+			log.includes("Successfully forwarded request to OpenAI and converted response"),
+		);
+
+		// Check that we actually get a meaningful response
+		const hasValidResponse = logFiles.some((log) => {
+			// Look for responses that contain actual content (not just empty/error responses)
+			return log.includes('"content"') && (log.includes("4") || log.includes("2+2") || log.includes("answer"));
+		});
+
+		if (hasInterceptorLogs && hasClaudeRequests && hasTransformations && hasOpenAICalls && hasSuccessfulForwarding) {
 			return {
 				success: true,
-				message: "✅ Test passed - interceptor working, requests detected, and transformations logged",
+				message: `✅ Test passed - OpenAI bridge working successfully${hasValidResponse ? " with valid response" : ""}`,
 				logs: logFiles,
 			};
 		} else {
+			// More detailed error reporting
+			const missing = [];
+			if (!hasInterceptorLogs) missing.push("interceptor logs");
+			if (!hasClaudeRequests) missing.push("Claude requests");
+			if (!hasTransformations) missing.push("transformations");
+			if (!hasOpenAICalls) missing.push("OpenAI calls");
+			if (!hasSuccessfulForwarding) missing.push("successful forwarding");
+
 			return {
 				success: false,
-				message: "❌ Test failed - missing transformations (transformed file is empty)",
+				message: `❌ Test failed - missing: ${missing.join(", ")}`,
 				logs: logFiles,
 			};
 		}
