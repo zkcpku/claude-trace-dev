@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { RawPair, BridgeConfig, TransformationEntry } from "./types.js";
+import { RawPair, BridgeConfig, TransformationEntry, Provider, ProviderClientInfo } from "./types.js";
 import { transformAnthropicToLemmy } from "./transforms/anthropic-to-lemmy.js";
 import { createAnthropicSSE } from "./transforms/lemmy-to-anthropic.js";
 import { jsonSchemaToZod } from "./transforms/tool-schemas.js";
@@ -26,13 +26,14 @@ import {
 	generateRequestId,
 	type ParsedRequestData,
 } from "./utils/request-parser.js";
+import { createProviderClient, validateCapabilities, convertThinkingParameters } from "./utils/provider.js";
 
 export class ClaudeBridgeInterceptor {
 	private config: BridgeConfig;
 	private logger: Logger;
 	private requestsFile: string;
 	private transformedFile: string;
-	private openaiClient: ReturnType<typeof lemmy.openai>;
+	private clientInfo: ProviderClientInfo;
 	private pendingRequests = new Map<string, any>();
 
 	constructor(config: BridgeConfig) {
@@ -50,13 +51,12 @@ export class ClaudeBridgeInterceptor {
 		fs.writeFileSync(this.requestsFile, "");
 		fs.writeFileSync(this.transformedFile, "");
 
-		// Setup OpenAI client
-		const apiKey = process.env["CLAUDE_BRIDGE_API_KEY"];
-		if (!apiKey) throw new Error("CLAUDE_BRIDGE_API_KEY environment variable is required");
-		this.openaiClient = lemmy.openai({ apiKey, model: this.config.model || "gpt-4o" });
+		// Setup provider-agnostic client
+		this.clientInfo = createProviderClient(this.config);
 
 		this.logger.log(`Requests logged to ${this.requestsFile}`);
 		this.logger.log(`Transformed requests logged to ${this.transformedFile}`);
+		this.logger.log(`Initialized ${this.clientInfo.provider} client for model: ${this.clientInfo.model}`);
 	}
 
 	public instrumentFetch(): void {
@@ -65,7 +65,7 @@ export class ClaudeBridgeInterceptor {
 		const originalFetch = global.fetch;
 		global.fetch = async (input: Parameters<typeof fetch>[0], init: RequestInit = {}): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-			if (!this.isAnthropicAPI(url)) return originalFetch(input, init);
+			if (!isAnthropicAPI(url)) return originalFetch(input, init);
 			return this.handleAnthropicRequest(originalFetch, input, init);
 		};
 
@@ -84,27 +84,13 @@ export class ClaudeBridgeInterceptor {
 		const requestId = generateRequestId();
 		const requestData = await parseAnthropicMessageCreateRequest(url, init, this.logger);
 		const transformResult = await this.tryTransform(requestData);
-
-		// Log conversation history to debug duplicate messages
-		if (requestData.body?.messages) {
-			this.logger.log(`📜 Request contains ${requestData.body.messages.length} messages:`);
-			for (let i = 0; i < requestData.body.messages.length; i++) {
-				const msg = requestData.body.messages[i];
-				if (msg) {
-					const preview =
-						typeof msg.content === "string"
-							? msg.content.substring(0, 100)
-							: JSON.stringify(msg.content).substring(0, 100);
-					this.logger.log(`  ${i + 1}. ${msg.role}: ${preview}${preview.length >= 100 ? "..." : ""}`);
-				}
-			}
-		}
-
 		this.pendingRequests.set(requestId, requestData);
 
 		try {
-			// Get response from OpenAI or fallback to Anthropic
-			const response = transformResult ? await this.callOpenAI(transformResult) : await originalFetch(input, init);
+			// Get response from provider or fallback to Anthropic
+			const response = transformResult
+				? await this.callProvider(transformResult, requestData.body)
+				: await originalFetch(input, init);
 
 			// Log everything
 			await this.logComplete(requestData, response, transformResult, requestId);
@@ -140,8 +126,14 @@ export class ClaudeBridgeInterceptor {
 		}
 	}
 
-	private async callOpenAI(transformResult: SerializedContext): Promise<Response> {
+	private async callProvider(transformResult: SerializedContext, originalRequest: any): Promise<Response> {
 		try {
+			// Validate capabilities
+			const validation = validateCapabilities(this.clientInfo.modelData, originalRequest, this.logger);
+			if (!validation.valid) {
+				validation.warnings.forEach((warning: string) => this.logger.log(`⚠️  ${warning}`));
+			}
+
 			// Create dummy tools for deserialization
 			const dummyTools: ToolDefinition[] = transformResult.tools.map((tool: SerializedToolDefinition) => ({
 				name: tool.name,
@@ -152,7 +144,7 @@ export class ClaudeBridgeInterceptor {
 				},
 			}));
 
-			// Deserialize context and call OpenAI
+			// Deserialize context and call provider
 			const context = Context.deserialize(transformResult, dummyTools);
 			const lastMessage = context.getMessages().pop();
 
@@ -168,15 +160,23 @@ export class ClaudeBridgeInterceptor {
 				};
 			}
 
-			this.logger.log(`Calling OpenAI with configured model: ${this.config.model || "gpt-4o"}`);
-			const askResult: AskResult = await this.openaiClient.ask(askInput, { context });
+			// Convert thinking parameters for provider
+			const askOptions = convertThinkingParameters(this.clientInfo.provider, originalRequest);
+
+			// Apply capability adjustments
+			if (validation.adjustments.maxOutputTokens) {
+				askOptions.maxOutputTokens = validation.adjustments.maxOutputTokens;
+			}
+
+			this.logger.log(`Calling ${this.clientInfo.provider} with model: ${this.clientInfo.model}`);
+			const askResult: AskResult = await this.clientInfo.client.ask(askInput, { context, ...askOptions });
 
 			if (askResult.type !== "success") {
-				this.logger.error(`OpenAI error response: ${JSON.stringify(askResult.error)}`);
+				this.logger.error(`${this.clientInfo.provider} error response: ${JSON.stringify(askResult.error)}`);
 			}
 
 			// Convert to Anthropic SSE format
-			return new Response(createAnthropicSSE(askResult, this.config.model || "gpt-4o"), {
+			return new Response(createAnthropicSSE(askResult, this.clientInfo.model), {
 				status: 200,
 				statusText: "OK",
 				headers: {
@@ -187,13 +187,13 @@ export class ClaudeBridgeInterceptor {
 				},
 			});
 		} catch (error) {
-			this.logOpenAIError(error);
+			this.logProviderError(error);
 			return new Response(
 				JSON.stringify({
 					type: "error",
 					error: {
 						type: "internal_server_error",
-						message: `OpenAI bridge failure: ${error instanceof Error ? error.message : "Unknown error"}`,
+						message: `${this.clientInfo.provider} bridge failure: ${error instanceof Error ? error.message : "Unknown error"}`,
 					},
 				}),
 				{
@@ -252,11 +252,6 @@ export class ClaudeBridgeInterceptor {
 		this.logger.log(`Logged request-response pair to ${this.requestsFile}`);
 	}
 
-	// Utility methods
-	private isAnthropicAPI(url: string): boolean {
-		return isAnthropicAPI(url);
-	}
-
 	private safeJsonSchemaToZod(jsonSchema: any): z.ZodSchema {
 		try {
 			return jsonSchemaToZod(jsonSchema);
@@ -265,8 +260,8 @@ export class ClaudeBridgeInterceptor {
 		}
 	}
 
-	private logOpenAIError(error: any) {
-		this.logger.error(`CRITICAL: OpenAI request failed with detailed error information:`);
+	private logProviderError(error: any) {
+		this.logger.error(`CRITICAL: ${this.clientInfo.provider} request failed with detailed error information:`);
 		this.logger.error(`Error type: ${typeof error}`);
 		this.logger.error(`Error constructor: ${error?.constructor?.name}`);
 
@@ -316,9 +311,13 @@ export function initializeInterceptor(config?: BridgeConfig): ClaudeBridgeInterc
 	}
 
 	const defaultConfig: BridgeConfig = {
-		provider: process.env["CLAUDE_BRIDGE_PROVIDER"] || "openai",
+		provider: (process.env["CLAUDE_BRIDGE_PROVIDER"] as Provider) || "openai",
 		model: process.env["CLAUDE_BRIDGE_MODEL"] || "gpt-4o",
 		apiKey: process.env["CLAUDE_BRIDGE_API_KEY"],
+		baseURL: process.env["CLAUDE_BRIDGE_BASE_URL"],
+		maxRetries: process.env["CLAUDE_BRIDGE_MAX_RETRIES"]
+			? parseInt(process.env["CLAUDE_BRIDGE_MAX_RETRIES"])
+			: undefined,
 		logDirectory: process.env["CLAUDE_BRIDGE_LOG_DIR"] || ".claude-bridge",
 	};
 

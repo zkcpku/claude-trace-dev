@@ -159,14 +159,14 @@ src/
 
 #### Interceptor Refactoring (`src/interceptor.ts`)
 
-- [ ] Remove OpenAI-specific client creation
-- [ ] Replace with `createClientForModel(model, config)` from lemmy
-- [ ] Add provider-agnostic client handling
-- [ ] Implement capability validation at request time
-- [ ] Add output token limit checking and warnings
-- [ ] Add thinking parameter conversion logic
-- [ ] Maintain Anthropic SSE response format
-- [ ] Simplify to coordination role only
+- [x] Remove OpenAI-specific client creation
+- [x] Replace with `createClientForModel(model, config)` from lemmy
+- [x] Add provider-agnostic client handling
+- [x] Implement capability validation at request time
+- [x] Add output token limit checking and warnings
+- [x] Add thinking parameter conversion logic
+- [x] Maintain Anthropic SSE response format
+- [x] Simplify to coordination role only
 
 #### Transform Modules
 
@@ -221,21 +221,21 @@ src/
 
 ### Remove Hardcoded Provider Logic
 
-- [ ] Replace `this.openaiClient = lemmy.openai(...)` with dynamic client creation
-- [ ] Use `createClientForModel(model, { apiKey, model, ...config })` pattern
-- [ ] Add provider type validation using lemmy's type system
+- [x] Replace `this.openaiClient = lemmy.openai(...)` with dynamic client creation
+- [x] Use `createClientForModel(model, { apiKey, model, ...config })` pattern
+- [x] Add provider type validation using lemmy's type system
 
 ### Type-Safe Provider Handling
 
-- [ ] Add exhaustive switch statements for provider-specific logic
-- [ ] Use TypeScript's strict checking to catch missing provider cases
-- [ ] Add provider capability checking functions
+- [x] Add exhaustive switch statements for provider-specific logic
+- [x] Use TypeScript's strict checking to catch missing provider cases
+- [x] Add provider capability checking functions
 
 ### Provider-Specific Configuration
 
-- [ ] Map CLI arguments to provider-specific client configs
-- [ ] Handle provider-specific ask options (thinking, reasoning, etc.)
-- [ ] Validate provider-specific parameter combinations
+- [x] Map CLI arguments to provider-specific client configs
+- [x] Handle provider-specific ask options (thinking, reasoning, etc.)
+- [x] Validate provider-specific parameter combinations
 
 ## Testing Strategy
 
@@ -285,10 +285,10 @@ src/
 
 ### Phase 4: Provider Generalization
 
-- [ ] Remove OpenAI hardcoding
-- [ ] Add dynamic client creation
-- [ ] Add capability validation
-- [ ] Test with multiple providers
+- [x] Remove OpenAI hardcoding
+- [x] Add dynamic client creation
+- [x] Add capability validation
+- [x] Test with multiple providers
 
 ### Phase 5: Testing & Polish
 
