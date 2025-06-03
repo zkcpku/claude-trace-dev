@@ -10,6 +10,8 @@ import {
 	type SerializedContext,
 	type SerializedToolDefinition,
 	type Message,
+	type ToolResult,
+	type Attachment,
 } from "@mariozechner/lemmy";
 import { lemmy } from "@mariozechner/lemmy";
 import { z } from "zod";
@@ -112,6 +114,21 @@ export class ClaudeBridgeInterceptor {
 		const requestData = await this.parseAnthropicMessageCreateRequest(url, init);
 		const transformResult = await this.tryTransform(requestData);
 
+		// Log conversation history to debug duplicate messages
+		if (requestData.body?.messages) {
+			this.logger.log(`📜 Request contains ${requestData.body.messages.length} messages:`);
+			for (let i = 0; i < requestData.body.messages.length; i++) {
+				const msg = requestData.body.messages[i];
+				if (msg) {
+					const preview =
+						typeof msg.content === "string"
+							? msg.content.substring(0, 100)
+							: JSON.stringify(msg.content).substring(0, 100);
+					this.logger.log(`  ${i + 1}. ${msg.role}: ${preview}${preview.length >= 100 ? "..." : ""}`);
+				}
+			}
+		}
+
 		this.pendingRequests.set(requestId, requestData);
 
 		try {
@@ -193,11 +210,21 @@ export class ClaudeBridgeInterceptor {
 			// Deserialize context and call OpenAI
 			const context = Context.deserialize(transformResult, dummyTools);
 			const lastMessage = context.getMessages().pop();
-			const inputText =
-				lastMessage?.role === "user" && typeof lastMessage.content === "string" ? lastMessage.content : "";
+
+			// Construct proper AskInput from the last user message
+			let askInput: string | { content?: string; toolResults?: ToolResult[]; attachments?: Attachment[] } = "";
+
+			if (lastMessage?.role === "user") {
+				const userMessage = lastMessage as any;
+				askInput = {
+					content: typeof userMessage.content === "string" ? userMessage.content : undefined,
+					toolResults: userMessage.toolResults || undefined,
+					attachments: userMessage.attachments || undefined,
+				};
+			}
 
 			this.logger.log(`Calling OpenAI with configured model: ${this.config.model || "gpt-4o"}`);
-			const askResult: AskResult = await this.openaiClient.ask(inputText, { context });
+			const askResult: AskResult = await this.openaiClient.ask(askInput, { context });
 
 			if (askResult.type !== "success") {
 				this.logger.error(`OpenAI error response: ${JSON.stringify(askResult.error)}`);
@@ -377,9 +404,13 @@ export class ClaudeBridgeInterceptor {
 			let content = "",
 				thinking = "";
 			const toolCalls: any[] = [];
+			let errorMessage = "";
 
 			for (const event of events) {
-				if (event.type === "content_block_delta") {
+				if (event.type === "error") {
+					// Handle error events - extract the error message
+					errorMessage = event.error?.message || JSON.stringify(event.error) || "Unknown error";
+				} else if (event.type === "content_block_delta") {
 					if (event.delta?.type === "text_delta") content += event.delta.text || "";
 					if (event.delta?.type === "thinking_delta") thinking += event.delta.thinking || "";
 				} else if (event.type === "content_block_start" && event.content_block?.type === "tool_use") {
@@ -411,6 +442,7 @@ export class ClaudeBridgeInterceptor {
 			if (thinking) message.thinking = thinking;
 			if (content) message.content = content;
 			if (toolCalls.length > 0) message.toolCalls = toolCalls;
+			if (errorMessage) message.content = `Error: ${errorMessage}`;
 
 			return Object.keys(message).length > 1 ? message : null;
 		} catch (error) {
@@ -433,9 +465,11 @@ export class ClaudeBridgeInterceptor {
 				};
 
 				if (askResult.type !== "success") {
+					const errorMessage =
+						askResult.error?.message || JSON.stringify(askResult.error) || "OpenAI request failed";
 					writeEvent("error", {
 						type: "error",
-						error: { type: "internal_server_error", message: "OpenAI request failed" },
+						error: { type: "internal_server_error", message: errorMessage },
 					});
 					controller.close();
 					return;

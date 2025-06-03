@@ -229,7 +229,7 @@ function convertAnthropicUserMessage(anthropicMessage: MessageParam, timestamp: 
 				break;
 
 			case "tool_result":
-				if ("tool_use_id" in block && "content" in block && block.tool_use_id && block.content) {
+				if ("tool_use_id" in block && "content" in block && block.tool_use_id) {
 					toolResults.push({
 						toolCallId: block.tool_use_id,
 						content: typeof block.content === "string" ? block.content : JSON.stringify(block.content),
