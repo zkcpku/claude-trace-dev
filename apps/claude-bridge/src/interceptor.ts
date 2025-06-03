@@ -252,6 +252,12 @@ export class ClaudeBridgeInterceptor {
 
 			const anthropicRequest = requestData.body as MessageCreateParamsBase;
 
+			// Skip requests with haiku models
+			if (anthropicRequest.model && anthropicRequest.model.toLowerCase().includes("haiku")) {
+				this.logger.log(`Skipping transformation for haiku model: ${anthropicRequest.model}`);
+				return;
+			}
+
 			// Transform to lemmy format
 			const transformResult: TransformResult = transformAnthropicToLemmy(anthropicRequest);
 

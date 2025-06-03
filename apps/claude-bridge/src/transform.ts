@@ -5,7 +5,7 @@ import type {
 	ToolResult,
 	ToolCall,
 	SerializedContext,
-	SerializedToolDefinition,
+	ToolDefinition,
 } from "@mariozechner/lemmy";
 import { Context } from "@mariozechner/lemmy";
 import { z } from "zod";
@@ -16,9 +16,101 @@ import type {
 	ToolUnion,
 	Metadata,
 	ThinkingConfigParam,
-	TextBlockParam,
 	Tool,
 } from "@anthropic-ai/sdk/resources/messages/messages.js";
+
+/**
+ * Convert JSON Schema to Zod schema
+ */
+function jsonSchemaToZod(jsonSchema: any): z.ZodSchema {
+	if (!jsonSchema || typeof jsonSchema !== "object") {
+		return z.any();
+	}
+
+	const type = jsonSchema.type;
+
+	switch (type) {
+		case "string":
+			let stringSchema = z.string();
+			if (jsonSchema.description) {
+				stringSchema = stringSchema.describe(jsonSchema.description);
+			}
+			return stringSchema;
+
+		case "number":
+			let numberSchema = z.number();
+			if (jsonSchema.description) {
+				numberSchema = numberSchema.describe(jsonSchema.description);
+			}
+			return numberSchema;
+
+		case "integer":
+			let intSchema = z.number().int();
+			if (jsonSchema.description) {
+				intSchema = intSchema.describe(jsonSchema.description);
+			}
+			return intSchema;
+
+		case "boolean":
+			let boolSchema = z.boolean();
+			if (jsonSchema.description) {
+				boolSchema = boolSchema.describe(jsonSchema.description);
+			}
+			return boolSchema;
+
+		case "array":
+			const itemSchema = jsonSchema.items ? jsonSchemaToZod(jsonSchema.items) : z.any();
+			let arraySchema = z.array(itemSchema);
+			if (jsonSchema.description) {
+				arraySchema = arraySchema.describe(jsonSchema.description);
+			}
+			return arraySchema;
+
+		case "object":
+			const shape: Record<string, z.ZodSchema> = {};
+
+			if (jsonSchema.properties) {
+				for (const [key, propSchema] of Object.entries(jsonSchema.properties)) {
+					shape[key] = jsonSchemaToZod(propSchema);
+				}
+			}
+
+			let objectSchema = z.object(shape);
+
+			// Handle required fields
+			if (jsonSchema.required && Array.isArray(jsonSchema.required)) {
+				// Zod objects are required by default, so we need to make non-required fields optional
+				const requiredFields = new Set(jsonSchema.required);
+				const newShape: Record<string, z.ZodSchema> = {};
+
+				for (const [key, schema] of Object.entries(shape)) {
+					newShape[key] = requiredFields.has(key) ? schema : schema.optional();
+				}
+
+				objectSchema = z.object(newShape);
+			} else {
+				// If no required array, make all fields optional
+				const newShape: Record<string, z.ZodSchema> = {};
+				for (const [key, schema] of Object.entries(shape)) {
+					newShape[key] = schema.optional();
+				}
+				objectSchema = z.object(newShape);
+			}
+
+			// Handle additionalProperties
+			// Note: Zod doesn't have a direct equivalent to additionalProperties: false
+			// The default behavior is to strip unknown properties, which is close enough
+
+			if (jsonSchema.description) {
+				objectSchema = objectSchema.describe(jsonSchema.description);
+			}
+
+			return objectSchema;
+
+		default:
+			return z.any();
+	}
+}
 
 /**
  * Result of transforming an Anthropic request
@@ -66,26 +158,20 @@ export function transformAnthropicToLemmy(anthropicRequest: MessageCreateParamsB
 		}
 	}
 
-	// Convert tools to lemmy SerializedToolDefinitions and add to context
+	// Convert tools to lemmy ToolDefinitions with Zod schemas and add to context
 	if (anthropicRequest.tools) {
 		for (const anthropicTool of anthropicRequest.tools) {
 			if (anthropicTool.type === "custom" || !anthropicTool.type) {
 				// Standard custom tool
-				const serializedTool = convertAnthropicToolToSerialized(anthropicTool as Tool);
-				if (serializedTool) {
-					// Create a dummy ToolDefinition with execute function to add to context
-					const dummyTool = {
-						...serializedTool,
-						schema: z.object({}), // Dummy schema
-						execute: async () => {
-							throw new Error("Tool execution not supported in bridge mode");
-						},
-					};
-					context.addTool(dummyTool);
+				const lemmyTool = convertAnthropicToolToLemmy(anthropicTool as Tool);
+				if (lemmyTool) {
+					context.addTool(lemmyTool);
 				}
 			}
 			// Note: We skip built-in tools like bash_20250124, text_editor_20250124, web_search_20250305
-			// since they're Anthropic-specific and don't have equivalent lemmy implementations
+			// since they're Anthropic-specific tools that require special Claude Code runtime support.
+			// These tools cannot be executed through the standard lemmy tool system as they depend
+			// on Claude Code's internal infrastructure. Only custom tools with input_schema are converted.
 		}
 	}
 
@@ -127,17 +213,22 @@ export function transformAnthropicToLemmy(anthropicRequest: MessageCreateParamsB
 }
 
 /**
- * Convert Anthropic Tool to lemmy SerializedToolDefinition
+ * Convert Anthropic Tool to lemmy ToolDefinition with Zod schema
  */
-function convertAnthropicToolToSerialized(anthropicTool: Tool): SerializedToolDefinition | null {
+function convertAnthropicToolToLemmy(anthropicTool: Tool): ToolDefinition | null {
 	try {
+		const zodSchema = jsonSchemaToZod(anthropicTool.input_schema);
+
 		return {
 			name: anthropicTool.name,
 			description: anthropicTool.description || "",
-			jsonSchema: anthropicTool.input_schema,
+			schema: zodSchema,
+			execute: async () => {
+				throw new Error("Tool execution not supported in bridge mode");
+			},
 		};
 	} catch (error) {
-		console.warn(`Failed to convert Anthropic tool ${anthropicTool.name}:`, error);
+		console.warn(`Failed to convert Anthropic tool ${anthropicTool.name} to Zod:`, error);
 		return null;
 	}
 }

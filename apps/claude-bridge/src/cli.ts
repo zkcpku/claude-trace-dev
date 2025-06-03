@@ -68,7 +68,7 @@ Note: The interceptor logs requests to .claude-bridge/requests.jsonl and debug i
 	return program;
 }
 
-function findClaudeExecutable(): string {
+function findClaudeExecutable(): string | null {
 	// Try to find claude in PATH
 	const possibleNames = ["claude", "claude-code"];
 
@@ -83,21 +83,19 @@ function findClaudeExecutable(): string {
 		}
 	}
 
-	// If not found, show error and exit
-	console.error("❌ Claude CLI not found in PATH");
-	console.error("❌ Please install Claude Code CLI first");
-	process.exit(1);
+	// If not found, return null
+	return null;
 }
 
-async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
+function runClaudeWithBridge(args: ClaudeArgs): number {
 	if (!args.provider) {
 		console.error("❌ --provider is required");
-		process.exit(1);
+		return 1;
 	}
 
 	if (!args.model) {
 		console.error("❌ --model is required");
-		process.exit(1);
+		return 1;
 	}
 
 	// Default to chat if no run-with args provided
@@ -109,7 +107,7 @@ async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
 		apiKey = process.env[envVar];
 		if (!apiKey) {
 			console.error(`❌ API key not found. Provide --apiKey or set ${envVar} environment variable`);
-			process.exit(1);
+			return 1;
 		}
 	}
 
@@ -119,6 +117,11 @@ async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
 	console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
 
 	let claudeExe = findClaudeExecutable();
+	if (!claudeExe) {
+		console.error("❌ Claude CLI not found in PATH");
+		console.error("❌ Please install Claude Code CLI first");
+		return 1;
+	}
 
 	// Patch Claude binary if requested
 	if (args.patchClaude) {
@@ -153,7 +156,7 @@ async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
 		}
 	}
 
-	const childProcess = spawn("node", spawnArgs, {
+	const result = spawnSync("node", spawnArgs, {
 		stdio: "inherit",
 		env: {
 			...cleanEnv,
@@ -164,36 +167,25 @@ async function runClaudeWithBridge(args: ClaudeArgs): Promise<void> {
 		},
 	});
 
-	childProcess.on("error", (error) => {
-		console.error(`❌ Failed to start Claude: ${error.message}`);
-		process.exit(1);
-	});
+	if (result.error) {
+		console.error(`❌ Failed to start Claude: ${result.error.message}`);
+		return 1;
+	}
 
-	childProcess.on("exit", (code, signal) => {
-		if (signal) {
-			console.log(`\n🛑 Claude terminated by signal: ${signal}`);
-		} else {
-			console.log(`\n✅ Claude exited with code: ${code}`);
-		}
-		process.exit(code || 0);
-	});
+	if (result.signal) {
+		console.log(`\n🛑 Claude terminated by signal: ${result.signal}`);
+	} else {
+		console.log(`\n✅ Claude exited with code: ${result.status}`);
+	}
 
-	process.on("SIGINT", () => {
-		console.log("\n🛑 Received SIGINT, terminating Claude...");
-		childProcess.kill("SIGINT");
-	});
-
-	process.on("SIGTERM", () => {
-		console.log("\n🛑 Received SIGTERM, terminating Claude...");
-		childProcess.kill("SIGTERM");
-	});
+	return result.status || 0;
 }
 
 async function main(argv: string[] = process.argv) {
 	const program = setupProgram();
 
-	program.action(async (options) => {
-		await runClaudeWithBridge({
+	program.action((options) => {
+		const exitCode = runClaudeWithBridge({
 			provider: options.provider,
 			model: options.model,
 			apiKey: options.apiKey,
@@ -201,6 +193,7 @@ async function main(argv: string[] = process.argv) {
 			runWith: options.runWith,
 			patchClaude: options.patchClaude,
 		});
+		process.exit(exitCode);
 	});
 
 	try {
