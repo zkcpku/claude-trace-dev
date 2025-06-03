@@ -13,11 +13,13 @@
 		"clean": "rm -rf dist",
 		"prepublishOnly": "npm run clean && npm run build",
 		"typecheck": "tsc --noEmit",
-		"test": "npm run test:unit && npm run test:e2e",
-		"test:unit": "vitest run",
-		"test:e2e": "tsx --no-deprecation test/e2e-standalone.ts",
-		"test:e2e:tools": "tsx --no-deprecation test/e2e-tools.ts",
-		"test:unit:watch": "vitest"
+		"test": "tsx --no-deprecation test/runner.ts unit && tsx --no-deprecation test/runner.ts core",
+		"test:unit": "tsx --no-deprecation test/runner.ts unit",
+		"test:core": "tsx --no-deprecation test/runner.ts core",
+		"test:tools": "tsx --no-deprecation test/runner.ts tools",
+		"test:providers": "tsx --no-deprecation test/runner.ts providers",
+		"test:comprehensive": "tsx --no-deprecation test/runner.ts comprehensive",
+		"test:all": "npm run test:unit && npm run test:comprehensive"
 	},
 	"files": [
 		"dist/**/*",
@@ -46,8 +48,7 @@
 	"devDependencies": {
 		"@types/node": "^22.13.10",
 		"tsx": "^4.19.4",
-		"typescript": "^5.8.3",
-		"vitest": "3.2.0"
+		"typescript": "^5.8.3"
 	},
 	"dependencies": {
 		"@mariozechner/lemmy": "file:../../packages/lemmy",
