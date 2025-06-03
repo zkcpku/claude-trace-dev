@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { RawPair, BridgeConfig, TransformationEntry } from "./types.js";
-import { transformAnthropicToLemmy, jsonSchemaToZod } from "./transform.js";
+import { transformAnthropicToLemmy } from "./transforms/anthropic-to-lemmy.js";
+import { createAnthropicSSE } from "./transforms/lemmy-to-anthropic.js";
+import { jsonSchemaToZod } from "./transforms/tool-schemas.js";
 import type { MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages/messages.js";
 import {
 	Context,
@@ -16,7 +18,7 @@ import {
 import { lemmy } from "@mariozechner/lemmy";
 import { z } from "zod";
 import { FileLogger, type Logger } from "./utils/logger.js";
-import { parseSSE, extractAssistantFromSSE, createAnthropicSSE } from "./utils/sse.js";
+import { parseSSE, extractAssistantFromSSE } from "./utils/sse.js";
 import {
 	parseAnthropicMessageCreateRequest,
 	parseResponse,

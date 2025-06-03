@@ -172,25 +172,25 @@ src/
 
 ##### `src/transforms/anthropic-to-lemmy.ts`
 
-- [ ] Extract `transformAnthropicToLemmy()` from current `transform.ts`
-- [ ] Extract Anthropic message conversion functions
+- [x] Extract `transformAnthropicToLemmy()` from current `transform.ts`
+- [x] Extract Anthropic message conversion functions
 - [ ] Add capability validation during transformation
 - [ ] Add thinking parameter extraction
-- [ ] Maintain tool and attachment conversion logic
+- [x] Maintain tool and attachment conversion logic
 
 ##### `src/transforms/lemmy-to-anthropic.ts` (NEW)
 
-- [ ] Create `convertLemmyToAnthropicSSE()` function
-- [ ] Convert `AskResult` to Anthropic SSE stream format
-- [ ] Handle thinking content conversion back to Anthropic format
-- [ ] Handle tool calls and tool results
-- [ ] Maintain compatibility with current SSE generation
+- [x] Create `createAnthropicSSE()` function
+- [x] Convert `AskResult` to Anthropic SSE stream format
+- [x] Handle thinking content conversion back to Anthropic format
+- [x] Handle tool calls and tool results
+- [x] Maintain compatibility with current SSE generation
 
 ##### `src/transforms/tool-schemas.ts`
 
-- [ ] Extract `jsonSchemaToZod()` from current `transform.ts`
-- [ ] Add comprehensive schema conversion utilities
-- [ ] Add error handling for schema conversion failures
+- [x] Extract `jsonSchemaToZod()` from current `transform.ts`
+- [x] Add comprehensive schema conversion utilities
+- [x] Add error handling for schema conversion failures
 - [ ] Add validation for tool schema compatibility
 
 #### Utility Modules
@@ -279,9 +279,9 @@ src/
 
 ### Phase 3: Extract Transforms
 
-- [ ] Create transform modules
-- [ ] Test transformations independently
-- [ ] Update interceptor to use transforms
+- [x] Create transform modules
+- [x] Test transformations independently
+- [x] Update interceptor to use transforms
 
 ### Phase 4: Provider Generalization
 
