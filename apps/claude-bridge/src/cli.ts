@@ -1,71 +1,395 @@
 #!/usr/bin/env node --no-deprecation
 
-import { Command } from "commander";
-import { spawn, spawnSync } from "child_process";
-import { getDefaultApiKeyEnvVar, getProviders } from "@mariozechner/lemmy";
+import { spawnSync } from "child_process";
+import {
+	getDefaultApiKeyEnvVar,
+	getProviders,
+	AnthropicModelData,
+	OpenAIModelData,
+	GoogleModelData,
+	ModelToProvider,
+	findModelData,
+	type AllModels,
+	type ModelData,
+	type Provider,
+} from "@mariozechner/lemmy";
 import path from "path";
 import { fileURLToPath } from "url";
 import { patchClaudeBinary } from "./patch-claude.js";
 
 interface ClaudeArgs {
-	provider: string;
+	provider: Provider;
 	model: string;
-	apiKey?: string;
-	logDir?: string;
-	runWith?: string[];
-	patchClaude?: boolean;
+	apiKey?: string | undefined;
+	baseURL?: string | undefined;
+	maxRetries?: number | undefined;
+	logDir?: string | undefined;
+	patchClaude?: boolean | undefined;
+	claudeArgs: string[];
 }
 
-function setupProgram(): Command {
-	const program = new Command();
+interface ParsedArgs {
+	help?: boolean | undefined;
+	provider?: string | undefined;
+	model?: string | undefined;
+	apiKey?: string | undefined;
+	baseURL?: string | undefined;
+	maxRetries?: number | undefined;
+	logDir?: string | undefined;
+	patchClaude?: boolean | undefined;
+	claudeArgs: string[];
+}
 
-	program
-		.name("claude-bridge")
-		.description("Use non-Anthropic models with Claude Code by proxying requests")
-		.version("1.0.0");
+// Get models that support both tools and images - type-safe and exhaustive
+function getCapableModels(): Record<Provider, string[]> {
+	const capableModels: Record<Provider, string[]> = {
+		anthropic: [],
+		openai: [],
+		google: [],
+	};
 
-	program.addOption(
-		program
-			.createOption("--provider <provider>", "LLM provider to bridge to")
-			.choices(getProviders().filter((p) => p !== "anthropic")),
-	);
+	// Check Anthropic models
+	for (const [model, data] of Object.entries(AnthropicModelData)) {
+		if (data && data.supportsTools && data.supportsImageInput) {
+			capableModels.anthropic.push(model);
+		}
+	}
 
-	program.option("--model <model>", "Model to use with the provider");
+	// Check OpenAI models
+	for (const [model, data] of Object.entries(OpenAIModelData)) {
+		if (data && data.supportsTools && data.supportsImageInput) {
+			capableModels.openai.push(model);
+		}
+	}
 
-	program.option("--apiKey <key>", "API key for the provider (optional, uses env vars if not provided)");
+	// Check Google models
+	for (const [model, data] of Object.entries(GoogleModelData)) {
+		if (data && data.supportsTools && data.supportsImageInput) {
+			capableModels.google.push(model);
+		}
+	}
 
-	program.option("--log-dir <dir>", "Directory for log files (default: .claude-bridge)");
+	return capableModels;
+}
 
-	program.option("--run-with <args...>", "Arguments to pass to Claude Code (default: chat)");
+// Get capable models for a specific provider with exhaustive type checking
+function getCapableModelsForProvider(provider: Provider): string[] {
+	const allCapableModels = getCapableModels();
 
-	program.option(
-		"--patch-claude",
-		"Patch Claude binary to disable anti-debugging checks (allows debugging interceptor)",
-	);
+	switch (provider) {
+		case "anthropic":
+			return allCapableModels.anthropic;
+		case "openai":
+			return allCapableModels.openai;
+		case "google":
+			return allCapableModels.google;
+		default:
+			// TypeScript will catch if we miss any provider cases
+			const _exhaustiveCheck: never = provider;
+			return _exhaustiveCheck;
+	}
+}
 
-	program.addHelpText(
-		"after",
-		`
+// Validate provider with exhaustive type checking
+function isValidProvider(provider: string): provider is Provider {
+	switch (provider) {
+		case "anthropic":
+		case "openai":
+		case "google":
+			return true;
+		default:
+			return false;
+	}
+}
+
+// Get all valid providers with exhaustive type checking
+function getValidProviders(): Provider[] {
+	return ["anthropic", "openai", "google"];
+}
+
+// Filter to only non-Anthropic providers (since we're bridging to non-Anthropic)
+function getNonAnthropicProviders(): Exclude<Provider, "anthropic">[] {
+	return ["openai", "google"];
+}
+
+function formatModelInfo(model: string, data: ModelData): string {
+	const tools = data.supportsTools ? "✓" : "✗";
+	const images = data.supportsImageInput ? "✓" : "✗";
+	const maxInput = data.contextWindow.toLocaleString();
+	const maxOutput = data.maxOutputTokens.toLocaleString();
+	return `  ${model.padEnd(35)} ${tools.padStart(6)}  ${images.padStart(7)}  ${maxInput.padStart(12)}  ${maxOutput.padStart(12)}`;
+}
+
+function showHelp(): void {
+	console.log(`claude-bridge - Use non-Anthropic models with Claude Code
+
+USAGE:
+  claude-bridge                           Show all available providers
+  claude-bridge <provider>                Show models for a provider
+  claude-bridge <provider> <model>        Run with provider and model
+  claude-bridge --help                    Show this help
+
+EXAMPLES:
+  # Natural discovery flow
+  claude-bridge                           # Shows: openai, google
+  claude-bridge openai                    # Shows OpenAI models
+  claude-bridge google                    # Shows Google models
+
+  # Execution
+  claude-bridge openai gpt-4o
+  claude-bridge google gemini-2.0-flash-exp
+
+  # With custom configuration
+  claude-bridge openai gpt-4o --apiKey sk-... --baseURL https://api.openai.com/v1
+
+  # Single-shot prompts
+  claude-bridge openai gpt-4o -p "Hello world"
+  claude-bridge google gemini-1.5-pro -p "Debug this code"
+
+OPTIONS:
+  --apiKey <key>        API key for the provider
+  --baseURL <url>       Custom API base URL
+  --maxRetries <num>    Maximum number of retries for failed requests
+  --log-dir <dir>       Directory for log files (default: .claude-bridge)
+  --patch-claude        Patch Claude binary to disable anti-debugging checks
+  --help, -h            Show this help
+
+ENVIRONMENT VARIABLES:
+  OPENAI_API_KEY        API key for OpenAI (if --apiKey not provided)
+  GOOGLE_API_KEY        API key for Google (if --apiKey not provided)
+
+NOTE:
+  Only models with both tools and image support are shown by default.
+  The interceptor logs requests to .claude-bridge/requests.jsonl
+`);
+}
+
+function showProviders(): void {
+	const nonAnthropicProviders = getNonAnthropicProviders();
+
+	console.log(`Available providers (only showing providers with capable models):\n`);
+
+	for (const provider of nonAnthropicProviders) {
+		const models = getCapableModelsForProvider(provider);
+		if (models.length > 0) {
+			switch (provider) {
+				case "openai":
+					console.log(`  openai     OpenAI models (GPT-4o, etc.)`);
+					break;
+				case "google":
+					console.log(`  google     Google models (Gemini, etc.)`);
+					break;
+				default:
+					// TypeScript will catch if we miss any provider cases
+					const _exhaustiveCheck: never = provider;
+					_exhaustiveCheck;
+			}
+		}
+	}
+
+	console.log(`
+Usage:
+  claude-bridge <provider>        Show models for a provider
+  claude-bridge --help            Show detailed help
+
 Examples:
-  # Use OpenAI GPT-4o with Claude Code
-  claude-bridge --provider openai --model gpt-4o --run-with chat
+  claude-bridge openai           # Show OpenAI models
+  claude-bridge google           # Show Google models`);
+}
 
-  # Use Google Gemini with a specific prompt
-  claude-bridge --provider google --model gemini-1.5-pro --run-with -p "Hello world"
+function showProviderModels(provider: string): void {
+	// Validate provider first
+	if (!isValidProvider(provider)) {
+		console.error(`❌ Invalid provider: ${provider}`);
+		const validProviders = getNonAnthropicProviders();
+		console.error(`Available providers: ${validProviders.join(", ")}`);
+		process.exit(1);
+	}
 
-  # Use custom API key
-  claude-bridge --provider openai --model gpt-4o --apiKey sk-... --run-with chat
+	// Skip Anthropic since we're bridging to non-Anthropic providers
+	if (provider === "anthropic") {
+		console.error(`❌ Anthropic provider not supported for bridging`);
+		const validProviders = getNonAnthropicProviders();
+		console.error(`Available providers: ${validProviders.join(", ")}`);
+		process.exit(1);
+	}
 
-Environment Variables:
-  ANTHROPIC_API_KEY    - Fallback if --apiKey not provided and provider is anthropic
-  OPENAI_API_KEY       - Fallback if --apiKey not provided and provider is openai
-  GOOGLE_API_KEY       - Fallback if --apiKey not provided and provider is google
+	const models = getCapableModelsForProvider(provider);
 
-Note: The interceptor logs requests to .claude-bridge/requests.jsonl and debug info to .claude-bridge/log.txt in the current directory.
-`,
+	if (models.length === 0) {
+		console.error(`❌ No capable models found for provider: ${provider}`);
+		const validProviders = getNonAnthropicProviders();
+		console.error(`Available providers: ${validProviders.join(", ")}`);
+		process.exit(1);
+	}
+
+	// Get provider display name with exhaustive switch (provider is already validated as non-anthropic)
+	let providerDisplayName: string;
+	if (provider === "openai") {
+		providerDisplayName = "OpenAI";
+	} else if (provider === "google") {
+		providerDisplayName = "Google";
+	} else {
+		// This should never happen since we validated provider above
+		console.error(`❌ Unexpected provider: ${provider}`);
+		process.exit(1);
+	}
+
+	console.log(`${providerDisplayName} models with tools and image support:\n`);
+	console.log(
+		`  ${"Model".padEnd(35)} ${"Tools".padStart(6)}  ${"Images".padStart(7)}  ${"Max Input".padStart(12)}  ${"Max Output".padStart(12)}`,
+	);
+	console.log(
+		`  ${"".padEnd(35, "─")} ${"".padStart(6, "─")}  ${"".padStart(7, "─")}  ${"".padStart(12, "─")}  ${"".padStart(12, "─")}`,
 	);
 
-	return program;
+	// Sort models by max input tokens (descending) to show most capable first
+	const sortedModels = models
+		.map((model) => ({ model, data: findModelData(model) }))
+		.filter((item) => item.data !== undefined)
+		.sort((a, b) => b.data!.contextWindow - a.data!.contextWindow)
+		.map((item) => item.model);
+
+	for (const model of sortedModels) {
+		const data = findModelData(model);
+		if (data) {
+			console.log(formatModelInfo(model, data));
+		}
+	}
+
+	console.log(`\nUsage:`);
+	console.log(`  claude-bridge ${provider} <model>     Run with specific model`);
+	console.log(`  claude-bridge --help                  Show detailed help`);
+	console.log(`\nExamples:`);
+	console.log(`  claude-bridge ${provider} ${sortedModels[0]}`);
+	if (sortedModels[1]) {
+		console.log(`  claude-bridge ${provider} ${sortedModels[1]}`);
+	}
+}
+
+function parseArguments(argv: string[]): ParsedArgs {
+	const args: ParsedArgs = {
+		claudeArgs: [],
+	};
+
+	let i = 2; // Skip 'node' and script name
+
+	while (i < argv.length) {
+		const arg = argv[i];
+
+		if (arg === "--help" || arg === "-h") {
+			args.help = true;
+			i++;
+		} else if (arg === "--apiKey") {
+			if (i + 1 < argv.length && argv[i + 1] !== undefined) {
+				args.apiKey = argv[++i];
+			}
+			i++;
+		} else if (arg === "--baseURL") {
+			if (i + 1 < argv.length && argv[i + 1] !== undefined) {
+				args.baseURL = argv[++i];
+			}
+			i++;
+		} else if (arg === "--maxRetries") {
+			if (i + 1 < argv.length && argv[i + 1] !== undefined) {
+				const nextArg = argv[++i];
+				if (nextArg !== undefined) {
+					const retries = parseInt(nextArg, 10);
+					if (isNaN(retries) || retries < 0) {
+						console.error(`❌ Invalid --maxRetries value: ${nextArg}`);
+						process.exit(1);
+					}
+					args.maxRetries = retries;
+				}
+			}
+			i++;
+		} else if (arg === "--log-dir") {
+			if (i + 1 < argv.length && argv[i + 1] !== undefined) {
+				args.logDir = argv[++i];
+			}
+			i++;
+		} else if (arg === "--patch-claude") {
+			args.patchClaude = true;
+			i++;
+		} else if (arg && arg.startsWith("--")) {
+			// Unknown option, add to Claude args
+			args.claudeArgs.push(arg);
+			// Check if this option takes a value
+			if (i + 1 < argv.length) {
+				const nextArg = argv[i + 1];
+				if (nextArg !== undefined && !nextArg.startsWith("--")) {
+					args.claudeArgs.push(nextArg);
+					i++;
+				}
+			}
+			i++;
+		} else if (!args.provider && arg && !arg.startsWith("-")) {
+			// First non-option argument is provider
+			args.provider = arg;
+			i++;
+		} else if (!args.model && arg && !arg.startsWith("-")) {
+			// Second non-option argument is model
+			args.model = arg;
+			i++;
+		} else {
+			// Everything else goes to Claude args
+			if (arg !== undefined) {
+				args.claudeArgs.push(arg);
+			}
+			i++;
+		}
+	}
+
+	return args;
+}
+
+function validateProviderAndModel(provider?: string, model?: string): { provider: Provider; model: string } | null {
+	if (!provider) return null;
+
+	// Validate provider with type checking
+	if (!isValidProvider(provider)) {
+		console.error(`❌ Invalid provider: ${provider}`);
+		const validProviders = getNonAnthropicProviders();
+		console.error(`Available providers: ${validProviders.join(", ")}`);
+		return null;
+	}
+
+	// Skip Anthropic since we're bridging to non-Anthropic providers
+	if (provider === "anthropic") {
+		console.error(`❌ Anthropic provider not supported for bridging`);
+		const validProviders = getNonAnthropicProviders();
+		console.error(`Available providers: ${validProviders.join(", ")}`);
+		return null;
+	}
+
+	if (!model) return null;
+
+	// Get capable models for this provider
+	const capableModels = getCapableModelsForProvider(provider);
+
+	// Validate model
+	if (!capableModels.includes(model)) {
+		console.error(`❌ Invalid model for ${provider}: ${model}`);
+		console.error(`Available ${provider} models:`);
+		for (const availableModel of capableModels.slice(0, 5)) {
+			// Show first 5
+			console.error(`  ${availableModel}`);
+		}
+		if (capableModels.length > 5) {
+			console.error(`  ... and ${capableModels.length - 5} more`);
+		}
+		console.error(`\nRun 'claude-bridge ${provider}' to see all models`);
+		return null;
+	}
+
+	// Validate model actually exists in our data
+	const modelData = findModelData(model);
+	if (!modelData) {
+		console.error(`❌ Model data not found for: ${model}`);
+		return null;
+	}
+
+	return { provider, model };
 }
 
 function findClaudeExecutable(): string | null {
@@ -88,22 +412,32 @@ function findClaudeExecutable(): string | null {
 }
 
 function runClaudeWithBridge(args: ClaudeArgs): number {
-	if (!args.provider) {
-		console.error("❌ --provider is required");
+	// Validate we have required provider and model
+	if (!args.provider || !args.model) {
+		console.error("❌ Internal error: provider and model are required");
 		return 1;
 	}
 
-	if (!args.model) {
-		console.error("❌ --model is required");
-		return 1;
-	}
-
-	// Default to chat if no run-with args provided
-	const claudeArgs = args.runWith && args.runWith.length > 0 ? args.runWith : [];
-
+	// Get API key with exhaustive switch
 	let apiKey = args.apiKey;
 	if (!apiKey) {
-		const envVar = getDefaultApiKeyEnvVar(args.provider as "anthropic" | "openai" | "google");
+		let envVar: string;
+		switch (args.provider) {
+			case "anthropic":
+				envVar = "ANTHROPIC_API_KEY";
+				break;
+			case "openai":
+				envVar = "OPENAI_API_KEY";
+				break;
+			case "google":
+				envVar = "GOOGLE_API_KEY";
+				break;
+			default:
+				// TypeScript will catch if we miss any provider cases
+				const _exhaustiveCheck: never = args.provider;
+				return _exhaustiveCheck;
+		}
+
 		apiKey = process.env[envVar];
 		if (!apiKey) {
 			console.error(`❌ API key not found. Provide --apiKey or set ${envVar} environment variable`);
@@ -111,10 +445,22 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 		}
 	}
 
-	console.log(`🌉 Claude Bridge starting:`);
-	console.log(`   Provider: ${args.provider}`);
-	console.log(`   Model: ${args.model}`);
-	console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
+	// Check model capabilities and warn if Claude requests exceed limits
+	const modelData = findModelData(args.model);
+	if (modelData) {
+		console.log(`🌉 Claude Bridge starting:`);
+		console.log(`   Provider: ${args.provider}`);
+		console.log(`   Model: ${args.model}`);
+		console.log(`   Max Output Tokens: ${modelData.maxOutputTokens.toLocaleString()}`);
+		console.log(`   Tools Support: ${modelData.supportsTools ? "✓" : "✗"}`);
+		console.log(`   Images Support: ${modelData.supportsImageInput ? "✓" : "✗"}`);
+		console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
+	} else {
+		console.log(`🌉 Claude Bridge starting:`);
+		console.log(`   Provider: ${args.provider}`);
+		console.log(`   Model: ${args.model}`);
+		console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
+	}
 
 	let claudeExe = findClaudeExecutable();
 	if (!claudeExe) {
@@ -136,7 +482,7 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 	// Filter out debugging flags from node arguments
 	const cleanNodeArgs = ["--import", interceptorLoader, "--no-deprecation"];
 
-	const spawnArgs = [...cleanNodeArgs, claudeExe, ...claudeArgs];
+	const spawnArgs = [...cleanNodeArgs, claudeExe, ...args.claudeArgs];
 
 	console.log(`🚀 Launching: node ${spawnArgs.join(" ")}`);
 
@@ -163,6 +509,8 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 			CLAUDE_BRIDGE_PROVIDER: args.provider,
 			CLAUDE_BRIDGE_MODEL: args.model,
 			CLAUDE_BRIDGE_API_KEY: apiKey,
+			CLAUDE_BRIDGE_BASE_URL: args.baseURL,
+			CLAUDE_BRIDGE_MAX_RETRIES: args.maxRetries?.toString(),
 			CLAUDE_BRIDGE_LOG_DIR: args.logDir,
 		},
 	});
@@ -182,26 +530,44 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 }
 
 async function main(argv: string[] = process.argv) {
-	const program = setupProgram();
+	const parsedArgs = parseArguments(argv);
 
-	program.action((options) => {
-		const exitCode = runClaudeWithBridge({
-			provider: options.provider,
-			model: options.model,
-			apiKey: options.apiKey,
-			logDir: options.logDir,
-			runWith: options.runWith,
-			patchClaude: options.patchClaude,
-		});
-		process.exit(exitCode);
-	});
+	// Handle help
+	if (parsedArgs.help) {
+		showHelp();
+		return;
+	}
 
-	try {
-		await program.parseAsync(argv);
-	} catch (error) {
-		console.error(`❌ Fatal error: ${error instanceof Error ? error.message : String(error)}`);
+	// Handle no arguments - show providers
+	if (!parsedArgs.provider) {
+		showProviders();
+		return;
+	}
+
+	// Handle provider only - show models for that provider
+	if (parsedArgs.provider && !parsedArgs.model) {
+		showProviderModels(parsedArgs.provider);
+		return;
+	}
+
+	// Handle provider + model - validate and execute
+	const validated = validateProviderAndModel(parsedArgs.provider, parsedArgs.model);
+	if (!validated) {
 		process.exit(1);
 	}
+
+	const exitCode = runClaudeWithBridge({
+		provider: validated.provider,
+		model: validated.model,
+		apiKey: parsedArgs.apiKey,
+		baseURL: parsedArgs.baseURL,
+		maxRetries: parsedArgs.maxRetries,
+		logDir: parsedArgs.logDir,
+		patchClaude: parsedArgs.patchClaude || false,
+		claudeArgs: parsedArgs.claudeArgs,
+	});
+
+	process.exit(exitCode);
 }
 
 process.on("unhandledRejection", (reason, promise) => {
@@ -211,7 +577,7 @@ process.on("unhandledRejection", (reason, promise) => {
 
 // Export functions for testing
 export default main;
-export { runClaudeWithBridge };
+export { runClaudeWithBridge, parseArguments, validateProviderAndModel, getCapableModels };
 
 // Only run if this file is executed directly (ESM check)
 if (import.meta.url === `file://${process.argv[1]}`) {

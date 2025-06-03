@@ -15,46 +15,15 @@ import {
 } from "@mariozechner/lemmy";
 import { lemmy } from "@mariozechner/lemmy";
 import { z } from "zod";
-
-interface Logger {
-	log(message: string): void;
-	error(message: string): void;
-}
-
-class FileLogger implements Logger {
-	private logFile: string;
-
-	constructor(logDir: string) {
-		this.logFile = path.join(logDir, "log.txt");
-		fs.writeFileSync(this.logFile, `[${new Date().toISOString()}] Claude Bridge Logger Started\n`);
-	}
-
-	log(message: string): void {
-		try {
-			const timestamp = new Date().toISOString();
-			fs.appendFileSync(this.logFile, `[${timestamp}] ${message}\n`);
-		} catch {
-			// Silently ignore logging errors
-		}
-	}
-
-	error(message: string): void {
-		try {
-			const timestamp = new Date().toISOString();
-			fs.appendFileSync(this.logFile, `[${timestamp}] ERROR: ${message}\n`);
-		} catch {
-			// Silently ignore logging errors
-		}
-	}
-}
-
-interface ParsedRequestData {
-	url: string;
-	method: string;
-	timestamp: number;
-	headers: Record<string, string>;
-	body: MessageCreateParamsBase;
-}
+import { FileLogger, type Logger } from "./utils/logger.js";
+import { parseSSE, extractAssistantFromSSE, createAnthropicSSE } from "./utils/sse.js";
+import {
+	parseAnthropicMessageCreateRequest,
+	parseResponse,
+	isAnthropicAPI,
+	generateRequestId,
+	type ParsedRequestData,
+} from "./utils/request-parser.js";
 
 export class ClaudeBridgeInterceptor {
 	private config: BridgeConfig;
@@ -110,8 +79,8 @@ export class ClaudeBridgeInterceptor {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 		this.logger.log(`Intercepted Claude request: ${url}`);
 
-		const requestId = this.generateRequestId();
-		const requestData = await this.parseAnthropicMessageCreateRequest(url, init);
+		const requestId = generateRequestId();
+		const requestData = await parseAnthropicMessageCreateRequest(url, init, this.logger);
 		const transformResult = await this.tryTransform(requestData);
 
 		// Log conversation history to debug duplicate messages
@@ -144,32 +113,6 @@ export class ClaudeBridgeInterceptor {
 			this.pendingRequests.delete(requestId);
 			throw error;
 		}
-	}
-
-	private async parseAnthropicMessageCreateRequest(url: string, init: RequestInit): Promise<ParsedRequestData> {
-		let body: MessageCreateParamsBase | null = null;
-
-		if (init.body) {
-			try {
-				if (typeof init.body !== "string") throw new Error("Anthropic request body must be a string");
-				body = JSON.parse(init.body) as MessageCreateParamsBase;
-			} catch (error) {
-				this.logger.error(
-					`Failed to parse Anthropic request body: ${error instanceof Error ? error.message : String(error)}`,
-				);
-				body = null;
-			}
-		}
-
-		if (!body) throw Error("Anthropic request body must not be null");
-
-		return {
-			url,
-			timestamp: Date.now() / 1000,
-			method: init.method || "POST",
-			headers: this.redactHeaders(Object.fromEntries(new Headers(init.headers || {}).entries())),
-			body,
-		};
 	}
 
 	private async tryTransform(requestData: any): Promise<SerializedContext | null> {
@@ -231,14 +174,14 @@ export class ClaudeBridgeInterceptor {
 			}
 
 			// Convert to Anthropic SSE format
-			return new Response(this.createAnthropicSSE(askResult), {
+			return new Response(createAnthropicSSE(askResult, this.config.model || "gpt-4o"), {
 				status: 200,
 				statusText: "OK",
 				headers: {
 					"Content-Type": "text/event-stream",
 					"Cache-Control": "no-cache",
 					Connection: "keep-alive",
-					"anthropic-request-id": this.generateRequestId(),
+					"anthropic-request-id": generateRequestId(),
 				},
 			});
 		} catch (error) {
@@ -266,7 +209,7 @@ export class ClaudeBridgeInterceptor {
 		transformResult: SerializedContext | null,
 		requestId: string,
 	) {
-		const responseData = await this.parseResponse(response.clone());
+		const responseData = await parseResponse(response.clone());
 
 		// Log raw request-response pair
 		const pair: RawPair = {
@@ -280,11 +223,11 @@ export class ClaudeBridgeInterceptor {
 		if (transformResult) {
 			const decodedSSE =
 				responseData.body_raw && responseData.headers["content-type"]?.includes("text/event-stream")
-					? this.parseSSE(responseData.body_raw)
+					? parseSSE(responseData.body_raw)
 					: undefined;
 
 			const contextWithResponse = { ...transformResult };
-			const assistantResponse = decodedSSE ? this.extractAssistantFromSSE(decodedSSE) : null;
+			const assistantResponse = decodedSSE ? extractAssistantFromSSE(decodedSSE, this.logger) : null;
 			if (assistantResponse) {
 				contextWithResponse.messages = [...contextWithResponse.messages, assistantResponse];
 			}
@@ -309,64 +252,7 @@ export class ClaudeBridgeInterceptor {
 
 	// Utility methods
 	private isAnthropicAPI(url: string): boolean {
-		return url.includes("api.anthropic.com") && url.includes("/v1/messages");
-	}
-
-	private generateRequestId(): string {
-		return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-	}
-
-	private redactHeaders(headers: Record<string, string>): Record<string, string> {
-		const result = { ...headers };
-		const sensitiveKeys = [
-			"authorization",
-			"x-api-key",
-			"x-auth-token",
-			"cookie",
-			"set-cookie",
-			"x-session-token",
-			"x-access-token",
-			"bearer",
-			"proxy-authorization",
-		];
-
-		for (const [key, value] of Object.entries(result)) {
-			if (sensitiveKeys.some((sensitive) => key.toLowerCase().includes(sensitive))) {
-				result[key] =
-					value.length > 14
-						? `${value.substring(0, 10)}...${value.slice(-4)}`
-						: value.length > 4
-							? `${value.substring(0, 2)}...${value.slice(-2)}`
-							: "[REDACTED]";
-			}
-		}
-		return result;
-	}
-
-	private async parseResponse(response: Response) {
-		const contentType = response.headers.get("content-type") || "";
-		let body, body_raw;
-
-		try {
-			if (contentType.includes("application/json")) {
-				body = await response.json();
-			} else {
-				body_raw = await response.text();
-			}
-		} catch {
-			// Ignore parse errors
-		}
-
-		const result: any = {
-			timestamp: Date.now() / 1000,
-			status_code: response.status,
-			headers: this.redactHeaders(Object.fromEntries(response.headers.entries())),
-		};
-
-		if (body) result.body = body;
-		if (body_raw) result.body_raw = body_raw;
-
-		return result;
+		return isAnthropicAPI(url);
 	}
 
 	private safeJsonSchemaToZod(jsonSchema: any): z.ZodSchema {
@@ -375,194 +261,6 @@ export class ClaudeBridgeInterceptor {
 		} catch {
 			return z.any();
 		}
-	}
-
-	private parseSSE(sseData: string): any[] {
-		const events: any[] = [];
-		const lines = sseData.split("\n");
-		let currentEvent: any = {};
-
-		for (const line of lines) {
-			if (line.startsWith("data:")) {
-				try {
-					currentEvent = JSON.parse(line.substring(5).trim());
-				} catch {
-					currentEvent.data = line.substring(5).trim();
-				}
-			} else if (line.trim() === "" && Object.keys(currentEvent).length > 0) {
-				events.push({ ...currentEvent });
-				currentEvent = {};
-			}
-		}
-
-		if (Object.keys(currentEvent).length > 0) events.push(currentEvent);
-		return events;
-	}
-
-	private extractAssistantFromSSE(events: any[]): Message | null {
-		try {
-			let content = "",
-				thinking = "";
-			const toolCalls: any[] = [];
-			let errorMessage = "";
-
-			for (const event of events) {
-				if (event.type === "error") {
-					// Handle error events - extract the error message
-					errorMessage = event.error?.message || JSON.stringify(event.error) || "Unknown error";
-				} else if (event.type === "content_block_delta") {
-					if (event.delta?.type === "text_delta") content += event.delta.text || "";
-					if (event.delta?.type === "thinking_delta") thinking += event.delta.thinking || "";
-				} else if (event.type === "content_block_start" && event.content_block?.type === "tool_use") {
-					toolCalls.push({ id: event.content_block.id, name: event.content_block.name, arguments: {} });
-				} else if (
-					event.type === "content_block_delta" &&
-					event.delta?.type === "input_json_delta" &&
-					toolCalls.length > 0
-				) {
-					const lastTool = toolCalls[toolCalls.length - 1];
-					lastTool.argumentsJson = (lastTool.argumentsJson || "") + (event.delta.partial_json || "");
-				}
-			}
-
-			// Parse tool arguments
-			for (const tool of toolCalls) {
-				if (tool.argumentsJson) {
-					try {
-						tool.arguments = JSON.parse(tool.argumentsJson);
-						delete tool.argumentsJson;
-					} catch {
-						tool.arguments = tool.argumentsJson;
-						delete tool.argumentsJson;
-					}
-				}
-			}
-
-			const message: any = { role: "assistant" };
-			if (thinking) message.thinking = thinking;
-			if (content) message.content = content;
-			if (toolCalls.length > 0) message.toolCalls = toolCalls;
-			if (errorMessage) message.content = `Error: ${errorMessage}`;
-
-			return Object.keys(message).length > 1 ? message : null;
-		} catch (error) {
-			this.logger.error(
-				`Failed to extract assistant response: ${error instanceof Error ? error.message : String(error)}`,
-			);
-			return null;
-		}
-	}
-
-	private createAnthropicSSE(askResult: AskResult): ReadableStream<Uint8Array> {
-		const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-		const model = this.config.model || "gpt-4o";
-
-		return new ReadableStream({
-			start(controller) {
-				const encoder = new TextEncoder();
-				const writeEvent = (eventType: string, data: any) => {
-					controller.enqueue(encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`));
-				};
-
-				if (askResult.type !== "success") {
-					const errorMessage =
-						askResult.error?.message || JSON.stringify(askResult.error) || "OpenAI request failed";
-					writeEvent("error", {
-						type: "error",
-						error: { type: "internal_server_error", message: errorMessage },
-					});
-					controller.close();
-					return;
-				}
-
-				// Start message
-				writeEvent("message_start", {
-					type: "message_start",
-					message: {
-						id: messageId,
-						type: "message",
-						role: "assistant",
-						model,
-						content: [],
-						stop_reason: null,
-						stop_sequence: null,
-						usage: { input_tokens: askResult.tokens?.input || 0, output_tokens: 0 },
-					},
-				});
-
-				let blockIndex = 0;
-
-				// Thinking
-				if (askResult.message.thinking) {
-					writeEvent("content_block_start", {
-						type: "content_block_start",
-						index: blockIndex,
-						content_block: { type: "thinking" },
-					});
-					const thinking = askResult.message.thinking;
-					for (let i = 0; i < thinking.length; i += 50) {
-						writeEvent("content_block_delta", {
-							type: "content_block_delta",
-							index: blockIndex,
-							delta: { type: "thinking_delta", thinking: thinking.slice(i, i + 50) },
-						});
-					}
-					writeEvent("content_block_stop", { type: "content_block_stop", index: blockIndex });
-					blockIndex++;
-				}
-
-				// Text content
-				if (askResult.message.content) {
-					writeEvent("content_block_start", {
-						type: "content_block_start",
-						index: blockIndex,
-						content_block: { type: "text", text: "" },
-					});
-					const content = askResult.message.content;
-					for (let i = 0; i < content.length; i += 50) {
-						writeEvent("content_block_delta", {
-							type: "content_block_delta",
-							index: blockIndex,
-							delta: { type: "text_delta", text: content.slice(i, i + 50) },
-						});
-					}
-					writeEvent("content_block_stop", { type: "content_block_stop", index: blockIndex });
-					blockIndex++;
-				}
-
-				// Tool calls
-				if (askResult.message.toolCalls?.length) {
-					for (const toolCall of askResult.message.toolCalls) {
-						writeEvent("content_block_start", {
-							type: "content_block_start",
-							index: blockIndex,
-							content_block: { type: "tool_use", id: toolCall.id, name: toolCall.name, input: {} },
-						});
-						const argsJson = JSON.stringify(toolCall.arguments);
-						for (let i = 0; i < argsJson.length; i += 50) {
-							writeEvent("content_block_delta", {
-								type: "content_block_delta",
-								index: blockIndex,
-								delta: { type: "input_json_delta", partial_json: argsJson.slice(i, i + 50) },
-							});
-						}
-						writeEvent("content_block_stop", { type: "content_block_stop", index: blockIndex });
-						blockIndex++;
-					}
-				}
-
-				// End message
-				const stopReason = askResult.message.toolCalls?.length ? "tool_use" : "end_turn";
-				writeEvent("message_delta", {
-					type: "message_delta",
-					delta: { stop_reason: stopReason, stop_sequence: null },
-					usage: { output_tokens: askResult.tokens?.output || 0 },
-				});
-				writeEvent("message_stop", { type: "message_stop" });
-
-				controller.close();
-			},
-		});
 	}
 
 	private logOpenAIError(error: any) {
