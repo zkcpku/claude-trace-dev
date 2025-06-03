@@ -54,25 +54,26 @@ Claude Code → claude-bridge (intercept) → Transform → Provider API → Tra
 **How it works:**
 
 1. **Interception**: Instruments `global.fetch()` to catch calls to `api.anthropic.com/v1/messages`
-2. **Logging**: Raw requests logged to `{logDir}/requests-{timestamp}.jsonl`
-3. **Debug Info**: Interceptor logs to `{logDir}/log.txt` (avoids stdout pollution)
-4. **Transformation**: ✅ Convert Anthropic requests → lemmy UserMessage/AssistantMessage format
-5. **Logging Transformed**: Converted messages logged to `{logDir}/transformed-{timestamp}.jsonl`
-6. **Forwarding**: _(TODO)_ Send to OpenAI/Google APIs and stream response back
+2. **Request Routing**: Haiku models → Anthropic, other models → configured provider
+3. **Transformation**: Convert Anthropic requests → lemmy Context with tools and messages
+4. **Provider Integration**: Call OpenAI/Google via lemmy unified interface
+5. **Response Conversion**: Transform provider responses → Anthropic SSE streaming format
+6. **Logging**: All requests/responses logged to `{logDir}/` with comprehensive error details
 
 ### Project Structure
 
 ```
 src/
 ├── cli.ts                  # CLI entry point with commander
-├── interceptor.ts          # Fetch interception + file logging + transformation
+├── interceptor.ts          # Fetch interception + OpenAI forwarding + SSE conversion
 ├── interceptor-loader.js   # CommonJS loader for tsx compatibility
-├── transform.ts           # Anthropic → lemmy Message conversion
+├── transform.ts           # Anthropic → lemmy format + JSON Schema to Zod conversion
 ├── types.ts               # TypeScript interfaces
+├── patch-claude.ts        # Claude binary patching for debugging
 └── index.ts               # Package exports
 
 test/
-└── smoke.test.ts          # Integration tests (4 tests)
+└── e2e-standalone.ts      # End-to-end tests with OpenAI validation
 
 dist/                      # Compiled JavaScript output
 ```
@@ -91,7 +92,7 @@ cd apps/claude-bridge
 npm run build
 
 # Run tests
-npm run test:run
+npm run test:e2e
 
 # Type checking
 npm run typecheck
@@ -145,18 +146,41 @@ cat .claude-bridge/transformed-*.jsonl | jq
 - ✅ **Fetch Interception**: Working - captures v1/messages calls
 - ✅ **File Logging**: Working - requests.jsonl + log.txt
 - ✅ **CLI Interface**: Working - all arguments and validation
-- ✅ **Testing**: Working - 4 smoke tests passing
-- ✅ **Request Transformation**: Working - Anthropic → lemmy UserMessage/AssistantMessage
+- ✅ **Testing**: Working - E2E tests with OpenAI validation
+- ✅ **Request Transformation**: Working - Anthropic → lemmy UserMessage/AssistantMessage + tools
 - ✅ **Transformation Logging**: Working - transformed.jsonl with lemmy messages + anthropic params
-- 🔄 **Provider Forwarding**: TODO - Call OpenAI/Google APIs
-- 🔄 **Response Streaming**: TODO - Forward SSE back to Claude Code
+- ✅ **Provider Forwarding**: Working - Complete OpenAI integration via lemmy unified interface
+- ✅ **Response Streaming**: Working - Converts OpenAI responses to Anthropic SSE format
+- ✅ **Tool Support**: Working - JSON Schema to Zod conversion with $ref resolution
+- ✅ **Error Handling**: Working - Comprehensive error logging for debugging failures
 
-### Next Steps
+### Limitations
 
-1. ✅ ~~Implement request transformation using lemmy package~~
-2. Add provider-specific API calls (OpenAI/Google)
-3. Stream provider responses back as Anthropic-compatible SSE
-4. Add more comprehensive testing with real API calls
+**❌ Claude Code Built-in Tools Not Supported**
+
+Claude Code built-in tools cannot be bridged to other providers and will cause requests to fail. Known built-in tools include:
+
+- `web_search_20250305` - Web search functionality
+
+Other built-in tools likely exist (bash, text editor, computer control, etc.) but use provider-specific implementations that cannot be bridged.
+
+**Why these tools can't be supported:**
+
+1. **No Schema Definition**: Built-in tools don't include `input_schema`, making parameter conversion impossible
+2. **Runtime Dependencies**: These tools require Claude Code's internal infrastructure and can't be executed through standard APIs
+3. **Security Isolation**: Tools like `bash` and `computer` have special security sandboxing that other providers don't offer
+4. **Provider Limitations**: Most LLM providers don't offer equivalent built-in tool capabilities
+
+**Workaround**: Only use custom tools with defined schemas, or use requests without built-in tools when bridging to other providers.
+
+### Dual-Path Behavior
+
+The bridge implements intelligent request routing:
+
+- **Haiku models** (`claude-3-5-haiku-*`) → Routed to Anthropic (preserves cost efficiency)
+- **Other models** (`claude-sonnet-4-*`, etc.) → Routed to configured provider (OpenAI/Google)
+
+This allows using fast/cheap Anthropic models for simple tasks while using other providers for complex requests.
 
 ### Transformation Details
 
