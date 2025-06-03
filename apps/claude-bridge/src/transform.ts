@@ -125,32 +125,9 @@ export function jsonSchemaToZod(jsonSchema: any): z.ZodSchema {
 }
 
 /**
- * Result of transforming an Anthropic request
- */
-export interface TransformResult {
-	/** Lemmy Context in serialized format with messages, system prompt, and tools */
-	context: SerializedContext;
-	/** Anthropic-specific parameters that aren't part of Context */
-	anthropicParams: {
-		model: string;
-		max_tokens: number;
-		temperature?: number;
-		top_k?: number;
-		top_p?: number;
-		stop_sequences?: string[];
-		stream?: boolean;
-		tool_choice?: ToolChoice;
-		metadata?: Metadata;
-		thinking?: ThinkingConfigParam;
-		service_tier?: "auto" | "standard_only";
-		tools?: ToolUnion[];
-	};
-}
-
-/**
  * Transform Anthropic API request to lemmy Context + Anthropic params
  */
-export function transformAnthropicToLemmy(anthropicRequest: MessageCreateParamsBase): TransformResult {
+export function transformAnthropicToLemmy(anthropicRequest: MessageCreateParamsBase): SerializedContext {
 	const context = new Context();
 	const currentTime = new Date();
 
@@ -202,26 +179,7 @@ export function transformAnthropicToLemmy(anthropicRequest: MessageCreateParamsB
 		}
 	}
 
-	// Extract Anthropic-specific parameters (not stored in Context)
-	const anthropicParams = {
-		model: anthropicRequest.model,
-		max_tokens: anthropicRequest.max_tokens,
-		...(anthropicRequest.temperature !== undefined && { temperature: anthropicRequest.temperature }),
-		...(anthropicRequest.top_k !== undefined && { top_k: anthropicRequest.top_k }),
-		...(anthropicRequest.top_p !== undefined && { top_p: anthropicRequest.top_p }),
-		...(anthropicRequest.stop_sequences && { stop_sequences: anthropicRequest.stop_sequences }),
-		...(anthropicRequest.stream !== undefined && { stream: anthropicRequest.stream }),
-		...(anthropicRequest.tool_choice && { tool_choice: anthropicRequest.tool_choice }),
-		...(anthropicRequest.metadata && { metadata: anthropicRequest.metadata }),
-		...(anthropicRequest.thinking && { thinking: anthropicRequest.thinking }),
-		...(anthropicRequest.service_tier && { service_tier: anthropicRequest.service_tier }),
-		...(anthropicRequest.tools && { tools: anthropicRequest.tools }),
-	};
-
-	return {
-		context: context.serialize(),
-		anthropicParams,
-	};
+	return context.serialize();
 }
 
 /**
