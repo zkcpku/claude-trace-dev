@@ -83,6 +83,10 @@ export class ClaudeBridgeInterceptor {
 
 		const requestId = generateRequestId();
 		const requestData = await parseAnthropicMessageCreateRequest(url, init, this.logger);
+
+		// Detect problematic message patterns for OpenAI compatibility
+		this.detectProblematicMessagePatterns(requestData);
+
 		const transformResult = await this.tryTransform(requestData);
 		this.pendingRequests.set(requestId, requestData);
 
@@ -282,6 +286,38 @@ export class ClaudeBridgeInterceptor {
 				apiKey: this.config.apiKey ? `${this.config.apiKey.substring(0, 10)}...` : "NOT_SET",
 			})}`,
 		);
+	}
+
+	private detectProblematicMessagePatterns(requestData: any): void {
+		if (!requestData.body?.messages || !Array.isArray(requestData.body.messages)) {
+			return;
+		}
+
+		const messages = requestData.body.messages;
+
+		for (let i = 0; i < messages.length - 1; i++) {
+			const currentMessage = messages[i];
+			const nextMessage = messages[i + 1];
+
+			// Check for: assistant message with tool calls followed by user message without tool results
+			if (
+				currentMessage.role === "assistant" &&
+				currentMessage.tool_calls &&
+				Array.isArray(currentMessage.tool_calls) &&
+				currentMessage.tool_calls.length > 0 &&
+				nextMessage.role === "user" &&
+				!nextMessage.tool_call_id &&
+				!nextMessage.tool_result_id
+			) {
+				this.logger.log(
+					`🚨 DETECTED PROBLEMATIC PATTERN: Assistant message with ${currentMessage.tool_calls.length} tool calls (position ${i}) followed by user message without tool results (position ${i + 1})`,
+				);
+				this.logger.log(`Tool call IDs: ${currentMessage.tool_calls.map((tc: any) => tc.id).join(", ")}`);
+				this.logger.log(
+					`User message content preview: ${typeof nextMessage.content === "string" ? nextMessage.content.substring(0, 100) : "[complex content]"}`,
+				);
+			}
+		}
 	}
 
 	public cleanup(): void {
