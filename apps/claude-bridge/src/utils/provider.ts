@@ -24,22 +24,50 @@ import type {
 /**
  * Create provider-agnostic client for a given model
  */
-export function createProviderClient(config: BridgeConfig): ProviderClientInfo {
-	const provider = getProviderForModel(config.model as AllModels) as Provider;
+export async function createProviderClient(config: BridgeConfig): Promise<ProviderClientInfo> {
+	// For known models, use the registry
 	const modelData = findModelData(config.model);
+	let provider: Provider;
+	let client: any;
 
-	if (!modelData) {
-		throw new Error(`Model data not found for model: ${config.model}`);
+	if (modelData) {
+		// Known model - use standard approach
+		provider = getProviderForModel(config.model as AllModels) as Provider;
+		const providerConfig = buildProviderConfig(provider, config);
+		client = createClientForModel(config.model as AllModels, providerConfig);
+	} else {
+		// Unknown model - use the configured provider directly
+		provider = config.provider;
+		const providerConfig = buildProviderConfig(provider, config);
+
+		// Create client directly using lemmy's provider factories
+		switch (provider) {
+			case "openai": {
+				const { lemmy } = await import("@mariozechner/lemmy");
+				client = lemmy.openai(providerConfig as OpenAIConfig);
+				break;
+			}
+			case "google": {
+				const { lemmy } = await import("@mariozechner/lemmy");
+				client = lemmy.google(providerConfig as GoogleConfig);
+				break;
+			}
+			case "anthropic": {
+				const { lemmy } = await import("@mariozechner/lemmy");
+				client = lemmy.anthropic(providerConfig as AnthropicConfig);
+				break;
+			}
+			default:
+				const _exhaustiveCheck: never = provider;
+				throw new Error(`Unsupported provider: ${_exhaustiveCheck}`);
+		}
 	}
-
-	const providerConfig = buildProviderConfig(provider, config);
-	const client = createClientForModel(config.model as AllModels, providerConfig);
 
 	return {
 		client,
 		provider,
 		model: config.model,
-		modelData,
+		modelData: modelData || null, // null for unknown models
 	};
 }
 

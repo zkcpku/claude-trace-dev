@@ -29,14 +29,27 @@ import {
 import { createProviderClient, validateCapabilities, convertThinkingParameters } from "./utils/provider.js";
 
 export class ClaudeBridgeInterceptor {
-	private config: BridgeConfig;
-	private logger: Logger;
-	private requestsFile: string;
-	private transformedFile: string;
-	private clientInfo: ProviderClientInfo;
+	private config!: BridgeConfig;
+	private logger!: Logger;
+	private requestsFile!: string;
+	private transformedFile!: string;
+	private clientInfo!: ProviderClientInfo;
 	private pendingRequests = new Map<string, any>();
 
-	constructor(config: BridgeConfig) {
+	/**
+	 * Create a new interceptor instance (async factory)
+	 */
+	static async create(config: BridgeConfig): Promise<ClaudeBridgeInterceptor> {
+		const instance = new ClaudeBridgeInterceptor();
+		await instance.initialize(config);
+		return instance;
+	}
+
+	private constructor() {
+		// Private constructor - use create() instead
+	}
+
+	private async initialize(config: BridgeConfig): Promise<void> {
 		this.config = { logDirectory: ".claude-bridge", logLevel: "info", ...config };
 
 		// Setup logging
@@ -52,7 +65,7 @@ export class ClaudeBridgeInterceptor {
 		fs.writeFileSync(this.transformedFile, "");
 
 		// Setup provider-agnostic client
-		this.clientInfo = createProviderClient(this.config);
+		this.clientInfo = await createProviderClient(this.config);
 
 		this.logger.log(`Requests logged to ${this.requestsFile}`);
 		this.logger.log(`Transformed requests logged to ${this.transformedFile}`);
@@ -132,10 +145,15 @@ export class ClaudeBridgeInterceptor {
 
 	private async callProvider(transformResult: SerializedContext, originalRequest: any): Promise<Response> {
 		try {
-			// Validate capabilities
-			const validation = validateCapabilities(this.clientInfo.modelData, originalRequest, this.logger);
-			if (!validation.valid) {
-				validation.warnings.forEach((warning: string) => this.logger.log(`⚠️  ${warning}`));
+			// Validate capabilities (skip for unknown models)
+			let validation: any = { adjustments: {} };
+			if (this.clientInfo.modelData) {
+				validation = validateCapabilities(this.clientInfo.modelData, originalRequest, this.logger);
+				if (!validation.valid) {
+					validation.warnings.forEach((warning: string) => this.logger.log(`⚠️  ${warning}`));
+				}
+			} else {
+				this.logger.log(`⚠️  Skipping capability validation for unknown model: ${this.clientInfo.model}`);
 			}
 
 			// Create dummy tools for deserialization
@@ -340,7 +358,7 @@ export class ClaudeBridgeInterceptor {
 let globalInterceptor: ClaudeBridgeInterceptor | null = null;
 let eventListenersSetup = false;
 
-export function initializeInterceptor(config?: BridgeConfig): ClaudeBridgeInterceptor {
+export async function initializeInterceptor(config?: BridgeConfig): Promise<ClaudeBridgeInterceptor> {
 	if (globalInterceptor) {
 		console.warn("⚠️  Interceptor already initialized");
 		return globalInterceptor;
@@ -357,7 +375,7 @@ export function initializeInterceptor(config?: BridgeConfig): ClaudeBridgeInterc
 		logDirectory: process.env["CLAUDE_BRIDGE_LOG_DIR"] || ".claude-bridge",
 	};
 
-	globalInterceptor = new ClaudeBridgeInterceptor({ ...defaultConfig, ...config });
+	globalInterceptor = await ClaudeBridgeInterceptor.create({ ...defaultConfig, ...config });
 	globalInterceptor.instrumentFetch();
 
 	if (!eventListenersSetup) {

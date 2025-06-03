@@ -51,7 +51,7 @@ export interface ProviderClientInfo {
 	client: ChatClient;
 	provider: Provider;
 	model: string;
-	modelData: ModelData;
+	modelData: ModelData | null; // null for unknown models
 }
 
 export type ProviderConfig = AnthropicConfig | OpenAIConfig | GoogleConfig;

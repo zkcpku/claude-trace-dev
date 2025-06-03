@@ -15,17 +15,17 @@ try {
 	if (fs.existsSync(jsPath)) {
 		// Use JavaScript in same directory
 		const { initializeInterceptor } = await import(`file://${jsPath}`);
-		initializeInterceptor();
+		await initializeInterceptor();
 	} else if (fs.existsSync(distJsPath)) {
 		// Use compiled JavaScript from dist
 		const { initializeInterceptor } = await import(`file://${distJsPath}`);
-		initializeInterceptor();
+		await initializeInterceptor();
 	} else if (fs.existsSync(tsPath)) {
 		// Use TypeScript via tsx (ESM version)
 		try {
 			await import("tsx/esm/api");
 			const { initializeInterceptor } = await import(`file://${tsPath}`);
-			initializeInterceptor();
+			await initializeInterceptor();
 		} catch (tsxError) {
 			console.error("❌ tsx not available for TypeScript loading:", tsxError.message);
 			console.error("❌ Please build the project first with 'npm run build' and use the compiled version");

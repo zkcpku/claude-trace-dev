@@ -367,26 +367,26 @@ function validateProviderAndModel(provider?: string, model?: string): { provider
 	// Get capable models for this provider
 	const capableModels = getCapableModelsForProvider(provider);
 
-	// Validate model
+	// Check if model is in our known capable models
 	if (!capableModels.includes(model)) {
-		console.error(`❌ Invalid model for ${provider}: ${model}`);
-		console.error(`Available ${provider} models:`);
-		for (const availableModel of capableModels.slice(0, 5)) {
-			// Show first 5
-			console.error(`  ${availableModel}`);
+		console.warn(`⚠️  Unknown model for ${provider}: ${model}`);
+		console.warn(`   This model is not in our registry but will be attempted.`);
+		console.warn(`   Known ${provider} models:`);
+		for (const availableModel of capableModels.slice(0, 3)) {
+			// Show first 3
+			console.warn(`     ${availableModel}`);
 		}
-		if (capableModels.length > 5) {
-			console.error(`  ... and ${capableModels.length - 5} more`);
+		if (capableModels.length > 3) {
+			console.warn(`     ... and ${capableModels.length - 3} more`);
 		}
-		console.error(`\nRun 'claude-bridge ${provider}' to see all models`);
-		return null;
+		console.warn(`   Run 'claude-bridge ${provider}' to see all known models\n`);
 	}
 
-	// Validate model actually exists in our data
+	// Check if model data exists in our registry (for capability info)
 	const modelData = findModelData(model);
 	if (!modelData) {
-		console.error(`❌ Model data not found for: ${model}`);
-		return null;
+		console.warn(`⚠️  Model capabilities unknown for: ${model}`);
+		console.warn(`   Tool and image support cannot be validated.\n`);
 	}
 
 	return { provider, model };
