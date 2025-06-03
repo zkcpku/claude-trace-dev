@@ -317,14 +317,32 @@ export class ClaudeBridgeInterceptor {
 	private async callOpenAIAndFormatResponse(transformResult: TransformResult, requestData: any): Promise<Response> {
 		try {
 			// Create dummy tool definitions for deserialization
-			const dummyTools: ToolDefinition[] = transformResult.context.tools.map((serializedTool) => ({
-				name: serializedTool.name,
-				description: serializedTool.description,
-				schema: jsonSchemaToZod(serializedTool.jsonSchema),
-				execute: async () => {
-					throw new Error("Tool execution not supported in bridge mode");
-				},
-			}));
+			const dummyTools: ToolDefinition[] = transformResult.context.tools.map((serializedTool) => {
+				try {
+					const zodSchema = jsonSchemaToZod(serializedTool.jsonSchema);
+					return {
+						name: serializedTool.name,
+						description: serializedTool.description,
+						schema: zodSchema,
+						execute: async () => {
+							throw new Error("Tool execution not supported in bridge mode");
+						},
+					};
+				} catch (toolError) {
+					this.logger.error(
+						`Failed to convert tool ${serializedTool.name} to Zod: ${toolError instanceof Error ? toolError.message : String(toolError)}`,
+					);
+					// Return a basic Zod schema as fallback
+					return {
+						name: serializedTool.name,
+						description: serializedTool.description,
+						schema: z.any(),
+						execute: async () => {
+							throw new Error("Tool execution not supported in bridge mode");
+						},
+					};
+				}
+			});
 
 			// Deserialize the context with dummy tool definitions
 			const context = Context.deserialize(transformResult.context, dummyTools);
@@ -346,6 +364,11 @@ export class ClaudeBridgeInterceptor {
 				...askOptions,
 			});
 
+			// Only log errors, not success details
+			if (askResult.type !== "success") {
+				this.logger.error(`OpenAI error response: ${JSON.stringify(askResult.error)}`);
+			}
+
 			// Convert OpenAI result to Anthropic SSE format
 			const sseStream = this.convertOpenAIResultToAnthropicSSE(askResult, transformResult.anthropicParams);
 
@@ -364,14 +387,65 @@ export class ClaudeBridgeInterceptor {
 			this.logger.log(`Successfully forwarded request to OpenAI and converted response`);
 			return response;
 		} catch (error) {
-			this.logger.error(`Failed to call OpenAI: ${error instanceof Error ? error.message : String(error)}`);
+			// Log comprehensive error information
+			this.logger.error(`CRITICAL: OpenAI request failed with detailed error information:`);
+			this.logger.error(`Error type: ${typeof error}`);
+			this.logger.error(`Error constructor: ${error?.constructor?.name}`);
+
+			if (error instanceof Error) {
+				this.logger.error(`Error message: ${error.message}`);
+				this.logger.error(`Error stack: ${error.stack}`);
+				this.logger.error(`Error name: ${error.name}`);
+
+				// Check for specific error properties
+				if ("cause" in error && error.cause) {
+					this.logger.error(`Error cause: ${JSON.stringify(error.cause)}`);
+				}
+				if ("code" in error) {
+					this.logger.error(`Error code: ${(error as any).code}`);
+				}
+				if ("status" in error) {
+					this.logger.error(`HTTP status: ${(error as any).status}`);
+				}
+				if ("response" in error) {
+					this.logger.error(`HTTP response: ${JSON.stringify((error as any).response)}`);
+				}
+				if ("request" in error) {
+					this.logger.error(`HTTP request details: ${JSON.stringify((error as any).request)}`);
+				}
+			} else {
+				this.logger.error(`Non-Error object: ${JSON.stringify(error, null, 2)}`);
+			}
+
+			// Log current configuration state
+			this.logger.error(
+				`Current config: ${JSON.stringify(
+					{
+						provider: this.config.provider,
+						model: this.config.model,
+						apiKey: this.config.apiKey ? `${this.config.apiKey.substring(0, 10)}...` : "NOT_SET",
+						logDirectory: this.config.logDirectory,
+					},
+					null,
+					2,
+				)}`,
+			);
+
+			// Log environment variables (safely)
+			this.logger.error(
+				`Environment API key: ${process.env.CLAUDE_BRIDGE_API_KEY ? `${process.env.CLAUDE_BRIDGE_API_KEY.substring(0, 10)}...` : "NOT_SET"}`,
+			);
+			this.logger.error(
+				`OpenAI API key env: ${process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.substring(0, 10)}...` : "NOT_SET"}`,
+			);
 
 			// Return error response in Anthropic format
+			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 			const errorResponse = {
 				type: "error",
 				error: {
 					type: "internal_server_error",
-					message: error instanceof Error ? error.message : "Unknown error occurred",
+					message: `OpenAI bridge failure: ${errorMessage}`,
 				},
 			};
 
