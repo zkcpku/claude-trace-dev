@@ -433,10 +433,10 @@ export class ClaudeBridgeInterceptor {
 
 			// Log environment variables (safely)
 			this.logger.error(
-				`Environment API key: ${process.env.CLAUDE_BRIDGE_API_KEY ? `${process.env.CLAUDE_BRIDGE_API_KEY.substring(0, 10)}...` : "NOT_SET"}`,
+				`Environment API key: ${process.env["CLAUDE_BRIDGE_API_KEY"] ? `${process.env["CLAUDE_BRIDGE_API_KEY"]!.substring(0, 10)}...` : "NOT_SET"}`,
 			);
 			this.logger.error(
-				`OpenAI API key env: ${process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.substring(0, 10)}...` : "NOT_SET"}`,
+				`OpenAI API key env: ${process.env["OPENAI_API_KEY"] ? `${process.env["OPENAI_API_KEY"]!.substring(0, 10)}...` : "NOT_SET"}`,
 			);
 
 			// Return error response in Anthropic format

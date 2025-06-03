@@ -92,7 +92,8 @@ cd apps/claude-bridge
 npm run build
 
 # Run tests
-npm run test:e2e
+npm run test:e2e              # Basic functionality test
+npm run test:e2e:tools        # Comprehensive tools compatibility test
 
 # Type checking
 npm run typecheck
@@ -152,6 +153,7 @@ cat .claude-bridge/transformed-*.jsonl | jq
 - ✅ **Provider Forwarding**: Working - Complete OpenAI integration via lemmy unified interface
 - ✅ **Response Streaming**: Working - Converts OpenAI responses to Anthropic SSE format
 - ✅ **Tool Support**: Working - JSON Schema to Zod conversion with $ref resolution
+- ✅ **Tool Schema Conversion**: Working - All 18 Claude Code tools successfully converted to Zod schemas
 - ✅ **Error Handling**: Working - Comprehensive error logging for debugging failures
 
 ### Limitations

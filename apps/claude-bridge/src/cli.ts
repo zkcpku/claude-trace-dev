@@ -134,7 +134,7 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 	const interceptorLoader = path.join(__dirname, "interceptor-loader.js");
 
 	// Filter out debugging flags from node arguments
-	const cleanNodeArgs = ["--import", interceptorLoader];
+	const cleanNodeArgs = ["--import", interceptorLoader, "--no-deprecation"];
 
 	const spawnArgs = [...cleanNodeArgs, claudeExe, ...claudeArgs];
 

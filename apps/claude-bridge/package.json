@@ -15,7 +15,8 @@
 		"typecheck": "tsc --noEmit",
 		"test": "npm run test:unit && npm run test:e2e",
 		"test:unit": "vitest run",
-		"test:e2e": "tsx test/e2e-standalone.ts",
+		"test:e2e": "tsx --no-deprecation test/e2e-standalone.ts",
+		"test:e2e:tools": "tsx --no-deprecation test/e2e-tools.ts",
 		"test:unit:watch": "vitest"
 	},
 	"files": [
