@@ -1,6 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { RawPair, BridgeConfig, TransformationEntry, Provider, ProviderClientInfo } from "./types.js";
+import {
+	RawPair,
+	BridgeConfig,
+	TransformationEntry,
+	Provider,
+	ProviderClientInfo,
+	CapabilityValidationResult,
+	JSONSchema,
+} from "./types.js";
 import { transformAnthropicToLemmy } from "./transforms/anthropic-to-lemmy.js";
 import { createAnthropicSSE } from "./transforms/lemmy-to-anthropic.js";
 import { jsonSchemaToZod } from "./transforms/tool-schemas.js";
@@ -17,7 +25,7 @@ import {
 } from "@mariozechner/lemmy";
 import { lemmy } from "@mariozechner/lemmy";
 import { z } from "zod";
-import { FileLogger, type Logger } from "./utils/logger.js";
+import { FileLogger, NullLogger, type Logger } from "./utils/logger.js";
 import { parseSSE, extractAssistantFromSSE } from "./utils/sse.js";
 import {
 	parseAnthropicMessageCreateRequest,
@@ -50,19 +58,26 @@ export class ClaudeBridgeInterceptor {
 	}
 
 	private async initialize(config: BridgeConfig): Promise<void> {
-		this.config = { logDirectory: ".claude-bridge", logLevel: "info", ...config };
+		this.config = { logDirectory: ".claude-bridge", logLevel: "info", debug: false, ...config };
 
-		// Setup logging
-		const logDir = this.config.logDirectory!;
-		if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-		this.logger = new FileLogger(logDir);
+		// Setup logging based on debug flag
+		if (this.config.debug) {
+			const logDir = this.config.logDirectory!;
+			if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+			this.logger = new FileLogger(logDir);
 
-		// Setup files
-		const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").slice(0, -5);
-		this.requestsFile = path.join(logDir, `requests-${timestamp}.jsonl`);
-		this.transformedFile = path.join(logDir, `transformed-${timestamp}.jsonl`);
-		fs.writeFileSync(this.requestsFile, "");
-		fs.writeFileSync(this.transformedFile, "");
+			// Setup files
+			const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").slice(0, -5);
+			this.requestsFile = path.join(logDir, `requests-${timestamp}.jsonl`);
+			this.transformedFile = path.join(logDir, `transformed-${timestamp}.jsonl`);
+			fs.writeFileSync(this.requestsFile, "");
+			fs.writeFileSync(this.transformedFile, "");
+		} else {
+			this.logger = new NullLogger();
+			// Set dummy file paths when not logging
+			this.requestsFile = "";
+			this.transformedFile = "";
+		}
 
 		// Setup provider-agnostic client
 		this.clientInfo = await createProviderClient(this.config);
@@ -120,7 +135,7 @@ export class ClaudeBridgeInterceptor {
 		}
 	}
 
-	private async tryTransform(requestData: any): Promise<SerializedContext | null> {
+	private async tryTransform(requestData: ParsedRequestData): Promise<SerializedContext | null> {
 		try {
 			if (requestData.method !== "POST" || !requestData.body) return null;
 
@@ -143,10 +158,13 @@ export class ClaudeBridgeInterceptor {
 		}
 	}
 
-	private async callProvider(transformResult: SerializedContext, originalRequest: any): Promise<Response> {
+	private async callProvider(
+		transformResult: SerializedContext,
+		originalRequest: MessageCreateParamsBase,
+	): Promise<Response> {
 		try {
 			// Validate capabilities (skip for unknown models)
-			let validation: any = { adjustments: {} };
+			let validation: CapabilityValidationResult = { valid: true, warnings: [], adjustments: {} };
 			if (this.clientInfo.modelData) {
 				validation = validateCapabilities(this.clientInfo.modelData, originalRequest, this.logger);
 				if (!validation.valid) {
@@ -160,7 +178,7 @@ export class ClaudeBridgeInterceptor {
 			const dummyTools: ToolDefinition[] = transformResult.tools.map((tool: SerializedToolDefinition) => ({
 				name: tool.name,
 				description: tool.description,
-				schema: this.safeJsonSchemaToZod(tool.jsonSchema),
+				schema: this.safeJsonSchemaToZod(tool.jsonSchema as JSONSchema),
 				execute: async () => {
 					throw new Error("Tool execution not supported in bridge mode");
 				},
@@ -195,6 +213,7 @@ export class ClaudeBridgeInterceptor {
 
 			if (askResult.type !== "success") {
 				this.logger.error(`${this.clientInfo.provider} error response: ${JSON.stringify(askResult.error)}`);
+				throw new Error(askResult.error?.message || JSON.stringify(askResult.error) || "Request failed");
 			}
 
 			// Convert to Anthropic SSE format
@@ -210,25 +229,12 @@ export class ClaudeBridgeInterceptor {
 			});
 		} catch (error) {
 			this.logProviderError(error);
-			return new Response(
-				JSON.stringify({
-					type: "error",
-					error: {
-						type: "internal_server_error",
-						message: `${this.clientInfo.provider} bridge failure: ${error instanceof Error ? error.message : "Unknown error"}`,
-					},
-				}),
-				{
-					status: 500,
-					statusText: "Internal Server Error",
-					headers: { "Content-Type": "application/json" },
-				},
-			);
+			throw error;
 		}
 	}
 
 	private async logComplete(
-		requestData: any,
+		requestData: ParsedRequestData,
 		response: Response,
 		transformResult: SerializedContext | null,
 		requestId: string,
@@ -241,7 +247,9 @@ export class ClaudeBridgeInterceptor {
 			response: responseData,
 			logged_at: new Date().toISOString(),
 		};
-		fs.appendFileSync(this.requestsFile, JSON.stringify(pair) + "\n");
+		if (this.config.debug) {
+			fs.appendFileSync(this.requestsFile, JSON.stringify(pair) + "\n");
+		}
 
 		// Log transformation entry if we transformed
 		if (transformResult) {
@@ -267,14 +275,16 @@ export class ClaudeBridgeInterceptor {
 				logged_at: new Date().toISOString(),
 			};
 
-			fs.appendFileSync(this.transformedFile, JSON.stringify(transformEntry) + "\n");
+			if (this.config.debug) {
+				fs.appendFileSync(this.transformedFile, JSON.stringify(transformEntry) + "\n");
+			}
 			this.logger.log(`Transformed and logged request with response to ${this.transformedFile}`);
 		}
 
 		this.logger.log(`Logged request-response pair to ${this.requestsFile}`);
 	}
 
-	private safeJsonSchemaToZod(jsonSchema: any): z.ZodSchema {
+	private safeJsonSchemaToZod(jsonSchema: JSONSchema): z.ZodSchema {
 		try {
 			return jsonSchemaToZod(jsonSchema);
 		} catch {
@@ -282,7 +292,7 @@ export class ClaudeBridgeInterceptor {
 		}
 	}
 
-	private logProviderError(error: any) {
+	private logProviderError(error: unknown) {
 		this.logger.error(`CRITICAL: ${this.clientInfo.provider} request failed with detailed error information:`);
 		this.logger.error(`Error type: ${typeof error}`);
 		this.logger.error(`Error constructor: ${error?.constructor?.name}`);
@@ -306,12 +316,12 @@ export class ClaudeBridgeInterceptor {
 		);
 	}
 
-	private detectProblematicMessagePatterns(requestData: any): void {
+	private detectProblematicMessagePatterns(requestData: ParsedRequestData): void {
 		if (!requestData.body?.messages || !Array.isArray(requestData.body.messages)) {
 			return;
 		}
 
-		const messages = requestData.body.messages;
+		const messages = requestData.body.messages as any[];
 
 		for (let i = 0; i < messages.length - 1; i++) {
 			const currentMessage = messages[i];
@@ -319,6 +329,8 @@ export class ClaudeBridgeInterceptor {
 
 			// Check for: assistant message with tool calls followed by user message without tool results
 			if (
+				currentMessage &&
+				nextMessage &&
 				currentMessage.role === "assistant" &&
 				currentMessage.tool_calls &&
 				Array.isArray(currentMessage.tool_calls) &&
@@ -330,7 +342,9 @@ export class ClaudeBridgeInterceptor {
 				this.logger.log(
 					`🚨 DETECTED PROBLEMATIC PATTERN: Assistant message with ${currentMessage.tool_calls.length} tool calls (position ${i}) followed by user message without tool results (position ${i + 1})`,
 				);
-				this.logger.log(`Tool call IDs: ${currentMessage.tool_calls.map((tc: any) => tc.id).join(", ")}`);
+				this.logger.log(
+					`Tool call IDs: ${currentMessage.tool_calls.map((tc: { id: string }) => tc.id).join(", ")}`,
+				);
 				this.logger.log(
 					`User message content preview: ${typeof nextMessage.content === "string" ? nextMessage.content.substring(0, 100) : "[complex content]"}`,
 				);
@@ -347,7 +361,9 @@ export class ClaudeBridgeInterceptor {
 				note: "ORPHANED_REQUEST",
 				logged_at: new Date().toISOString(),
 			};
-			fs.appendFileSync(this.requestsFile, JSON.stringify(orphaned) + "\n");
+			if (this.config.debug) {
+				fs.appendFileSync(this.requestsFile, JSON.stringify(orphaned) + "\n");
+			}
 		}
 		this.pendingRequests.clear();
 		this.logger.log(`Cleanup complete.`);
@@ -373,6 +389,7 @@ export async function initializeInterceptor(config?: BridgeConfig): Promise<Clau
 			? parseInt(process.env["CLAUDE_BRIDGE_MAX_RETRIES"])
 			: undefined,
 		logDirectory: process.env["CLAUDE_BRIDGE_LOG_DIR"] || ".claude-bridge",
+		debug: process.env["CLAUDE_BRIDGE_DEBUG"] === "true",
 	};
 
 	globalInterceptor = await ClaudeBridgeInterceptor.create({ ...defaultConfig, ...config });

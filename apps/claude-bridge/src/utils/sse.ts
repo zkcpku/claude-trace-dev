@@ -2,7 +2,7 @@ import type { Message } from "@mariozechner/lemmy";
 
 export interface SSEEvent {
 	type: string;
-	data: any;
+	data: unknown;
 }
 
 /**

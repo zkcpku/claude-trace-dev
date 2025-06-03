@@ -74,7 +74,13 @@ export async function parseAnthropicMessageCreateRequest(
 /**
  * Parse HTTP response with proper content type handling
  */
-export async function parseResponse(response: Response): Promise<any> {
+export async function parseResponse(response: Response): Promise<{
+	timestamp: number;
+	status_code: number;
+	headers: Record<string, string>;
+	body?: unknown;
+	body_raw?: string;
+}> {
 	const contentType = response.headers.get("content-type") || "";
 	let body, body_raw;
 
@@ -94,8 +100,8 @@ export async function parseResponse(response: Response): Promise<any> {
 		headers: redactHeaders(Object.fromEntries(response.headers.entries())),
 	};
 
-	if (body) result.body = body;
-	if (body_raw) result.body_raw = body_raw;
+	if (body !== undefined) result.body = body;
+	if (body_raw !== undefined) result.body_raw = body_raw;
 
 	return result;
 }

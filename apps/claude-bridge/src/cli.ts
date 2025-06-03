@@ -25,6 +25,7 @@ interface ClaudeArgs {
 	maxRetries?: number | undefined;
 	logDir?: string | undefined;
 	patchClaude?: boolean | undefined;
+	debug?: boolean | undefined;
 	claudeArgs: string[];
 }
 
@@ -37,6 +38,7 @@ interface ParsedArgs {
 	maxRetries?: number | undefined;
 	logDir?: string | undefined;
 	patchClaude?: boolean | undefined;
+	debug?: boolean | undefined;
 	claudeArgs: string[];
 }
 
@@ -152,6 +154,7 @@ OPTIONS:
   --maxRetries <num>    Maximum number of retries for failed requests
   --log-dir <dir>       Directory for log files (default: .claude-bridge)
   --patch-claude        Patch Claude binary to disable anti-debugging checks
+  --debug               Enable debug logging (requests/responses to .claude-bridge/)
   --help, -h            Show this help
 
 ENVIRONMENT VARIABLES:
@@ -160,7 +163,7 @@ ENVIRONMENT VARIABLES:
 
 NOTE:
   Only models with both tools and image support are shown by default.
-  The interceptor logs requests to .claude-bridge/requests.jsonl
+  Use --debug to enable request/response logging to .claude-bridge/
 `);
 }
 
@@ -311,6 +314,9 @@ function parseArguments(argv: string[]): ParsedArgs {
 		} else if (arg === "--patch-claude") {
 			args.patchClaude = true;
 			i++;
+		} else if (arg === "--debug") {
+			args.debug = true;
+			i++;
 		} else if (arg && arg.startsWith("--")) {
 			// Unknown option, add to Claude args
 			args.claudeArgs.push(arg);
@@ -454,12 +460,16 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 		console.log(`   Max Output Tokens: ${modelData.maxOutputTokens.toLocaleString()}`);
 		console.log(`   Tools Support: ${modelData.supportsTools ? "✓" : "✗"}`);
 		console.log(`   Images Support: ${modelData.supportsImageInput ? "✓" : "✗"}`);
-		console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
+		if (args.debug) {
+			console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
+		}
 	} else {
 		console.log(`🌉 Claude Bridge starting:`);
 		console.log(`   Provider: ${args.provider}`);
 		console.log(`   Model: ${args.model}`);
-		console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
+		if (args.debug) {
+			console.log(`   Logging to: ${args.logDir || ".claude-bridge"}/requests.jsonl`);
+		}
 	}
 
 	let claudeExe = findClaudeExecutable();
@@ -512,6 +522,7 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 			CLAUDE_BRIDGE_BASE_URL: args.baseURL,
 			CLAUDE_BRIDGE_MAX_RETRIES: args.maxRetries?.toString(),
 			CLAUDE_BRIDGE_LOG_DIR: args.logDir,
+			CLAUDE_BRIDGE_DEBUG: args.debug?.toString(),
 		},
 	});
 
@@ -564,6 +575,7 @@ async function main(argv: string[] = process.argv) {
 		maxRetries: parsedArgs.maxRetries,
 		logDir: parsedArgs.logDir,
 		patchClaude: parsedArgs.patchClaude || false,
+		debug: parsedArgs.debug || false,
 		claudeArgs: parsedArgs.claudeArgs,
 	});
 

@@ -1,11 +1,12 @@
 import { z } from "zod";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages/messages.js";
 import type { ToolDefinition } from "@mariozechner/lemmy";
+import type { JSONSchema } from "../types.js";
 
 /**
  * Convert JSON Schema to Zod schema
  */
-export function jsonSchemaToZod(jsonSchema: any): z.ZodSchema {
+export function jsonSchemaToZod(jsonSchema: JSONSchema): z.ZodSchema {
 	if (!jsonSchema || typeof jsonSchema !== "object") {
 		return z.any();
 	}
@@ -112,7 +113,7 @@ export function jsonSchemaToZod(jsonSchema: any): z.ZodSchema {
  */
 export function convertAnthropicToolToLemmy(anthropicTool: Tool): ToolDefinition | null {
 	try {
-		const zodSchema = jsonSchemaToZod(anthropicTool.input_schema);
+		const zodSchema = jsonSchemaToZod(anthropicTool.input_schema as JSONSchema);
 
 		return {
 			name: anthropicTool.name,

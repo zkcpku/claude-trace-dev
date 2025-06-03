@@ -9,7 +9,7 @@ export function createAnthropicSSE(askResult: AskResult, model: string): Readabl
 	return new ReadableStream({
 		start(controller) {
 			const encoder = new TextEncoder();
-			const writeEvent = (eventType: string, data: any) => {
+			const writeEvent = (eventType: string, data: unknown) => {
 				controller.enqueue(encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`));
 			};
 

@@ -190,7 +190,7 @@ const utilityTests: Test[] = [
 				const { createProviderClient, convertThinkingParameters } = await import("../src/utils/provider.js");
 
 				// Test provider client creation
-				const clientInfo = createProviderClient({
+				const clientInfo = await createProviderClient({
 					provider: "openai",
 					model: "gpt-4o",
 					apiKey: "test-key",
@@ -263,7 +263,7 @@ const interceptorTests: Test[] = [
 				const { ClaudeBridgeInterceptor } = await import("../src/interceptor.js");
 
 				// Test interceptor creation
-				const interceptor = new ClaudeBridgeInterceptor({
+				const interceptor = await ClaudeBridgeInterceptor.create({
 					provider: "openai",
 					model: "gpt-4o",
 					apiKey: "test-key",

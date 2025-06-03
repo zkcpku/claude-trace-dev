@@ -7,6 +7,19 @@ export interface Logger {
 }
 
 /**
+ * No-op logger that discards all log messages
+ */
+export class NullLogger implements Logger {
+	log(message: string): void {
+		// No-op
+	}
+
+	error(message: string): void {
+		// No-op
+	}
+}
+
+/**
  * File-based logger that writes timestamped messages to a log file
  */
 export class FileLogger implements Logger {

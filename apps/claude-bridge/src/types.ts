@@ -11,13 +11,13 @@ export interface RawPair {
 		method: string;
 		url: string;
 		headers: Record<string, string>;
-		body: any;
+		body: unknown;
 	};
 	response: {
 		timestamp: number;
 		status_code: number;
 		headers: Record<string, string>;
-		body?: any;
+		body?: unknown;
 		body_raw?: string;
 	} | null;
 	logged_at: string;
@@ -25,6 +25,23 @@ export interface RawPair {
 }
 
 export type Provider = "anthropic" | "openai" | "google";
+
+// JSON Schema types
+export interface JSONSchema {
+	type?: string;
+	properties?: Record<string, JSONSchema>;
+	items?: JSONSchema;
+	required?: string[];
+	enum?: any[];
+	oneOf?: JSONSchema[];
+	anyOf?: JSONSchema[];
+	allOf?: JSONSchema[];
+	$ref?: string;
+	definitions?: Record<string, JSONSchema>;
+	// Additional properties
+	description?: string;
+	[key: string]: any;
+}
 
 export interface BridgeConfig {
 	provider: Provider;
@@ -34,6 +51,7 @@ export interface BridgeConfig {
 	maxRetries?: number | undefined;
 	logDirectory?: string | undefined;
 	logLevel?: "debug" | "info" | "warn" | "error" | undefined;
+	debug?: boolean | undefined;
 }
 
 export interface CapabilityValidationResult {
@@ -68,9 +86,9 @@ export interface TransformationEntry {
 	raw_response?: {
 		status_code: number;
 		headers: Record<string, string>;
-		body?: any;
+		body?: unknown;
 		body_raw?: string;
 	};
-	decoded_sse?: any[] | undefined;
+	decoded_sse?: unknown[] | undefined;
 	logged_at: string;
 }

@@ -12,6 +12,7 @@ import type {
 	AnthropicAskOptions,
 	OpenAIAskOptions,
 	GoogleAskOptions,
+	ChatClient,
 } from "@mariozechner/lemmy";
 import type {
 	Provider,
@@ -21,6 +22,8 @@ import type {
 	ProviderConfig,
 } from "../types.js";
 
+import type { MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages/messages.js";
+
 /**
  * Create provider-agnostic client for a given model
  */
@@ -28,7 +31,7 @@ export async function createProviderClient(config: BridgeConfig): Promise<Provid
 	// For known models, use the registry
 	const modelData = findModelData(config.model);
 	let provider: Provider;
-	let client: any;
+	let client: ChatClient;
 
 	if (modelData) {
 		// Known model - use standard approach
@@ -125,7 +128,7 @@ function getDefaultApiKey(provider: Provider): string {
  */
 export function validateCapabilities(
 	modelData: ModelData,
-	anthropicRequest: any,
+	anthropicRequest: MessageCreateParamsBase,
 	logger?: { log: (msg: string) => void },
 ): CapabilityValidationResult {
 	const warnings: string[] = [];
@@ -148,8 +151,8 @@ export function validateCapabilities(
 	}
 
 	// Check image support (scan through messages for images)
-	const hasImages = anthropicRequest.messages?.some((msg: any) =>
-		Array.isArray(msg.content) ? msg.content.some((block: any) => block.type === "image") : false,
+	const hasImages = anthropicRequest.messages?.some((msg) =>
+		Array.isArray(msg.content) ? msg.content.some((block: { type?: string }) => block.type === "image") : false,
 	);
 
 	if (hasImages && !modelData.supportsImageInput) {
@@ -170,7 +173,7 @@ export function validateCapabilities(
  */
 export function convertThinkingParameters(
 	provider: Provider,
-	anthropicRequest: any,
+	anthropicRequest: MessageCreateParamsBase,
 ): AnthropicAskOptions | OpenAIAskOptions | GoogleAskOptions {
 	const baseOptions = {
 		maxOutputTokens: anthropicRequest.max_tokens,
@@ -181,36 +184,35 @@ export function convertThinkingParameters(
 			return {
 				...baseOptions,
 				// Anthropic uses the same thinking parameters
-				...(anthropicRequest.thinking_enabled !== undefined && {
-					thinkingEnabled: anthropicRequest.thinking_enabled,
+				...(anthropicRequest.thinking?.type == "enabled" && {
+					thinkingEnabled: true,
 				}),
-				...(anthropicRequest.max_thinking_tokens !== undefined && {
-					maxThinkingTokens: anthropicRequest.max_thinking_tokens,
-				}),
+				...(anthropicRequest.thinking?.type == "enabled" &&
+					anthropicRequest.thinking.budget_tokens !== undefined && {
+						maxThinkingTokens: anthropicRequest.thinking.budget_tokens,
+					}),
 			} as AnthropicAskOptions;
 
 		case "google":
-			return {
+			const options: GoogleAskOptions = {
 				...baseOptions,
 				// Google uses includeThoughts for thinking
-				...(anthropicRequest.thinking_enabled !== undefined && {
-					includeThoughts: anthropicRequest.thinking_enabled,
+				...(anthropicRequest.thinking?.type == "enabled" && {
+					includeThoughts: true,
 				}),
-				...(anthropicRequest.max_thinking_tokens !== undefined && {
-					thinkingBudget: anthropicRequest.max_thinking_tokens,
-				}),
-			} as GoogleAskOptions;
+				...(anthropicRequest.thinking?.type == "enabled" &&
+					anthropicRequest.thinking.budget_tokens !== undefined && {
+						thinkingBudget: anthropicRequest.thinking.budget_tokens,
+					}),
+			};
+			return options;
 
 		case "openai":
-			// OpenAI doesn't support thinking for most models
-			// Only reasoning models (o1-*) support reasoningEffort
-			const isReasoningModel = anthropicRequest.model?.includes("o1-");
 			return {
 				...baseOptions,
-				...(isReasoningModel &&
-					anthropicRequest.thinking_enabled && {
-						reasoningEffort: "medium" as const,
-					}),
+				...(anthropicRequest.thinking?.type == "enabled" && {
+					reasoningEffort: "medium" as const,
+				}),
 			} as OpenAIAskOptions;
 
 		default:
