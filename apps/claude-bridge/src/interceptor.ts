@@ -42,6 +42,7 @@ export class ClaudeBridgeInterceptor {
 	private logger!: Logger;
 	private requestsFile!: string;
 	private transformedFile!: string;
+	private contextFile!: string;
 	private clientInfo!: ProviderClientInfo;
 	private pendingRequests = new Map<string, any>();
 
@@ -71,13 +72,16 @@ export class ClaudeBridgeInterceptor {
 			const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").slice(0, -5);
 			this.requestsFile = path.join(logDir, `requests-${timestamp}.jsonl`);
 			this.transformedFile = path.join(logDir, `transformed-${timestamp}.jsonl`);
+			this.contextFile = path.join(logDir, `context-${timestamp}.jsonl`);
 			fs.writeFileSync(this.requestsFile, "");
 			fs.writeFileSync(this.transformedFile, "");
+			fs.writeFileSync(this.contextFile, "");
 		} else {
 			this.logger = new NullLogger();
 			// Set dummy file paths when not logging
 			this.requestsFile = "";
 			this.transformedFile = "";
+			this.contextFile = "";
 		}
 
 		// Setup provider-agnostic client
@@ -270,8 +274,7 @@ export class ClaudeBridgeInterceptor {
 					timestamp: new Date().toISOString(),
 					messages: contextWithResponse.messages,
 				};
-				const contextFile = path.join(this.config.logDirectory!, "context.jsonl");
-				fs.appendFileSync(contextFile, JSON.stringify(logEntry) + "\n");
+				fs.appendFileSync(this.contextFile, JSON.stringify(logEntry) + "\n");
 			}
 
 			const transformEntry: TransformationEntry = {

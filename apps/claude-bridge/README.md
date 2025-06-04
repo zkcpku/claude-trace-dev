@@ -90,7 +90,7 @@ npm run test:providers   # Multi-provider
 claude-bridge openai gpt-4o --debug
 cat .claude-bridge/requests-*.jsonl     # Raw request/response pairs
 cat .claude-bridge/transformed-*.jsonl  # Transformation details
-cat .claude-bridge/context.jsonl        # Message contexts and transform status
+cat .claude-bridge/context-*.jsonl      # Message contexts and transform status
 
 # VS Code debugging (requires patching Claude to disable anti-debugging)
 npx tsx src/cli.ts <arguments> --patch-claude   # In JavaScript Debug Terminal
