@@ -30,12 +30,14 @@ interface ClaudeArgs {
 	logDir?: string | undefined;
 	patchClaude?: boolean | undefined;
 	debug?: boolean | undefined;
+	trace?: boolean | undefined;
 	claudeArgs: string[];
 }
 
 interface ParsedArgs {
 	version?: boolean | undefined;
 	help?: boolean | undefined;
+	trace?: boolean | undefined;
 	provider?: string | undefined;
 	model?: string | undefined;
 	apiKey?: string | undefined;
@@ -134,6 +136,7 @@ USAGE:
   claude-bridge                           Show all available providers
   claude-bridge <provider>                Show models for a provider
   claude-bridge <provider> <model>        Run with provider and model
+  claude-bridge --trace <claude args>     Spy on Claude Code ↔ Anthropic communication
   claude-bridge --version                 Show version information
   claude-bridge --help                    Show this help
 
@@ -161,6 +164,7 @@ OPTIONS:
   --log-dir <dir>       Directory for log files (default: .claude-bridge)
   --patch-claude        Patch Claude binary to disable anti-debugging checks
   --debug               Enable debug logging (requests/responses to .claude-bridge/)
+  --trace               Spy mode: log all Claude ↔ Anthropic communication (implies --debug)
   --version             Show version information
   --help, -h            Show this help
 
@@ -292,6 +296,9 @@ function parseArguments(argv: string[]): ParsedArgs {
 			i++;
 		} else if (arg === "--help" || arg === "-h") {
 			args.help = true;
+			i++;
+		} else if (arg === "--trace") {
+			args.trace = true;
 			i++;
 		} else if (arg === "--apiKey") {
 			if (i + 1 < argv.length && argv[i + 1] !== undefined) {
@@ -522,6 +529,7 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 			CLAUDE_BRIDGE_MAX_RETRIES: args.maxRetries?.toString(),
 			CLAUDE_BRIDGE_LOG_DIR: args.logDir,
 			CLAUDE_BRIDGE_DEBUG: args.debug?.toString(),
+			CLAUDE_BRIDGE_TRACE: args.trace?.toString(),
 		},
 	});
 
@@ -554,6 +562,19 @@ async function main(argv: string[] = process.argv) {
 		return;
 	}
 
+	// Handle trace mode - log requests and call original Anthropic API
+	if (parsedArgs.trace) {
+		const exitCode = runClaudeWithBridge({
+			provider: "anthropic", // dummy, ignored in trace mode
+			model: "claude-3-5-sonnet-20241022", // dummy, ignored in trace mode
+			trace: true,
+			debug: true, // trace implies debug
+			claudeArgs: parsedArgs.claudeArgs,
+			// All other flags ignored in trace mode
+		});
+		process.exit(exitCode);
+	}
+
 	// Handle no arguments - show providers
 	if (!parsedArgs.provider) {
 		showProviders();
@@ -581,6 +602,7 @@ async function main(argv: string[] = process.argv) {
 		logDir: parsedArgs.logDir,
 		patchClaude: parsedArgs.patchClaude || false,
 		debug: parsedArgs.debug || false,
+		trace: parsedArgs.trace || false,
 		claudeArgs: parsedArgs.claudeArgs,
 	});
 

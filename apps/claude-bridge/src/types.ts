@@ -52,6 +52,7 @@ export interface BridgeConfig {
 	logDirectory?: string | undefined;
 	logLevel?: "debug" | "info" | "warn" | "error" | undefined;
 	debug?: boolean | undefined;
+	trace?: boolean | undefined;
 }
 
 export interface CapabilityValidationResult {

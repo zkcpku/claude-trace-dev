@@ -1,14 +1,12 @@
 # claude-bridge
 
-
 https://github.com/user-attachments/assets/6febdf81-e4b7-4ab8-9e70-46af77e2aba7
-
 
 Use OpenAI, Google, and other LLM providers with Claude Code by intercepting and transforming API requests.
 
 Not that anything can beat Opus, Sonnet and a Claude Max plan. But you can try that fools errand now. Go get Claude Max.
 
-[See this thread on Nitter for more examples]([https://x.com/badlogicgames/status/1930090999004443049](https://nitter.net/badlogicgames/status/1930090999004443049#m))
+[See this thread on Nitter for more examples](<[https://x.com/badlogicgames/status/1930090999004443049](https://nitter.net/badlogicgames/status/1930090999004443049#m)>)
 
 ## Quick Start
 
@@ -29,6 +27,7 @@ claude-bridge openai gpt-4o --apiKey sk-...                           # Custom A
 claude-bridge openai llama3.2 --baseURL http://localhost:11434/v1     # Local Ollama
 claude-bridge openai gpt-4o --baseURL https://openrouter.ai/api/v1 --apiKey sk-or-... # OpenRouter
 claude-bridge openai gpt-4o --debug                          # Enable debug logs
+claude-bridge --trace -p "Hello world"                       # Spy on Claude ↔ Anthropic communication
 
 # All Claude Code arguments work
 claude-bridge google gemini-2.5-pro-preview-05-06 --resume --continue
@@ -97,6 +96,11 @@ claude-bridge openai gpt-4o --debug
 cat .claude-bridge/requests-*.jsonl     # Raw request/response pairs
 cat .claude-bridge/transformed-*.jsonl  # Transformation details
 cat .claude-bridge/context-*.jsonl      # Message contexts and transform status
+
+# Trace mode - spy on Claude Code ↔ Anthropic communication
+claude-bridge --trace -p "Test prompt"  # Normal Claude Code, but logs all requests/responses
+cat .claude-bridge/trace-*.jsonl        # See system prompts, tools, thinking status, messages
+cat .claude-bridge/requests-*.jsonl     # Raw request/response pairs
 
 # VS Code debugging (requires patching Claude to disable anti-debugging)
 npx tsx src/cli.ts <arguments> --patch-claude   # In JavaScript Debug Terminal

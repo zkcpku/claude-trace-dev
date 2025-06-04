@@ -43,6 +43,7 @@ export class ClaudeBridgeInterceptor {
 	private requestsFile!: string;
 	private transformedFile!: string;
 	private contextFile!: string;
+	private traceFile!: string;
 	private clientInfo!: ProviderClientInfo;
 	private pendingRequests = new Map<string, any>();
 
@@ -62,6 +63,11 @@ export class ClaudeBridgeInterceptor {
 	private async initialize(config: BridgeConfig): Promise<void> {
 		this.config = { logDirectory: ".claude-bridge", logLevel: "info", debug: false, ...config };
 
+		// Trace mode implies debug mode
+		if (this.config.trace) {
+			this.config.debug = true;
+		}
+
 		// Setup logging based on debug flag
 		if (this.config.debug) {
 			const logDir = this.config.logDirectory!;
@@ -73,15 +79,18 @@ export class ClaudeBridgeInterceptor {
 			this.requestsFile = path.join(logDir, `requests-${timestamp}.jsonl`);
 			this.transformedFile = path.join(logDir, `transformed-${timestamp}.jsonl`);
 			this.contextFile = path.join(logDir, `context-${timestamp}.jsonl`);
+			this.traceFile = path.join(logDir, `trace-${timestamp}.jsonl`);
 			fs.writeFileSync(this.requestsFile, "");
 			fs.writeFileSync(this.transformedFile, "");
 			fs.writeFileSync(this.contextFile, "");
+			fs.writeFileSync(this.traceFile, "");
 		} else {
 			this.logger = new NullLogger();
 			// Set dummy file paths when not logging
 			this.requestsFile = "";
 			this.transformedFile = "";
 			this.contextFile = "";
+			this.traceFile = "";
 		}
 
 		// Setup provider-agnostic client
@@ -123,11 +132,30 @@ export class ClaudeBridgeInterceptor {
 		const transformResult = await this.tryTransform(requestData);
 		this.pendingRequests.set(requestId, requestData);
 
+		// Log trace information if in trace mode
+		if (this.config.trace && requestData.body) {
+			const anthropicRequest = requestData.body as MessageCreateParamsBase;
+			const traceEntry = {
+				timestamp: new Date().toISOString(),
+				model: anthropicRequest.model,
+				system_prompt: anthropicRequest.system || null,
+				tools: anthropicRequest.tools || null,
+				thinking_enabled: !!anthropicRequest.thinking,
+				max_tokens: anthropicRequest.max_tokens,
+				temperature: anthropicRequest.temperature,
+				messages: transformResult ? transformResult.messages : anthropicRequest.messages,
+				...(transformResult && { serialized_context: transformResult }),
+			};
+			fs.appendFileSync(this.traceFile, JSON.stringify(traceEntry) + "\n");
+		}
+
 		try {
+			// In trace mode, always call original Anthropic API (no transformation)
 			// Get response from provider or fallback to Anthropic
-			const response = transformResult
-				? await this.callProvider(transformResult, requestData.body)
-				: await originalFetch(input, init);
+			const response =
+				this.config.trace || !transformResult
+					? await originalFetch(input, init)
+					: await this.callProvider(transformResult, requestData.body);
 
 			// Log everything
 			await this.logComplete(requestData, response, transformResult, requestId);
@@ -146,8 +174,8 @@ export class ClaudeBridgeInterceptor {
 
 			const anthropicRequest = requestData.body as MessageCreateParamsBase;
 
-			// Skip haiku models
-			if (anthropicRequest.model?.toLowerCase().includes("haiku")) {
+			// Skip haiku models (except in trace mode)
+			if (!this.config.trace && anthropicRequest.model?.toLowerCase().includes("haiku")) {
 				this.logger.log(`Skipping transformation for haiku model: ${anthropicRequest.model}`);
 				return null;
 			}
@@ -403,6 +431,7 @@ export async function initializeInterceptor(config?: BridgeConfig): Promise<Clau
 			: undefined,
 		logDirectory: process.env["CLAUDE_BRIDGE_LOG_DIR"] || ".claude-bridge",
 		debug: process.env["CLAUDE_BRIDGE_DEBUG"] === "true",
+		trace: process.env["CLAUDE_BRIDGE_TRACE"] === "true",
 	};
 
 	globalInterceptor = await ClaudeBridgeInterceptor.create({ ...defaultConfig, ...config });
