@@ -264,6 +264,16 @@ export class ClaudeBridgeInterceptor {
 				contextWithResponse.messages = [...contextWithResponse.messages, assistantResponse];
 			}
 
+			// Log messages to context.jsonl
+			if (this.config.debug) {
+				const logEntry = {
+					timestamp: new Date().toISOString(),
+					messages: contextWithResponse.messages,
+				};
+				const contextFile = path.join(this.config.logDirectory!, "context.jsonl");
+				fs.appendFileSync(contextFile, JSON.stringify(logEntry) + "\n");
+			}
+
 			const transformEntry: TransformationEntry = {
 				timestamp: Date.now() / 1000,
 				request_id: requestId,

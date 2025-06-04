@@ -503,24 +503,11 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 	// Clean environment to avoid Claude's anti-debugging checks
 	const cleanEnv = { ...process.env };
 
-	// Remove debugging-related environment variables
-	if (cleanEnv["NODE_OPTIONS"]) {
-		// Remove debugging flags and other problematic options
-		cleanEnv["NODE_OPTIONS"] = cleanEnv["NODE_OPTIONS"]
-			.replace(/--inspect(-brk)?|--debug(-brk)?/g, "")
-			.replace(/-publish-uid=\S+/g, "")
-			.replace(/\s+/g, " ")
-			.trim();
-		if (!cleanEnv["NODE_OPTIONS"]) {
-			delete cleanEnv["NODE_OPTIONS"];
-		}
-	}
-
 	const result = spawnSync("node", spawnArgs, {
 		stdio: "inherit",
 		env: {
 			...cleanEnv,
-			NODE_OPTIONS: "--no-deprecation",
+			NODE_OPTIONS: `${cleanEnv["NODE_OPTIONS"]} --no-deprecation`,
 			CLAUDE_BRIDGE_PROVIDER: args.provider,
 			CLAUDE_BRIDGE_MODEL: args.model,
 			CLAUDE_BRIDGE_API_KEY: apiKey,
