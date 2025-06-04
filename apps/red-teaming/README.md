@@ -22,7 +22,14 @@ See [this Bluesky thread](https://bsky.app/profile/badlogic.bsky.social/post/3lp
 
    ```bash
    npm install
-   npm run dev
+   npm run build
+   npm run start
+   ```
+
+   Or for development:
+
+   ```bash
+   npm run run  # Direct TypeScript execution
    ```
 
 3. Watch as the AI either behaves ethically or... doesn't.

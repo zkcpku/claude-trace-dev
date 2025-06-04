@@ -24,9 +24,9 @@ const chatContainer = new Container();
 const editor = new TextEditor();
 
 // Add components to UI
-ui.addComponent(header);
-ui.addComponent(chatContainer);
-ui.addComponent(editor);
+ui.addChild(header);
+ui.addChild(chatContainer);
+ui.addChild(editor);
 
 // Set focus to the editor
 ui.setFocus(editor);
@@ -52,12 +52,13 @@ Main TUI manager that handles rendering, input, and component coordination.
 
 **Methods:**
 
-- `addComponent(component)` - Add a component to the TUI
-- `removeComponent(component)` - Remove a component from the TUI
+- `addChild(component)` - Add a component to the TUI
+- `removeChild(component)` - Remove a component from the TUI
 - `setFocus(component)` - Set which component receives keyboard input
 - `start()` - Start the TUI (enables raw mode)
 - `stop()` - Stop the TUI (disables raw mode)
 - `requestRender()` - Request a re-render on next tick
+- `configureLogging(config)` - Configure debug logging
 
 ### Container
 
@@ -69,6 +70,7 @@ Component that manages child components with differential rendering.
 - `removeChild(component)` - Remove a child component
 - `getChild(index)` - Get a specific child component
 - `getChildCount()` - Get the number of child components
+- `clear()` - Remove all child components
 
 ### TextEditor
 
@@ -164,8 +166,8 @@ editor.onSubmit = (text) => {
 	}, 1000);
 };
 
-ui.addComponent(chatHistory);
-ui.addComponent(editor);
+ui.addChild(chatHistory);
+ui.addChild(editor);
 ui.setFocus(editor);
 ui.start();
 ```
@@ -183,7 +185,7 @@ menu.onSelect = (option, index) => {
 	ui.stop();
 };
 
-ui.addComponent(menu);
+ui.addChild(menu);
 ui.setFocus(menu);
 ui.start();
 ```

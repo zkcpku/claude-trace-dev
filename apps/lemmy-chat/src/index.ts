@@ -37,8 +37,8 @@ Examples:
 
 Interactive Chat Mode (TUI):
   $ lemmy-chat chat                                     # Uses defaults for TUI chat interface
-  $ lemmy-chat chat -p anthropic -m claude-sonnet-4-20250514 --thinkingEnabled
-  $ lemmy-chat chat -p openai -m o4-mini               # TUI chat with specific model
+  $ lemmy-chat chat -p anthropic -m claude-3-5-sonnet-20241022 --thinkingEnabled
+  $ lemmy-chat chat -p openai -m o1-mini               # TUI chat with specific model
 
   TUI Features:
   - Rich terminal user interface with message history
@@ -48,7 +48,7 @@ Interactive Chat Mode (TUI):
   - Proper component-based rendering
 
 Set Defaults (saves to ~/.lemmy-chat/defaults.json):
-  $ lemmy-chat defaults anthropic -m claude-opus-4-20250514 --thinkingEnabled
+  $ lemmy-chat defaults anthropic -m claude-3-5-sonnet-20241022 --thinkingEnabled
   $ lemmy-chat defaults openai -m gpt-4o --reasoningEffort medium
   $ lemmy-chat defaults --show                          # Show current defaults
   $ lemmy-chat defaults --clear                         # Clear defaults
