@@ -62,7 +62,7 @@ git clone https://github.com/badlogic/lemmy
 cd lemmy && npm install && npm run dev
 ```
 
-This starts compilation in watch mode for all packages and apps. Code changes are reflected immediately. Alternatively, use `npx tsx <entrypoint.ts>` for on-the-fly compilation.
+This starts compilation in watch mode for all packages and apps. Code changes are reflected immediately. Use `npx tsx src/cli.ts` for on-the-fly compilation & testing.
 
 **Testing:**
 

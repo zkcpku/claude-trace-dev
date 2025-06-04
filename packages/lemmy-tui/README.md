@@ -1,13 +1,14 @@
 # @mariozechner/lemmy-tui
 
-Terminal User Interface library with differential rendering for efficient text-based applications.
+Terminal UI framework with differential rendering for building interactive CLI applications.
 
 ## Features
 
-- **Differential Rendering**: Only re-renders content that has changed, making it efficient for applications with lots of text
-- **Interactive Components**: Built-in text editor with cursor support, text wrapping, and keyboard shortcuts
-- **Simplified Architecture**: Components report what lines to keep vs. what's new, with automatic cascade rendering
+- **Differential Rendering**: Only re-renders content that has changed for optimal performance
+- **Interactive Components**: Text editor, autocomplete, selection lists, and markdown rendering
+- **Composable Architecture**: Container-based component system with proper lifecycle management
 - **TypeScript**: Fully typed for better development experience
+- **Performance Focused**: Minimal screen updates and efficient text wrapping
 
 ## Quick Start
 
@@ -43,11 +44,13 @@ editor.onSubmit = (text: string) => {
 ui.start();
 ```
 
-## Components
+## Core Components
 
 ### TUI
 
-The main TUI manager that handles rendering, input, and component coordination.
+Main TUI manager that handles rendering, input, and component coordination.
+
+**Methods:**
 
 - `addComponent(component)` - Add a component to the TUI
 - `removeComponent(component)` - Remove a component from the TUI
@@ -58,7 +61,9 @@ The main TUI manager that handles rendering, input, and component coordination.
 
 ### Container
 
-A component that manages child components with differential rendering.
+Component that manages child components with differential rendering.
+
+**Methods:**
 
 - `addChild(component)` - Add a child component
 - `removeChild(component)` - Remove a child component
@@ -67,49 +72,143 @@ A component that manages child components with differential rendering.
 
 ### TextEditor
 
-An interactive multiline text editor with cursor support.
+Interactive multiline text editor with cursor support and keyboard shortcuts.
+
+**Features:**
 
 - `onSubmit?: (text: string) => void` - Callback when user presses Enter
-- Supports keyboard shortcuts: Ctrl+A (home), Ctrl+E (end), Ctrl+K (delete line)
+- Keyboard shortcuts: Ctrl+A (home), Ctrl+E (end), Ctrl+K (delete line)
 - Option+Enter for new lines, Enter to submit
+- Cursor positioning and text selection
 
 ### TextComponent
 
-A simple text component with automatic text wrapping.
+Simple text component with automatic text wrapping and differential rendering.
+
+**Methods:**
 
 - `setText(text)` - Update the text content
 - Automatically wraps text to fit terminal width
 - Uses differential rendering to avoid unnecessary updates
 
+### MarkdownComponent
+
+Renders markdown content with syntax highlighting and proper formatting.
+
+**Features:**
+
+- Code block syntax highlighting
+- List and heading rendering
+- Link and emphasis formatting
+- Differential rendering for performance
+
+### SelectList
+
+Interactive selection component for choosing from options.
+
+**Features:**
+
+- Keyboard navigation (arrow keys, Enter)
+- Search/filter functionality
+- Custom option rendering
+- Multi-select support
+
+### Autocomplete
+
+Text input with autocomplete suggestions.
+
+**Features:**
+
+- Real-time suggestion filtering
+- Keyboard navigation through suggestions
+- Custom completion logic
+- Integration with text editor
+
 ## Differential Rendering
 
-The core concept is simple: components report `{keepLines: number, newLines: string[]}`:
+The core concept: components return `{lines: string[], changed: boolean, keepLines?: number}`:
 
-- `keepLines`: How many lines from the previous render to keep unchanged
-- `newLines`: New lines to append/replace after the kept lines
+- `lines`: All lines the component should display
+- `changed`: Whether the component has changed since last render
+- `keepLines`: (Containers only) How many lines from the beginning are unchanged
 
-If `keepLines + newLines.length != totalOldLines`, all components below will cascade re-render.
+**How it works:**
 
-Interactive components (like TextEditor) can use `keepLines: 0` to always force re-rendering.
+1. TUI calculates total unchanged lines from top (`keepLines`)
+2. Moves cursor up by `(totalLines - keepLines)` positions
+3. Clears from cursor position down with `\x1b[0J`
+4. Prints only the changing lines: `result.lines.slice(keepLines)`
 
-## Demos
+This approach minimizes screen updates and provides smooth performance even with large amounts of text.
 
-Try the included demos to see the library in action:
+## Examples
 
-```bash
-# Interactive chat demo with differential rendering
-npx tsx test/demo.ts
+### Chat Application
 
-# Component removal demo - test adding/removing components
-npx tsx test/component-removal-demo.ts
+```typescript
+import { TUI, Container, TextEditor, MarkdownComponent } from "@mariozechner/lemmy-tui";
+
+const ui = new TUI();
+const chatHistory = new Container();
+const editor = new TextEditor();
+
+editor.onSubmit = (text) => {
+	const message = new MarkdownComponent(`**You:** ${text}`);
+	chatHistory.addChild(message);
+
+	// Add AI response (simulated)
+	setTimeout(() => {
+		const response = new MarkdownComponent(`**AI:** Response to "${text}"`);
+		chatHistory.addChild(response);
+		ui.requestRender();
+	}, 1000);
+};
+
+ui.addComponent(chatHistory);
+ui.addComponent(editor);
+ui.setFocus(editor);
+ui.start();
 ```
 
-The demos showcase:
+### Selection Menu
 
-- **Differential rendering efficiency** - Only changed content gets re-rendered
-- **Component lifecycle management** - Adding and removing components with proper screen clearing
-- **Interactive text editor** - Multiline editing with keyboard shortcuts
+```typescript
+import { TUI, SelectList } from "@mariozechner/lemmy-tui";
 
-## License
+const ui = new TUI();
+const menu = new SelectList(["Option 1", "Option 2", "Option 3"]);
 
-MIT
+menu.onSelect = (option, index) => {
+	console.log(`Selected: ${option} (index ${index})`);
+	ui.stop();
+};
+
+ui.addComponent(menu);
+ui.setFocus(menu);
+ui.start();
+```
+
+## Development
+
+```bash
+npm run build     # Build the package
+npm run typecheck # Type checking
+```
+
+**Testing:**
+Test the TUI components with simulated input:
+
+```bash
+npx tsx --no-deprecation src/index.ts chat --simulate-input "Hello world" "ENTER"
+```
+
+Special input keywords for simulation: "TAB", "ENTER", "SPACE", "ESC"
+
+## Philosophy
+
+This TUI framework prioritizes:
+
+- **Performance**: Differential rendering minimizes screen updates
+- **Composability**: Clean component architecture with proper separation
+- **Developer Experience**: TypeScript types and intuitive APIs
+- **Flexibility**: Build complex interfaces from simple, reusable components
