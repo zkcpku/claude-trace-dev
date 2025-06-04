@@ -40,18 +40,27 @@ Claude Code only works with Anthropic models. This tool intercepts Claude Code's
 
 ## Limitations
 
-- ❌ No token usage/cost reporting (Claude Code's displays won't work)
-- ❌ No input caching (Claude Code's prompt caching not implemented - may increase costs)
-- ❌ No image support (drag/drop, paste, file paths - needs Anthropic's server-side parsing)
-- ❌ Web search/fetch tools (Anthropic-specific, could be translated to other provider's built-in search/fetch)
-- ⚠️ Model-specific features may not translate (Claude's artifacts, GPT's reasoning modes)
-- ⚠️ Thinking/reasoning output formatting differs between providers. OpenAI, put the god damn thinking tokens into your API responses, you cowards.
-- ⚠️ Error handling, context limits, rate limiting vary by provider
-- ⚠️ Complex tool schema conversion may not be perfect (JSON Schema ↔ Zod)
-- ⚠️ Subtle streaming behavior differences despite Anthropic SSE format conversion
-- ⚠️ Provider auth failures may not surface clearly in Claude Code
+This is a glorified hack that pretends other models are Claude. Here's what breaks:
 
-There are likely mystery bugs. Enjoy.
+**Completely Broken:**
+
+- 🚫 Token usage/cost reporting (Claude Code's displays will lie to you)
+- 🚫 Image uploads (drag/drop, paste, file paths - Claude Code expects Anthropic's servers)
+- 🚫 Input caching (Claude Code's prompt caching isn't implemented - enjoy higher costs!)
+- 🚫 Web search/fetch tools (Anthropic-specific magic)
+
+**Somewhat Janky:**
+
+- 🤷 Model-specific features don't translate (Claude's artifacts, GPT's reasoning modes)
+- 🤷 Thinking/reasoning output formatting differs between providers
+- 🤷 Error messages might be cryptic (provider auth failures won't surface clearly)
+- 🤷 Tool schemas get converted (JSON Schema ↔ Zod) - usually works, sometimes doesn't
+- 🤷 Streaming behavior has subtle differences despite SSE format conversion
+
+**OpenAI Specific Rant:**
+OpenAI, put the goddamn thinking tokens into your API responses, you cowards. We're all tired of your "reasoning effort" parameter nonsense.
+
+There are definitely mystery bugs hiding in the corners. You've been warned. 🐛
 
 ## Development
 

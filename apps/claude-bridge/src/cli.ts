@@ -1,4 +1,7 @@
-#!/usr/bin/env node --no-deprecation
+#!/usr/bin/env node
+
+// Suppress deprecation warnings
+process.removeAllListeners("warning");
 
 import { spawnSync } from "child_process";
 import {
@@ -457,6 +460,7 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 		console.log(`🌉 Claude Bridge starting:`);
 		console.log(`   Provider: ${args.provider}`);
 		console.log(`   Model: ${args.model}`);
+		console.log(`   Max Input Tokens: ${modelData.contextWindow.toLocaleString()}`);
 		console.log(`   Max Output Tokens: ${modelData.maxOutputTokens.toLocaleString()}`);
 		console.log(`   Tools Support: ${modelData.supportsTools ? "✓" : "✗"}`);
 		console.log(`   Images Support: ${modelData.supportsImageInput ? "✓" : "✗"}`);
@@ -490,7 +494,7 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 	const interceptorLoader = path.join(__dirname, "interceptor-loader.js");
 
 	// Filter out debugging flags from node arguments
-	const cleanNodeArgs = ["--import", interceptorLoader, "--no-deprecation"];
+	const cleanNodeArgs = ["--import", interceptorLoader];
 
 	const spawnArgs = [...cleanNodeArgs, claudeExe, ...args.claudeArgs];
 
@@ -516,6 +520,7 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 		stdio: "inherit",
 		env: {
 			...cleanEnv,
+			NODE_OPTIONS: "--no-deprecation",
 			CLAUDE_BRIDGE_PROVIDER: args.provider,
 			CLAUDE_BRIDGE_MODEL: args.model,
 			CLAUDE_BRIDGE_API_KEY: apiKey,
@@ -592,7 +597,13 @@ export default main;
 export { runClaudeWithBridge, parseArguments, validateProviderAndModel, getCapableModels };
 
 // Only run if this file is executed directly (ESM check)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Handle both direct execution and symlink execution
+const isMainModule =
+	import.meta.url === `file://${process.argv[1]}` ||
+	import.meta.url === `file://${process.argv[1]?.replace(/\.js$/, ".mjs")}` ||
+	process.argv[1]?.endsWith("claude-bridge");
+
+if (isMainModule) {
 	main().catch((error) => {
 		console.error("Fatal error:", error);
 		process.exit(1);

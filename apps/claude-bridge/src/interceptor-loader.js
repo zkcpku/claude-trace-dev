@@ -6,11 +6,11 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 try {
-	const jsPath = path.join(__dirname, "interceptor.js");
+	const jsPath = path.join(__dirname, "index.js");
 	const tsPath = path.join(__dirname, "interceptor.ts");
 
 	// Also check for compiled version in dist directory
-	const distJsPath = path.resolve(__dirname, "..", "dist", "interceptor.js");
+	const distJsPath = path.resolve(__dirname, "..", "dist", "index.js");
 
 	if (fs.existsSync(jsPath)) {
 		// Use JavaScript in same directory
