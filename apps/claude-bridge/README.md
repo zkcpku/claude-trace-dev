@@ -6,7 +6,7 @@ Use OpenAI, Google, and other LLM providers with Claude Code by intercepting and
 
 Not that anything can beat Opus, Sonnet and a Claude Max plan. But you can try that fools errand now. Go get Claude Max.
 
-[See this thread on Nitter for more examples](<[https://x.com/badlogicgames/status/1930090999004443049](https://nitter.net/badlogicgames/status/1930090999004443049#m)>)
+[See this thread on Nitter for more examples](https://nitter.net/badlogicgames/status/1930090999004443049#m)
 
 ## Quick Start
 
