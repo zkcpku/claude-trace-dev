@@ -21,14 +21,16 @@ try {
 		const { initializeInterceptor } = await import(`file://${distJsPath}`);
 		await initializeInterceptor();
 	} else if (fs.existsSync(tsPath)) {
-		// Use TypeScript via tsx (ESM version)
+		// Try to load tsx dynamically for development
 		try {
-			await import("tsx/esm/api");
+			// Register tsx hooks for TypeScript support
+			await import("tsx/esm");
 			const { initializeInterceptor } = await import(`file://${tsPath}`);
 			await initializeInterceptor();
 		} catch (tsxError) {
 			console.error("❌ tsx not available for TypeScript loading:", tsxError.message);
-			console.error("❌ Please build the project first with 'npm run build' and use the compiled version");
+			console.error("❌ For development: run 'npm run dev' in root to compile TypeScript");
+			console.error("❌ For production: run 'npm run build' to create bundled version");
 			process.exit(1);
 		}
 	} else {

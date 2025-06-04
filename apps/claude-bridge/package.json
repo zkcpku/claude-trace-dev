@@ -8,7 +8,7 @@
 		"claude-bridge": "dist/cli.js"
 	},
 	"scripts": {
-		"build": "tsc && cp src/interceptor-loader.js dist/",
+		"build": "tsup && cp src/interceptor-loader.js dist/ && chmod +x dist/cli.js",
 		"dev": "tsc --watch --preserveWatchOutput",
 		"clean": "rm -rf dist",
 		"prepublishOnly": "npm run clean && npm run build",
@@ -46,12 +46,20 @@
 		"node": ">=16.0.0"
 	},
 	"devDependencies": {
+		"@mariozechner/lemmy": "file:../../packages/lemmy",
 		"@types/node": "^22.13.10",
+		"tsup": "^8.5.0",
 		"tsx": "^4.19.4",
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
-		"@mariozechner/lemmy": "file:../../packages/lemmy",
-		"commander": "^12.1.0"
+		"@anthropic-ai/sdk": "^0.52.0",
+		"@google/genai": "^1.0.1",
+		"@modelcontextprotocol/sdk": "^1.12.0",
+		"chalk": "^5.4.1",
+		"commander": "^12.1.0",
+		"openai": "^4.103.0",
+		"zod": "^3.25.28",
+		"zod-to-json-schema": "^3.22.0"
 	}
 }

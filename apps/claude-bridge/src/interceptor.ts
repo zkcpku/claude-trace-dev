@@ -22,6 +22,7 @@ import {
 	type Message,
 	type ToolResult,
 	type Attachment,
+	AskInput,
 } from "@mariozechner/lemmy";
 import { lemmy } from "@mariozechner/lemmy";
 import { z } from "zod";
@@ -189,14 +190,13 @@ export class ClaudeBridgeInterceptor {
 			const lastMessage = context.getMessages().pop();
 
 			// Construct proper AskInput from the last user message
-			let askInput: string | { content?: string; toolResults?: ToolResult[]; attachments?: Attachment[] } = "";
-
+			let askInput: AskInput | string = "";
 			if (lastMessage?.role === "user") {
-				const userMessage = lastMessage as any;
+				const userMessage = lastMessage;
 				askInput = {
-					content: typeof userMessage.content === "string" ? userMessage.content : undefined,
-					toolResults: userMessage.toolResults || undefined,
-					attachments: userMessage.attachments || undefined,
+					...(userMessage.content && { content: userMessage.content }),
+					...(userMessage.toolResults && { toolResults: userMessage.toolResults }),
+					...(userMessage.attachments && { attachments: userMessage.attachments }),
 				};
 			}
 

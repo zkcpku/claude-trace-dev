@@ -2,6 +2,8 @@
 
 Use OpenAI, Google, and other LLM providers with Claude Code by intercepting and transforming API requests.
 
+Not that anything can beat Opus, Sonnet and a Claude Max plan. But you can try that fools errand now. Go get Claude Max.
+
 ## Quick Start
 
 ```bash
@@ -19,6 +21,7 @@ claude-bridge openai gpt-4o       # Run Claude Code with GPT-4
 # Advanced usage
 claude-bridge openai gpt-4o --apiKey sk-...                           # Custom API key
 claude-bridge openai llama3.2 --baseURL http://localhost:11434/v1     # Local Ollama
+claude-bridge openai gpt-4o --baseURL https://openrouter.ai/api/v1 --apiKey sk-or-... # OpenRouter
 claude-bridge openai gpt-4o --debug                          # Enable debug logs
 
 # All Claude Code arguments work
@@ -47,6 +50,8 @@ Claude Code only works with Anthropic models. This tool intercepts Claude Code's
 - ⚠️ Complex tool schema conversion may not be perfect (JSON Schema ↔ Zod)
 - ⚠️ Subtle streaming behavior differences despite Anthropic SSE format conversion
 - ⚠️ Provider auth failures may not surface clearly in Claude Code
+
+There are likely mystery bugs. Enjoy.
 
 ## Development
 
@@ -79,6 +84,14 @@ cat .claude-bridge/*.jsonl              # View logs
 # VS Code debugging
 npx tsx src/cli.ts <arguments>          # In JavaScript Debug Terminal
 ```
+
+**Bundling:**
+
+This package uses a hybrid bundling approach:
+
+- Core claude-bridge logic is bundled with lemmy package
+- LLM provider SDKs (@anthropic-ai/sdk, openai, @google/genai, etc.) remain external dependencies
+- This avoids Node.js dynamic require issues while keeping dependencies manageable
 
 **Core Files:**
 
