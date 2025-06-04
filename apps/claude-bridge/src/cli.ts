@@ -19,6 +19,7 @@ import {
 import path from "path";
 import { fileURLToPath } from "url";
 import { patchClaudeBinary } from "./patch-claude.js";
+import { VERSION } from "./version.js";
 
 interface ClaudeArgs {
 	provider: Provider;
@@ -33,6 +34,7 @@ interface ClaudeArgs {
 }
 
 interface ParsedArgs {
+	version?: boolean | undefined;
 	help?: boolean | undefined;
 	provider?: string | undefined;
 	model?: string | undefined;
@@ -126,12 +128,13 @@ function formatModelInfo(model: string, data: ModelData): string {
 }
 
 function showHelp(): void {
-	console.log(`claude-bridge - Use non-Anthropic models with Claude Code
+	console.log(`claude-bridge - Use non-Anthropic models with Claude Code\nVersion: ${VERSION}
 
 USAGE:
   claude-bridge                           Show all available providers
   claude-bridge <provider>                Show models for a provider
   claude-bridge <provider> <model>        Run with provider and model
+  claude-bridge --version                 Show version information
   claude-bridge --help                    Show this help
 
 EXAMPLES:
@@ -158,6 +161,7 @@ OPTIONS:
   --log-dir <dir>       Directory for log files (default: .claude-bridge)
   --patch-claude        Patch Claude binary to disable anti-debugging checks
   --debug               Enable debug logging (requests/responses to .claude-bridge/)
+  --version             Show version information
   --help, -h            Show this help
 
 ENVIRONMENT VARIABLES:
@@ -283,7 +287,10 @@ function parseArguments(argv: string[]): ParsedArgs {
 	while (i < argv.length) {
 		const arg = argv[i];
 
-		if (arg === "--help" || arg === "-h") {
+		if (arg === "--version") {
+			args.version = true;
+			i++;
+		} else if (arg === "--help" || arg === "-h") {
 			args.help = true;
 			i++;
 		} else if (arg === "--apiKey") {
@@ -534,6 +541,12 @@ function runClaudeWithBridge(args: ClaudeArgs): number {
 
 async function main(argv: string[] = process.argv) {
 	const parsedArgs = parseArguments(argv);
+
+	// Handle version
+	if (parsedArgs.version) {
+		console.log(VERSION);
+		return;
+	}
 
 	// Handle help
 	if (parsedArgs.help) {
