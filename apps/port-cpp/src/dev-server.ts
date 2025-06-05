@@ -375,8 +375,48 @@ class DevServer {
 				const data = this.data.targetFiles[index];
 				const key = \`target-\${index}\`;
 				const content = this.viewModes[key] === 'content' ? data.content : data.diff;
-				const language = this.viewModes[key] === 'content' ? 'cpp' : 'diff';
+				
+				// Infer language from filename extension
+				const filename = this.data.filenames.targetFiles[index];
+				const inferredLanguage = this.inferLanguageFromExtension(filename);
+				const language = this.viewModes[key] === 'content' ? inferredLanguage : 'diff';
+				
 				this.updatePanel(\`target-content-\${index}\`, content, language, data.error);
+			}
+			
+			inferLanguageFromExtension(filename) {
+				const ext = filename.toLowerCase().split('.').pop();
+				const languageMap = {
+					'h': 'cpp',
+					'hpp': 'cpp', 
+					'hxx': 'cpp',
+					'cpp': 'cpp',
+					'cc': 'cpp',
+					'cxx': 'cpp',
+					'c': 'c',
+					'java': 'java',
+					'js': 'javascript',
+					'ts': 'typescript',
+					'py': 'python',
+					'rb': 'ruby',
+					'go': 'go',
+					'rs': 'rust',
+					'swift': 'swift',
+					'kt': 'kotlin',
+					'cs': 'csharp',
+					'php': 'php',
+					'lua': 'lua',
+					'sh': 'bash',
+					'yaml': 'yaml',
+					'yml': 'yaml',
+					'json': 'json',
+					'xml': 'xml',
+					'html': 'html',
+					'css': 'css',
+					'md': 'markdown',
+					'sql': 'sql'
+				};
+				return languageMap[ext] || 'text';
 			}
 
 			updatePanel(elementId, content, language, error) {
