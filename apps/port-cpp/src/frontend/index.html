@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Porting Viewer</title>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.css" rel="stylesheet" />
+	<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+	<div class="header">
+		<div class="connection-status">
+			<div class="status-circle" id="status-circle"></div>
+			<span id="connection-status">Connecting...</span>
+		</div>
+	</div>
+	
+	<div class="container">
+		<div class="left-section">
+			<div class="target-panels" id="target-panels"></div>
+		</div>
+		
+		<div class="resizer" id="resizer"></div>
+		
+		<div class="right-section">
+			<div class="panel" id="java-panel">
+				<div class="panel-header">
+					<div class="panel-title" id="java-title">Loading...</div>
+					<button class="toggle-btn" id="java-toggle">Show Diff</button>
+				</div>
+				<div class="content">
+					<div class="file-content" id="java-content">Loading...</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.js"></script>
+	<script src="/app.js"></script>
+</body>
+</html>

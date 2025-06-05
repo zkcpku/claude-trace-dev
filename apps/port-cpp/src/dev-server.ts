@@ -7,6 +7,10 @@ import * as chokidar from "chokidar";
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 interface FileData {
 	content: string;
@@ -31,7 +35,7 @@ class DevServer {
 	}
 
 	private setupRoutes() {
-		// Main route with URL parameters
+		// Main route with URL parameters (must come before static middleware)
 		this.app.get("/", (req, res) => {
 			const { java, targets, prevBranch, currentBranch } = req.query;
 
@@ -50,8 +54,11 @@ class DevServer {
 				});
 			}
 
-			res.send(this.getIndexHTML());
+			res.sendFile(path.join(__dirname, "frontend", "index.html"));
 		});
+
+		// Serve static files from frontend directory (after main route)
+		this.app.use(express.static(path.join(__dirname, "frontend")));
 
 		// API endpoints
 		this.app.get("/api/data", (req, res) => {
@@ -202,276 +209,6 @@ class DevServer {
 		} catch (error) {
 			return `Error getting working tree diff: ${error instanceof Error ? error.message : String(error)}`;
 		}
-	}
-
-	private getIndexHTML(): string {
-		return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Porting Viewer</title>
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.css" rel="stylesheet" />
-	<style>
-		* { margin: 0; padding: 0; box-sizing: border-box; }
-		body { font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; background: #1e1e1e; color: #d4d4d4; height: 100vh; }
-		.header { background: #252526; padding: 0.5rem 1rem; border-bottom: 1px solid #3e3e42; display: flex; justify-content: flex-end; align-items: center; height: 40px; }
-		.connection-status { font-size: 0.75rem; color: #888; }
-		.container { display: flex; height: calc(100vh - 40px); }
-		.panel { flex: 1; border-right: 1px solid #3e3e42; display: flex; flex-direction: column; min-width: 0; }
-		.panel:last-child { border-right: none; }
-		.panel-header { background: #2d2d30; padding: 0.5rem 0.75rem; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; height: 36px; }
-		.panel-title { font-weight: 500; font-size: 0.875rem; }
-		.toggle-btn { background: #0e639c; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.75rem; }
-		.toggle-btn:hover { background: #1177bb; }
-		.content { flex: 1; overflow: auto; }
-		.file-content { padding: 0.75rem; white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4; }
-		.error { color: #f48771; background: #2d1b1b; padding: 1rem; margin: 1rem; border-radius: 4px; }
-		.loading { color: #cccccc; padding: 1rem; text-align: center; }
-		
-		/* Prism overrides for dark theme */
-		pre[class*="language-"] { background: transparent !important; margin: 0 !important; padding: 0 !important; }
-		code[class*="language-"] { background: transparent !important; }
-	</style>
-</head>
-<body>
-	<div class="header">
-		<div class="connection-status" id="connection-status">Connecting...</div>
-	</div>
-	
-	<div class="container">
-		<div id="target-panels"></div>
-		
-		<div class="panel" id="java-panel">
-			<div class="panel-header">
-				<div class="panel-title" id="java-title">Loading...</div>
-				<button class="toggle-btn" id="java-toggle">Show Diff</button>
-			</div>
-			<div class="content">
-				<div class="file-content" id="java-content">Loading...</div>
-			</div>
-		</div>
-	</div>
-
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.js"></script>
-
-	<script>
-		class PortingViewer {
-			constructor() {
-				this.ws = null;
-				this.data = null;
-				this.viewModes = { java: 'content' };
-				this.loadInitialData();
-				this.connect();
-			}
-
-			async loadInitialData() {
-				try {
-					const response = await fetch('/api/data');
-					const data = await response.json();
-					if (!data.error) {
-						this.data = data;
-						this.setupPanels();
-						this.updateAllPanels();
-					}
-				} catch (error) {
-					console.error('Failed to load initial data:', error);
-				}
-			}
-
-			connect() {
-				const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-				this.ws = new WebSocket(\`\${protocol}//\${window.location.host}\`);
-				
-				this.ws.onopen = () => {
-					document.getElementById('connection-status').textContent = 'Connected';
-				};
-				
-				this.ws.onmessage = (event) => {
-					const message = JSON.parse(event.data);
-					if (message.type === 'update') {
-						this.data = message;
-						this.setupPanels();
-						this.updateAllPanels();
-					}
-				};
-				
-				this.ws.onclose = () => {
-					document.getElementById('connection-status').textContent = 'Disconnected';
-					setTimeout(() => this.connect(), 2000);
-				};
-			}
-
-			setupPanels() {
-				if (!this.data) return;
-
-				// Update Java panel title
-				document.getElementById('java-title').textContent = this.data.filenames.javaFile;
-				
-				// Create target panels
-				const targetContainer = document.getElementById('target-panels');
-				targetContainer.innerHTML = '';
-				
-				this.data.filenames.targetFiles.forEach((filename, index) => {
-					this.viewModes[\`target-\${index}\`] = 'content';
-					
-					const panel = document.createElement('div');
-					panel.className = 'panel';
-					panel.innerHTML = \`
-						<div class="panel-header">
-							<div class="panel-title">\${filename}</div>
-							<button class="toggle-btn" id="target-toggle-\${index}">Show Diff</button>
-						</div>
-						<div class="content">
-							<div class="file-content" id="target-content-\${index}">Loading...</div>
-						</div>
-					\`;
-					targetContainer.appendChild(panel);
-					
-					// Setup toggle for this panel
-					document.getElementById(\`target-toggle-\${index}\`).onclick = () => this.toggleTargetView(index);
-				});
-				
-				// Setup Java toggle
-				document.getElementById('java-toggle').onclick = () => this.toggleJavaView();
-			}
-
-			toggleJavaView() {
-				this.viewModes.java = this.viewModes.java === 'content' ? 'diff' : 'content';
-				document.getElementById('java-toggle').textContent = 
-					this.viewModes.java === 'content' ? 'Show Diff' : 'Show Current';
-				this.updateJavaPanel();
-			}
-
-			toggleTargetView(index) {
-				const key = \`target-\${index}\`;
-				this.viewModes[key] = this.viewModes[key] === 'content' ? 'diff' : 'content';
-				document.getElementById(\`target-toggle-\${index}\`).textContent = 
-					this.viewModes[key] === 'content' ? 'Show Diff' : 'Show Current';
-				this.updateTargetPanel(index);
-			}
-
-			updateAllPanels() {
-				this.updateJavaPanel();
-				if (this.data && this.data.targetFiles) {
-					this.data.targetFiles.forEach((_, index) => this.updateTargetPanel(index));
-				}
-			}
-
-			updateJavaPanel() {
-				if (!this.data || !this.data.javaFile) return;
-				const content = this.viewModes.java === 'content' ? this.data.javaFile.content : this.data.javaFile.diff;
-				const language = this.viewModes.java === 'content' ? 'java' : 'diff';
-				this.updatePanel('java-content', content, language, this.data.javaFile.error);
-			}
-
-			updateTargetPanel(index) {
-				if (!this.data || !this.data.targetFiles[index]) return;
-				const data = this.data.targetFiles[index];
-				const key = \`target-\${index}\`;
-				const content = this.viewModes[key] === 'content' ? data.content : data.diff;
-				
-				// Infer language from filename extension
-				const filename = this.data.filenames.targetFiles[index];
-				const inferredLanguage = this.inferLanguageFromExtension(filename);
-				const language = this.viewModes[key] === 'content' ? inferredLanguage : 'diff';
-				
-				this.updatePanel(\`target-content-\${index}\`, content, language, data.error);
-			}
-			
-			inferLanguageFromExtension(filename) {
-				const ext = filename.toLowerCase().split('.').pop();
-				const languageMap = {
-					// C/C++
-					'c': 'c',
-					'h': 'c', // C headers
-					'cpp': 'cpp',
-					'cxx': 'cpp',
-					'cc': 'cpp',
-					'c++': 'cpp',
-					'hpp': 'cpp',
-					'hxx': 'cpp',
-					'hh': 'cpp',
-					// C#
-					'cs': 'csharp',
-					// TypeScript
-					'ts': 'typescript',
-					'tsx': 'typescript',
-					// Swift
-					'swift': 'swift',
-					// Dart
-					'dart': 'dart',
-					// Haxe
-					'hx': 'haxe',
-					// Other languages
-					'java': 'java',
-					'js': 'javascript',
-					'jsx': 'javascript',
-					'py': 'python',
-					'rb': 'ruby',
-					'go': 'go',
-					'rs': 'rust',
-					'kt': 'kotlin',
-					'php': 'php',
-					'lua': 'lua',
-					'sh': 'bash',
-					'bash': 'bash',
-					'yaml': 'yaml',
-					'yml': 'yaml',
-					'json': 'json',
-					'xml': 'xml',
-					'html': 'html',
-					'htm': 'html',
-					'css': 'css',
-					'scss': 'scss',
-					'sass': 'sass',
-					'md': 'markdown',
-					'markdown': 'markdown',
-					'sql': 'sql'
-				};
-				return languageMap[ext] || 'text';
-			}
-
-			updatePanel(elementId, content, language, error) {
-				const element = document.getElementById(elementId);
-				if (!element) return;
-
-				if (error) {
-					element.innerHTML = \`<div class="error">\${error}</div>\`;
-					return;
-				}
-				
-				if (!content.trim()) {
-					element.innerHTML = '<div class="loading">No content</div>';
-					return;
-				}
-				
-				// Create syntax highlighted content
-				const code = document.createElement('code');
-				code.className = \`language-\${language}\`;
-				code.textContent = content;
-				
-				const pre = document.createElement('pre');
-				pre.className = \`language-\${language}\`;
-				pre.appendChild(code);
-				
-				element.innerHTML = '';
-				element.appendChild(pre);
-				
-				// Apply syntax highlighting
-				Prism.highlightElement(code);
-			}
-		}
-
-		// Initialize the viewer
-		new PortingViewer();
-	</script>
-</body>
-</html>`;
 	}
 
 	public start(port = 0): Promise<number> {
