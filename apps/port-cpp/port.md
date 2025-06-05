@@ -107,7 +107,37 @@ Use the Read tool to examine the Java type at the specified file path and line r
 
 Use git diff between `prevBranch` and `currentBranch` (from porting plan metadata) to see if changes actually touch this type's lines.
 
-### 6. Port to C++
+### 6. Open Development Viewer (Optional)
+
+For better visualization during porting, you can start a development server and open a URL with file parameters:
+
+```bash
+# Start the development server (run once)
+npx tsx src/dev-server.ts
+
+# Then open a URL in your browser with the files you want to view:
+# http://localhost:PORT/?java=/path/to/File.java&cpp=/path/to/File.h,/path/to/File.cpp&prevBranch=4.2&currentBranch=4.3-beta
+```
+
+Example workflow:
+
+```bash
+# Start server
+npx tsx src/dev-server.ts
+# Server will print: 🚀 Development server running at: http://localhost:3000
+
+# Open browser with files from porting plan
+open "http://localhost:3000/?java=/path/to/Animation.java&cpp=/path/to/Animation.h,/path/to/Animation.cpp&prevBranch=4.2&currentBranch=4.3-beta"
+```
+
+Features:
+
+- Shows Java file with toggle between diff view (prev→current branch) and current content
+- Shows C++ files with toggle between diff view (working tree changes) and current content
+- Auto-refreshes when C++ files are modified
+- Syntax highlighting for all file types
+
+### 7. Port to C++
 
 - **First, read the complete existing C++ files** (both header and source if they exist) to understand the current implementation
 - **CRITICAL: Check for missing dependencies FIRST**
@@ -132,7 +162,7 @@ Use git diff between `prevBranch` and `currentBranch` (from porting plan metadat
    - Ensure C++ version has 100% functional parity with Java
 - **Never mark as "done" unless the C++ implementation is functionally complete AND has correct inheritance**
 
-### 7. Verify Build Compilation (When Requested)
+### 8. Verify Build Compilation (When Requested)
 
 **ONLY when explicitly requested by the user,** verify compilation using the CMake build system:
 
@@ -168,7 +198,7 @@ fi
 - Multiple related types may need to be ported before the code compiles cleanly
 - **For new files:** Always clean the build directory (`rm -rf build/`) to force CMake to regenerate since CMake uses `file(GLOB ...)` to discover source files
 
-### 8. Update the Porting Plan
+### 9. Update the Porting Plan
 
 Update the `PortingOrderItem` in the porting plan with your results:
 
@@ -183,7 +213,7 @@ jq --arg name "$TYPE_NAME" --arg state "done" --arg notes "Successfully ported A
 
 Return a structured JSON report with your results.
 
-### 9. STOP and Ask for Confirmation
+### 10. STOP and Ask for Confirmation
 
 - **MANDATORY:** After completing any type, you MUST STOP immediately
 - Tell the user exactly what you accomplished
