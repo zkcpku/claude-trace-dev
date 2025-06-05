@@ -6,12 +6,13 @@ import path from "path";
 
 // Helper function to convert fully qualified type name to simple name
 function getSimpleTypeName(fullyQualifiedName: string): string {
-	// Remove package prefix
-	const withoutPackage = fullyQualifiedName.replace("com.esotericsoftware.spine.", "");
+	// Find the last dot to get the class name
+	const lastDotIndex = fullyQualifiedName.lastIndexOf(".");
+	const className = lastDotIndex >= 0 ? fullyQualifiedName.substring(lastDotIndex + 1) : fullyQualifiedName;
 
 	// Handle inner classes - remove outer class prefix for inner classes
 	// e.g. "Animation$Timeline" -> "Timeline"
-	const parts = withoutPackage.split("$");
+	const parts = className.split("$");
 	return parts[parts.length - 1];
 }
 
@@ -41,27 +42,17 @@ function analyzeSpineLibGDXDependencies(options: AnalysisOptions = {}) {
 		options.spineLibGdxPath || "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx";
 	const buildClassesPath = options.buildClassesPath || path.join(spineLibGdxPath, "build/classes/java/main");
 
-	console.log("Analyzing SpineLibGDX dependencies (Gradle)...");
-	console.log(`  Source path: ${spineLibGdxPath}`);
-	console.log(`  Classes path: ${buildClassesPath}`);
-
 	try {
-		// Check if classes exist, if not try to build with Gradle
+		// Always do a clean build to ensure we start from a fresh state
+		// Gradle wrapper is in the parent spine-libgdx directory
+		const gradleCmd = "../gradlew";
+		execSync(`${gradleCmd} :spine-libgdx:clean :spine-libgdx:compileJava -q`, {
+			cwd: spineLibGdxPath,
+			stdio: "ignore",
+		});
+
 		if (!existsSync(buildClassesPath)) {
-			console.log(`Classes not found at ${buildClassesPath}, running Gradle build...`);
-
-			// Use Gradle wrapper
-			const gradleCmd = "./gradlew";
-			execSync(`${gradleCmd} compileJava -q`, {
-				cwd: spineLibGdxPath,
-				encoding: "utf8",
-				stdio: "inherit",
-			});
-
-			if (!existsSync(buildClassesPath)) {
-				throw new Error(`Gradle build completed but classes still not found at ${buildClassesPath}`);
-			}
-			console.log("Gradle build completed successfully");
+			throw new Error(`Gradle build completed but classes still not found at ${buildClassesPath}`);
 		}
 
 		// Use jdeps to analyze dependencies
@@ -106,33 +97,17 @@ function analyzeSpineLibGDXDependencies(options: AnalysisOptions = {}) {
 			(dep, index, arr) => arr.findIndex((d) => d.from === dep.from && d.to === dep.to) === index,
 		);
 
-		console.log(`Found ${uniqueDeps.length} internal dependencies`);
-
-		// Get all types in the source tree (Gradle structure)
-		const sourcePath = path.join(spineLibGdxPath, "src/com/esotericsoftware/spine");
-
-		const allTypesOutput = execSync(`find "${sourcePath}" -name "*.java" -exec basename {} .java \\; | sort`, {
-			encoding: "utf8",
-		});
-		const allSourceTypes = allTypesOutput
-			.trim()
-			.split("\n")
-			.map((name) => `com.esotericsoftware.spine.${name}`)
-			.filter((name) => !name.includes("$")); // Exclude inner classes from file names
-
-		// Also get types from compiled classes to catch inner classes
+		// Get all types from compiled classes with full package paths
 		const compiledTypesOutput = execSync(
-			`find "${buildClassesPath}" -name "*.class" -exec basename {} .class \\; | grep -v '\\$[0-9]' | sort -u`,
+			`find "${buildClassesPath}" -name "*.class" | sed 's|${buildClassesPath}/||' | sed 's|/|.|g' | sed 's|\\.class$||' | grep -v '\\$[0-9]' | sort -u`,
 			{ encoding: "utf8" },
 		);
-		const compiledTypes = compiledTypesOutput
-			.trim()
-			.split("\n")
-			.map((name) => `com.esotericsoftware.spine.${name}`)
-			.filter((name) => name.startsWith("com.esotericsoftware.spine"));
-
-		// Combine and deduplicate all types
-		const allTypes = new Set([...allSourceTypes, ...compiledTypes]);
+		const allTypes = new Set(
+			compiledTypesOutput
+				.trim()
+				.split("\n")
+				.filter((name) => name.startsWith("com.esotericsoftware.spine")),
+		);
 
 		// Group dependencies by source type
 		const dependenciesByType = new Map<string, Set<string>>();
@@ -180,75 +155,37 @@ function analyzeSpineLibGDXDependencies(options: AnalysisOptions = {}) {
 			typeDependencies,
 		};
 
-		writeFileSync("spine-libgdx-dependencies.json", JSON.stringify(output, null, 2));
-		console.log("Dependencies written to spine-libgdx-dependencies.json");
-
-		// Print summary
-		const typesWithDeps = typeDependencies.filter((td) => td.dependencyCount > 0).length;
-		const typesWithoutDeps = typeDependencies.filter((td) => td.dependencyCount === 0).length;
-
-		console.log(`\nSummary:`);
-		console.log(`- Types with dependencies: ${typesWithDeps}`);
-		console.log(`- Types without dependencies: ${typesWithoutDeps}`);
-		console.log(`- Total types: ${typeDependencies.length}`);
-		console.log(`- Average dependencies per type: ${(uniqueDeps.length / typesWithDeps).toFixed(1)}`);
-
-		// Show top 10 most dependent types
-		console.log(`\nTop 10 types with most dependencies:`);
-		typeDependencies.slice(0, 10).forEach((td, i) => {
-			console.log(`${i + 1}. ${td.type} (${td.dependencyCount} dependencies)`);
-		});
-
-		// Show types with no dependencies
-		const rootTypes = typeDependencies.filter((td) => td.dependencyCount === 0);
-		console.log(`\nTypes with no dependencies (${rootTypes.length}):`);
-		rootTypes.slice(0, 10).forEach((td) => {
-			console.log(`- ${td.type}`);
-		});
-		if (rootTypes.length > 10) {
-			console.log(`... and ${rootTypes.length - 10} more`);
-		}
+		return output;
 	} catch (error) {
 		console.error("Error analyzing dependencies:", error);
+		throw error;
+	}
+}
+
+// CLI usage
+if (import.meta.url === `file://${process.argv[1]}`) {
+	const args = process.argv.slice(2);
+
+	if (args.length < 1) {
+		console.error("Usage: npx tsx analyze-dependencies.ts <spine-runtimes-dir>");
+		console.error("");
+		console.error("Examples:");
+		console.error("  npx tsx analyze-dependencies.ts /Users/badlogic/workspaces/spine-runtimes");
+		process.exit(1);
+	}
+
+	const [spineRuntimesDir] = args;
+	const spineLibGdxPath = `${spineRuntimesDir}/spine-libgdx/spine-libgdx`;
+
+	try {
+		const result = analyzeSpineLibGDXDependencies({
+			spineLibGdxPath,
+		});
+		console.log(JSON.stringify(result, null, 2));
+	} catch (error) {
+		console.error("Error:", error instanceof Error ? error.message : String(error));
 		process.exit(1);
 	}
 }
 
-// Run if this is the main module
-if (import.meta.url === `file://${process.argv[1]}`) {
-	const args = process.argv.slice(2);
-
-	const options: AnalysisOptions = {};
-
-	// Parse command line arguments
-	for (let i = 0; i < args.length; i += 2) {
-		const flag = args[i];
-		const value = args[i + 1];
-
-		switch (flag) {
-			case "--spine-path":
-				options.spineLibGdxPath = value;
-				break;
-			case "--classes-path":
-				options.buildClassesPath = value;
-				break;
-			case "--help":
-				console.log("Usage: npx tsx analyze-dependencies.ts [options]");
-				console.log("");
-				console.log("Options:");
-				console.log("  --spine-path <path>           Path to spine-libgdx directory");
-				console.log("  --classes-path <path>         Path to compiled classes directory");
-				console.log("  --help                        Show this help message");
-				console.log("");
-				console.log("Example:");
-				console.log(
-					"  npx tsx analyze-dependencies.ts --spine-path /path/to/spine-runtimes/spine-libgdx/spine-libgdx",
-				);
-				process.exit(0);
-		}
-	}
-
-	analyzeSpineLibGDXDependencies(options);
-}
-
-export { analyzeSpineLibGDXDependencies, AnalysisOptions };
+export { analyzeSpineLibGDXDependencies, AnalysisOptions, getSimpleTypeName };

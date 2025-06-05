@@ -2,8 +2,9 @@
 
 import fs from "fs";
 import path from "path";
+import { CppTypeMapping } from "./types.js";
 
-export interface CppType {
+interface CppType {
 	name: string;
 	type: "class" | "enum" | "struct" | "typedef";
 	file: string;
@@ -120,56 +121,22 @@ export function extractAllCppTypes(includeDir: string): Map<string, CppType[]> {
 	return typeMap;
 }
 
-export function createTypeIndex(spineRuntimesDir: string): Map<string, CppType[]> {
-	const includeDir = path.join(spineRuntimesDir, "spine-cpp", "spine-cpp", "include", "spine");
-	return extractAllCppTypes(includeDir);
-}
+export function createCppTypeMapping(spineCppDir: string): CppTypeMapping {
+	const includeDir = path.join(spineCppDir, "spine-cpp", "include", "spine");
+	const typeMap = extractAllCppTypes(includeDir);
 
-// CLI usage
-if (import.meta.url === `file://${process.argv[1]}`) {
-	const args = process.argv.slice(2);
+	// Convert to simple mapping of type name -> absolute header path
+	const mapping: CppTypeMapping = {};
 
-	if (args.length < 1) {
-		console.error("Usage: npx tsx extract-cpp-types.ts <spine-runtimes-dir> [type-name]");
-		console.error("");
-		console.error("Examples:");
-		console.error("  npx tsx extract-cpp-types.ts /Users/badlogic/workspaces/spine-runtimes");
-		console.error("  npx tsx extract-cpp-types.ts /Users/badlogic/workspaces/spine-runtimes Animation");
-		process.exit(1);
-	}
-
-	const [spineRuntimesDir, typeName] = args;
-	const typeIndex = createTypeIndex(spineRuntimesDir);
-
-	if (typeName) {
-		// Show specific type
-		const matches = typeIndex.get(typeName);
-		if (matches) {
-			console.log(`Found ${matches.length} matches for "${typeName}":`);
-			matches.forEach((match) => {
-				console.log(
-					`  ${match.type} ${match.name} in ${match.file}${match.baseClass ? ` : ${match.baseClass}` : ""}${match.isForwardDecl ? " (forward decl)" : ""}${match.isFriend ? " (friend)" : ""}`,
-				);
-			});
-		} else {
-			console.log(`No matches found for "${typeName}"`);
-		}
-	} else {
-		// Show all types
-		console.log(
-			`Found ${typeIndex.size} unique type names across ${Array.from(typeIndex.values()).flat().length} declarations:`,
-		);
-
-		const sortedTypes = Array.from(typeIndex.entries()).sort(([a], [b]) => a.localeCompare(b));
-
-		for (const [typeName, types] of sortedTypes) {
-			const mainDecl = types.find((t) => !t.isForwardDecl && !t.isFriend) || types[0];
-			const forwardCount = types.filter((t) => t.isForwardDecl || t.isFriend).length;
-			console.log(
-				`  ${mainDecl.type} ${typeName} (${mainDecl.file})${forwardCount > 0 ? ` +${forwardCount} refs` : ""}`,
-			);
+	for (const [typeName, types] of typeMap.entries()) {
+		// Find the main declaration (not forward/friend)
+		const mainDecl = types.find((t) => !t.isForwardDecl && !t.isFriend);
+		if (mainDecl) {
+			mapping[typeName] = path.join(includeDir, mainDecl.file);
 		}
 	}
+
+	return mapping;
 }
 
-export default { extractCppTypesFromHeader, extractAllCppTypes, createTypeIndex };
+export default { createCppTypeMapping };

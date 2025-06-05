@@ -4,13 +4,7 @@
 	"description": "Java-to-C++ porting scripts for Spine runtimes",
 	"type": "module",
 	"scripts": {
-		"analyze-deps": "npx tsx src/analyze-dependencies.ts",
-		"port": "npx tsx src/port-cpp.ts",
-		"extract-java": "npx tsx src/extract-java-types.ts",
-		"extract-cpp": "npx tsx src/extract-cpp-types.ts",
-		"map-java-cpp": "npx tsx src/map-java-to-cpp.ts",
-		"enumerate-files": "npx tsx src/enumerate-changed-java-files.ts",
-		"patch-claude": "npx tsx src/patch-claude.ts"
+		"analyze-deps": "npx tsx src/analyze-dependencies.ts"
 	},
 	"dependencies": {
 		"tsx": "^4.19.4",

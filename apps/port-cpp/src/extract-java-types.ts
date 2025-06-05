@@ -1,29 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import fs from "fs";
-import { callClaudeMultiple } from "./call-claude.ts";
-import { JavaType } from "./types.js";
-
-function createJavaTypeAnalysisPrompt(
-	filePath: string,
-	typeName: string,
-	startLine: number,
-	endLine: number,
-	context: string,
-): string {
-	return `Analyze this Java type declaration and provide a brief description (1-2 sentences) of what it does/represents.
-
-File: ${filePath}
-Type: ${typeName}
-Lines: ${startLine}-${endLine}
-
-Source code:
-\`\`\`java
-${context}
-\`\`\`
-
-Respond with only the description, no additional formatting or explanation.`;
-}
+import { ChangeSet, JavaType } from "./types.js";
 
 interface ParsedJavaType {
 	name: string;
@@ -33,15 +11,27 @@ interface ParsedJavaType {
 	level: number;
 }
 
-export interface ExtractionResult {
-	filePath: string;
-	status: "success" | "deleted" | "no_types" | "error";
-	types: JavaType[];
-	error?: string;
-}
+export function extractJavaTypesFromChangeSet(changeSet: ChangeSet): ChangeSet {
+	const updatedFiles = changeSet.files.map((file) => {
+		try {
+			const extractedTypes = extractJavaTypesFromFile(file.filePath);
+			return {
+				...file,
+				javaTypes: extractedTypes,
+			};
+		} catch (error) {
+			console.error(`Error extracting types from ${file.filePath}:`, error);
+			return {
+				...file,
+				javaTypes: [],
+			};
+		}
+	});
 
-export interface ExtractionOptions {
-	onTypeExtracted?: (filePath: string, type: JavaType, index: number, total: number) => void;
+	return {
+		...changeSet,
+		files: updatedFiles,
+	};
 }
 
 function findTypeBoundaries(types: ParsedJavaType[], lines: string[]): void {
@@ -139,167 +129,52 @@ function cleanTypeContext(typeLines: string[], typeName: string): string {
 	return cleanedLines.join("\n");
 }
 
-export async function extractJavaTypes(
-	javaFilePath: string,
-	options: ExtractionOptions = {},
-): Promise<ExtractionResult> {
-	try {
-		// Check if file exists (handle deleted files)
-		if (!fs.existsSync(javaFilePath)) {
-			return {
-				filePath: javaFilePath,
-				status: "deleted",
-				types: [
-					{
-						name: "DELETED_FILE",
-						type: "class", // dummy value for deleted files
-						description: "Cannot extract types from deleted file",
-						startLine: 0,
-						endLine: 0,
-						cppHeader: "",
-						cppSource: null,
-						filesExist: false,
-						action: "no_action_needed",
-					},
-				],
-			};
-		}
-
-		// Find type declarations with start/end boundaries
-		const content = fs.readFileSync(javaFilePath, "utf8");
-		const lines = content.split("\n");
-		const types: ParsedJavaType[] = [];
-
-		// Find all public type declarations (including indented inner classes)
-		lines.forEach((line, i) => {
-			const match = line.match(/public\s+(?:static\s+|final\s+|abstract\s+)*(class|interface|enum)\s+(\w+)/);
-			if (match) {
-				const indentMatch = line.match(/^\s*/);
-				types.push({
-					name: match[2],
-					type: match[1] as "class" | "interface" | "enum",
-					startLine: i + 1,
-					endLine: null,
-					level: indentMatch ? indentMatch[0].length / 2 : 0, // Approximate nesting level
-				});
-			}
-		});
-
-		// Find type boundaries (end lines and extend start lines to include Javadoc)
-		findTypeBoundaries(types, lines);
-
-		if (types.length === 0) {
-			return {
-				filePath: javaFilePath,
-				status: "no_types",
-				types: [],
-			};
-		}
-
-		// Prepare all prompts for parallel Claude calls
-		const prompts = types.map((type): string => {
-			// Extract type definition including Javadoc but removing OTHER inner types
-			const typeLines = lines.slice(type.startLine - 1, type.endLine || lines.length);
-			const context = cleanTypeContext(typeLines, type.name);
-
-			// Limit context to 50 lines
-			const contextLines = context.split("\n");
-			const limitedContext =
-				contextLines.length > 50
-					? contextLines.slice(0, 50).join("\n") + "\n// ... truncated to 50 lines ..."
-					: context;
-
-			return createJavaTypeAnalysisPrompt(
-				javaFilePath,
-				type.name,
-				type.startLine,
-				type.endLine || lines.length,
-				limitedContext,
-			);
-		});
-
-		// Execute Claude calls in batches of 1 (can't get
-		// Claude Code to run in parallel in headless mode)
-		const batchSize = 10;
-		const results: JavaType[] = [];
-
-		for (let i = 0; i < prompts.length; i += batchSize) {
-			const batch = prompts.slice(i, i + batchSize);
-			const batchTypes = types.slice(i, i + batchSize);
-
-			const batchResults = await callClaudeMultiple(batch);
-
-			// Collect results for this batch
-			for (let j = 0; j < batchResults.length; j++) {
-				const type = batchTypes[j];
-				const description = batchResults[j];
-
-				const cleanDescription = description.trim().replace(/\n/g, " ");
-
-				const javaType: JavaType = {
-					name: type.name,
-					type: type.type,
-					description: cleanDescription,
-					startLine: type.startLine,
-					endLine: type.endLine || lines.length,
-					cppHeader: "", // Will be filled by mapping phase
-					cppSource: null, // Will be filled by mapping phase
-					filesExist: false, // Will be filled by mapping phase
-					action: "update_existing", // Will be determined by mapping phase
-				};
-
-				results.push(javaType);
-
-				// Call callback immediately when type is processed
-				if (options.onTypeExtracted) {
-					options.onTypeExtracted(javaFilePath, javaType, results.length - 1, types.length);
-				}
-			}
-		}
-
-		return {
-			filePath: javaFilePath,
-			status: "success",
-			types: results,
-		};
-	} catch (error) {
-		return {
-			filePath: javaFilePath,
-			status: "error",
-			error: error instanceof Error ? error.message : String(error),
-			types: [],
-		};
-	}
-}
-
-// CLI usage
-if (import.meta.url === `file://${process.argv[1]}`) {
-	const args = process.argv.slice(2);
-
-	if (args.length < 1) {
-		console.error("Usage: npx tsx extract-java-types.ts <java-file-path>");
-		console.error("");
-		console.error("Examples:");
-		console.error(
-			"  npx tsx extract-java-types.ts /Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
-		);
-		console.error(
-			"  npx tsx extract-java-types.ts ../spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
-		);
-		process.exit(1);
+function extractJavaTypesFromFile(javaFilePath: string): JavaType[] {
+	// Check if file exists
+	if (!fs.existsSync(javaFilePath)) {
+		throw new Error(`File does not exist: ${javaFilePath}`);
 	}
 
-	const [javaFilePath] = args;
+	// Find type declarations with start/end boundaries
+	const content = fs.readFileSync(javaFilePath, "utf8");
+	const lines = content.split("\n");
+	const types: ParsedJavaType[] = [];
 
-	extractJavaTypes(javaFilePath)
-		.then((result) => {
-			// Output as JSON
-			console.log(JSON.stringify(result, null, 2));
-		})
-		.catch((error) => {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
-			process.exit(1);
-		});
+	// Find all public type declarations (including indented inner classes)
+	lines.forEach((line, i) => {
+		const match = line.match(/public\s+(?:static\s+|final\s+|abstract\s+)*(class|interface|enum)\s+(\w+)/);
+		if (match) {
+			const indentMatch = line.match(/^\s*/);
+			types.push({
+				name: match[2],
+				type: match[1] as "class" | "interface" | "enum",
+				startLine: i + 1,
+				endLine: null,
+				level: indentMatch ? indentMatch[0].length / 2 : 0, // Approximate nesting level
+			});
+		}
+	});
+
+	// Find type boundaries (end lines and extend start lines to include Javadoc)
+	findTypeBoundaries(types, lines);
+
+	if (types.length === 0) {
+		return [];
+	}
+
+	// Extract types
+	const results: JavaType[] = types.map((type) => {
+		return {
+			name: type.name,
+			type: type.type,
+			startLine: type.startLine,
+			endLine: type.endLine || lines.length,
+			targetFiles: [], // Will be filled by mapping phase
+			filesExist: false, // Will be filled by mapping phase
+		};
+	});
+
+	return results;
 }
 
-export default { extractJavaTypes };
+export default { extractJavaTypesFromChangeSet };

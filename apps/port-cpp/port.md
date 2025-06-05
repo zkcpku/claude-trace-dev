@@ -8,9 +8,9 @@ We are working on the Spine Runtime, a skeletal animation library for loading, m
 
 **Build verification:** We use dependency-ordered porting, you CAN and SHOULD verify your work compiles using the CMake build system. This provides immediate feedback and catches errors early.
 
-**The porting matrix:** All work is tracked in `porting_matrix.json` - a structured file containing metadata about git branches, lists of Java files with their types, and a dependency-ordered porting sequence. **First, read `/Users/badlogic/workspaces/lemmy/apps/port-cpp/src/types.ts` to understand the complete data structure** (`PortingMatrix`, `JavaFile`, `JavaType`, `PortingOrderItem` interfaces).
+**The porting plan:** All work is tracked in a `PortingPlan` JSON file - a structured file containing metadata about git branches, lists of deleted Java files, and a dependency-ordered porting sequence. **First, read `/Users/badlogic/workspaces/lemmy/apps/port-cpp/src/types.ts` to understand the complete data structure** (`PortingPlan`, `PortingOrderItem`, `DeletedJavaFile` interfaces).
 
-**Working Directory:** Read the `spineRuntimesDir` from `porting_matrix.json` metadata
+**Working Directory:** Read the `spineRuntimesDir` from porting plan metadata
 
 - **Spine Java sources:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/`
 - **Spine C++ sources:** `spine-cpp/spine-cpp/src/spine/` and `spine-cpp/spine-cpp/include/spine/`
@@ -19,58 +19,44 @@ We are working on the Spine Runtime, a skeletal animation library for loading, m
 
 ### 1. Find the Next Type to Port
 
-**NEW:** Use the dependency-ordered `portingOrder` array to find the next type to port:
+Use the dependency-ordered `portingOrder` array to find the next type to port:
 
 ```bash
 # Find the next pending type in dependency order
-jq -r '.portingOrder[] | select(.portingState == "pending") | . | @json' porting_matrix.json | head -1 | jq .
+jq -r '.portingOrder[] | select(.portingState == "pending") | . | @json' porting-plan.json | head -1 | jq .
 ```
 
 This finds the first `PortingOrderItem` where `portingState` is "pending". The `portingOrder` array is sorted by dependencies (leaf types first, complex types last).
 
-### 2. Get Java Type Details and C++ Mapping
+### 2. Confirm with User
 
-Once you have the `PortingOrderItem`, use these commands to get the complete information:
+**STOP HERE** and ask the user if this is the type they want to work on. Show them the complete `PortingOrderItem` JSON.
 
-```bash
-# Get the Java type details from the files array
-TYPE_NAME="Animation"  # Replace with simpleName from PortingOrderItem
-jq -r --arg name "$TYPE_NAME" '.files[].javaTypes[] | select(.name == $name)' porting_matrix.json
+### 3. Extract Type Information
 
-# Get the Java source file path for this type
-jq -r --arg name "$TYPE_NAME" '.files[] | select(.javaTypes[].name == $name) | .filePath' porting_matrix.json
-```
+Each `PortingOrderItem` is completely denormalized and contains all the information you need:
 
-The porting matrix tracks all Java types that might have changed between two git branches. All porting state is tracked in the `portingOrder` array and needs to be updated as we work through porting.
-
-### 3. Confirm with User
-
-**STOP HERE** and ask the user if this is the type they want to work on. Show them the full JSON of both the `PortingOrderItem` and the `JavaType` object.
-
-### 4. Extract Type Information
-
-From the selected `JavaType` object, you'll have:
-
-- `name` - Type name (e.g. "Animation", "Bone")
+- `simpleName` - Type name (e.g. "Animation", "Pose")
+- `fullName` - Fully qualified Java name (e.g. "com.esotericsoftware.spine.Animation")
 - `type` - "class", "interface", or "enum"
-- `description` - What this type does
+- `javaSourcePath` - **Absolute path** to Java source file
 - `startLine`/`endLine` - Location in the Java file
-- `cppHeader` - Path to C++ header file
-- `cppSource` - Path to C++ source file (null/undefined for header-only types like enums)
-- `filesExist` - Whether the C++ files already exist
-- `action` - What to do: "create_new_files", "update_existing", "delete_files", "rename_and_update"
+- `dependencyCount` - Number of dependencies this type has (for debugging dependency analysis)
+- `targetFiles[]` - **Absolute paths** to suggested C++ files to modify/create
+- `filesExist` - Whether the C++ files already exist (`true` = update existing, `false` = create new files)
+- `portingState` - Current status ("pending", "skipped", "incomplete", "done")
 
-The parent `JavaFile` gives you `filePath` (the Java source file path). `cppHeader` and `cppSource` are best guesses and usually correct, but sometimes wrong. If you find that the mapping does not make sense you MUST STOP and confirm with the user.
+**No need for complex queries** - everything is in the `PortingOrderItem`!
 
-### 3. Read the Java Source Code
+### 4. Read the Java Source Code
 
-Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the JavaType object to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
+Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
 
-### 4. Check if Git Changes Affect This Type
+### 5. Check if Git Changes Affect This Type
 
-Use git diff between `prevBranch` and `currentBranch` to see if changes actually touch this type's lines.
+Use git diff between `prevBranch` and `currentBranch` (from porting plan metadata) to see if changes actually touch this type's lines.
 
-### 5. Port to C++
+### 6. Port to C++
 
 - **First, read the complete existing C++ files** (both header and source if they exist) to understand the current implementation
 - **CRITICAL: Check for missing dependencies FIRST**
@@ -94,18 +80,18 @@ Use git diff between `prevBranch` and `currentBranch` to see if changes actually
    - Ensure C++ version has 100% functional parity with Java
 - **Never mark as "done" unless the C++ implementation is functionally complete AND has correct inheritance**
 
-### 6. Verify Build Compilation
+### 7. Verify Build Compilation
 
 **MANDATORY:** After porting any type, verify it compiles correctly:
 
 ```bash
-# Get spine runtimes directory from porting matrix
-SPINE_DIR=$(jq -r '.metadata.spineRuntimesDir' porting_matrix.json)
+# Get spine runtimes directory from porting plan
+SPINE_DIR=$(jq -r '.metadata.spineRuntimesDir' porting-plan.json)
 SPINE_CPP_DIR="$SPINE_DIR/spine-cpp"
 BUILD_DIR="$SPINE_CPP_DIR/build"
 
 # For new files: Clean build to ensure CMake picks up new files
-if [[ "$ACTION" == "create_new_files" ]]; then
+if [[ "$filesExist" == "false" ]]; then
     rm -rf "$BUILD_DIR"
 fi
 
@@ -129,9 +115,9 @@ fi
 - CMake uses `file(GLOB ...)` which needs regeneration to pick up new source files
 - Only mark as "done" if the build succeeds after adding new files
 
-### 7. Update the Porting Matrix
+### 8. Update the Porting Plan
 
-Update the `PortingOrderItem` in the porting matrix with your results:
+Update the `PortingOrderItem` in the porting plan with your results:
 
 ```bash
 # Update porting status for a completed type
@@ -139,12 +125,12 @@ TYPE_NAME="Animation"  # Replace with the type you just ported
 jq --arg name "$TYPE_NAME" --arg state "done" --arg notes "Successfully ported Animation class..." \
    '(.portingOrder[] | select(.simpleName == $name) | .portingState) |= $state |
     (.portingOrder[] | select(.simpleName == $name) | .portingNotes) |= $notes' \
-   porting_matrix.json > tmp.json && mv tmp.json porting_matrix.json
+   porting-plan.json > tmp.json && mv tmp.json porting-plan.json
 ```
 
 Return a structured JSON report with your results.
 
-### 8. STOP and Ask for Confirmation
+### 9. STOP and Ask for Confirmation
 
 - **MANDATORY:** After completing any type, you MUST STOP immediately
 - Tell the user exactly what you accomplished
