@@ -3,23 +3,24 @@ class PortingViewer {
 		this.ws = null;
 		this.data = null;
 		this.viewModes = { java: "content" };
+		this.config = this.parseUrlParams();
 		this.setupResizer();
-		this.loadInitialData();
 		this.connect();
 	}
 
-	async loadInitialData() {
-		try {
-			const response = await fetch("/api/data");
-			const data = await response.json();
-			if (!data.error) {
-				this.data = data;
-				this.setupPanels();
-				this.updateAllPanels();
-			}
-		} catch (error) {
-			console.error("Failed to load initial data:", error);
-		}
+	parseUrlParams() {
+		const params = new URLSearchParams(window.location.search);
+		return {
+			java: params.get("java"),
+			targets:
+				params
+					.get("targets")
+					?.split(",")
+					.map((t) => t.trim())
+					.filter(Boolean) || [],
+			prevBranch: params.get("prevBranch"),
+			currentBranch: params.get("currentBranch"),
+		};
 	}
 
 	connect() {
@@ -29,6 +30,21 @@ class PortingViewer {
 		this.ws.onopen = () => {
 			document.getElementById("connection-status").textContent = "Connected";
 			document.getElementById("status-circle").classList.add("connected");
+
+			// Send configuration to server if we have URL parameters
+			if (
+				this.config.java &&
+				this.config.targets.length > 0 &&
+				this.config.prevBranch &&
+				this.config.currentBranch
+			) {
+				this.ws.send(
+					JSON.stringify({
+						type: "configure",
+						config: this.config,
+					}),
+				);
+			}
 		};
 
 		this.ws.onmessage = (event) => {
@@ -247,7 +263,86 @@ class PortingViewer {
 		// Apply syntax highlighting
 		Prism.highlightElement(code);
 	}
+
+	sendConfigUpdate() {
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.ws.send(
+				JSON.stringify({
+					type: "configure",
+					config: this.config,
+				}),
+			);
+		}
+	}
 }
 
 // Initialize the viewer
-new PortingViewer();
+const viewer = new PortingViewer();
+
+// Expose API functions for external control (e.g., puppeteer)
+window.portingAPI = {
+	// Change the Java file
+	setJavaFile(javaPath, prevBranch = "4.2", currentBranch = "4.3-beta") {
+		viewer.config.java = javaPath;
+		viewer.config.prevBranch = prevBranch;
+		viewer.config.currentBranch = currentBranch;
+		viewer.sendConfigUpdate();
+	},
+
+	// Add a target file
+	addTargetFile(targetPath) {
+		if (!viewer.config.targets.includes(targetPath)) {
+			viewer.config.targets.push(targetPath);
+			viewer.sendConfigUpdate();
+		}
+	},
+
+	// Remove a target file
+	removeTargetFile(targetPath) {
+		const index = viewer.config.targets.indexOf(targetPath);
+		if (index > -1) {
+			viewer.config.targets.splice(index, 1);
+			viewer.sendConfigUpdate();
+		}
+	},
+
+	// Set all target files at once
+	setTargetFiles(targetPaths) {
+		viewer.config.targets = Array.isArray(targetPaths) ? targetPaths : [targetPaths];
+		viewer.sendConfigUpdate();
+	},
+
+	// Toggle Java diff view
+	toggleJavaDiff() {
+		viewer.toggleJavaView();
+	},
+
+	// Toggle target file diff by index
+	toggleTargetDiff(index) {
+		viewer.toggleTargetView(index);
+	},
+
+	// Toggle target file diff by filename
+	toggleTargetDiffByName(filename) {
+		if (!viewer.data || !viewer.data.filenames) return;
+		const index = viewer.data.filenames.targetFiles.findIndex((f) => f === filename);
+		if (index >= 0) {
+			viewer.toggleTargetView(index);
+		}
+	},
+
+	// Get current configuration
+	getConfig() {
+		return { ...viewer.config };
+	},
+
+	// Get current view modes
+	getViewModes() {
+		return { ...viewer.viewModes };
+	},
+
+	// Get loaded filenames
+	getFilenames() {
+		return viewer.data ? viewer.data.filenames : null;
+	},
+};

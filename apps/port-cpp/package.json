@@ -6,7 +6,7 @@
 	"scripts": {
 		"analyze-deps": "npx tsx src/analyze-dependencies.ts",
 		"verify-coverage": "npx tsx src/verify-coverage.ts",
-		"dev-server": "npx tsx src/dev-server.ts"
+		"dev-server": "npx tsx src/dev-server.ts /Users/badlogic/workspaces/spine-runtimes"
 	},
 	"dependencies": {
 		"tsx": "^4.19.4",

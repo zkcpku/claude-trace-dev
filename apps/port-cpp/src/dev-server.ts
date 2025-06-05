@@ -35,46 +35,13 @@ class DevServer {
 	}
 
 	private setupRoutes() {
-		// Main route with URL parameters (must come before static middleware)
+		// Main route - just serve the HTML (no URL parameter processing)
 		this.app.get("/", (req, res) => {
-			const { java, targets, prevBranch, currentBranch } = req.query;
-
-			if (java && targets && prevBranch && currentBranch) {
-				// Resolve paths relative to runtimes directory
-				const javaPath = this.resolvePath(String(java));
-				const targetPaths = String(targets)
-					.split(",")
-					.map((p) => this.resolvePath(p.trim()));
-
-				this.updateFiles({
-					java: javaPath,
-					targets: targetPaths,
-					prevBranch: String(prevBranch),
-					currentBranch: String(currentBranch),
-				});
-			}
-
 			res.sendFile(path.join(__dirname, "frontend", "index.html"));
 		});
 
-		// Serve static files from frontend directory (after main route)
+		// Serve static files from frontend directory
 		this.app.use(express.static(path.join(__dirname, "frontend")));
-
-		// API endpoints
-		this.app.get("/api/data", (req, res) => {
-			if (!this.currentFiles.java) {
-				return res.json({ error: "No files configured" });
-			}
-
-			res.json({
-				javaFile: this.getJavaFileData(),
-				targetFiles: this.currentFiles.targets.map((f) => this.getTargetFileData(f)),
-				filenames: {
-					javaFile: path.basename(this.currentFiles.java),
-					targetFiles: this.currentFiles.targets.map((f) => path.basename(f)),
-				},
-			});
-		});
 	}
 
 	private updateFiles(files: { java: string; targets: string[]; prevBranch: string; currentBranch: string }) {
@@ -110,6 +77,31 @@ class DevServer {
 	private setupWebSocket() {
 		this.wss.on("connection", (ws) => {
 			console.log("Client connected");
+
+			ws.on("message", (data) => {
+				try {
+					const message = JSON.parse(data.toString());
+					if (message.type === "configure" && message.config) {
+						const { java, targets, prevBranch, currentBranch } = message.config;
+
+						if (java && targets && targets.length > 0 && prevBranch && currentBranch) {
+							// Resolve paths relative to runtimes directory
+							const javaPath = this.resolvePath(java);
+							const targetPaths = targets.map((p: string) => this.resolvePath(p));
+
+							this.updateFiles({
+								java: javaPath,
+								targets: targetPaths,
+								prevBranch,
+								currentBranch,
+							});
+						}
+					}
+				} catch (error) {
+					console.error("Error parsing WebSocket message:", error);
+				}
+			});
+
 			ws.on("close", () => console.log("Client disconnected"));
 		});
 	}
