@@ -19,9 +19,13 @@ class DevServer {
 	private server = createServer(this.app);
 	private wss = new WebSocketServer({ server: this.server });
 	private watchers = new Map<string, chokidar.FSWatcher>();
-	private currentFiles: { java?: string; cpp: string[]; prevBranch?: string; currentBranch?: string } = { cpp: [] };
+	private currentFiles: { java?: string; targets: string[]; prevBranch?: string; currentBranch?: string } = {
+		targets: [],
+	};
+	private runtimesDir: string;
 
-	constructor() {
+	constructor(runtimesDir: string) {
+		this.runtimesDir = runtimesDir;
 		this.setupRoutes();
 		this.setupWebSocket();
 	}
@@ -29,12 +33,18 @@ class DevServer {
 	private setupRoutes() {
 		// Main route with URL parameters
 		this.app.get("/", (req, res) => {
-			const { java, cpp, prevBranch, currentBranch } = req.query;
+			const { java, targets, prevBranch, currentBranch } = req.query;
 
-			if (java && cpp && prevBranch && currentBranch) {
+			if (java && targets && prevBranch && currentBranch) {
+				// Resolve paths relative to runtimes directory
+				const javaPath = this.resolvePath(String(java));
+				const targetPaths = String(targets)
+					.split(",")
+					.map((p) => this.resolvePath(p.trim()));
+
 				this.updateFiles({
-					java: String(java),
-					cpp: String(cpp).split(","),
+					java: javaPath,
+					targets: targetPaths,
 					prevBranch: String(prevBranch),
 					currentBranch: String(currentBranch),
 				});
@@ -51,16 +61,16 @@ class DevServer {
 
 			res.json({
 				javaFile: this.getJavaFileData(),
-				cppFiles: this.currentFiles.cpp.map((f) => this.getCppFileData(f)),
+				targetFiles: this.currentFiles.targets.map((f) => this.getTargetFileData(f)),
 				filenames: {
 					javaFile: path.basename(this.currentFiles.java),
-					cppFiles: this.currentFiles.cpp.map((f) => path.basename(f)),
+					targetFiles: this.currentFiles.targets.map((f) => path.basename(f)),
 				},
 			});
 		});
 	}
 
-	private updateFiles(files: { java: string; cpp: string[]; prevBranch: string; currentBranch: string }) {
+	private updateFiles(files: { java: string; targets: string[]; prevBranch: string; currentBranch: string }) {
 		// Clear existing watchers
 		this.watchers.forEach((watcher) => watcher.close());
 		this.watchers.clear();
@@ -69,16 +79,25 @@ class DevServer {
 		this.currentFiles = files;
 
 		// Setup new watchers
-		files.cpp.forEach((cppFile) => {
-			if (fs.existsSync(cppFile)) {
-				const watcher = chokidar.watch(cppFile);
+		files.targets.forEach((targetFile) => {
+			if (fs.existsSync(targetFile)) {
+				const watcher = chokidar.watch(targetFile);
 				watcher.on("change", () => this.broadcastUpdate());
-				this.watchers.set(cppFile, watcher);
+				this.watchers.set(targetFile, watcher);
 			}
 		});
 
 		// Broadcast initial data
 		this.broadcastUpdate();
+	}
+
+	private resolvePath(filePath: string): string {
+		// If already absolute, return as-is
+		if (path.isAbsolute(filePath)) {
+			return filePath;
+		}
+		// Otherwise resolve relative to runtimes directory
+		return path.resolve(this.runtimesDir, filePath);
 	}
 
 	private setupWebSocket() {
@@ -94,10 +113,10 @@ class DevServer {
 		const data = {
 			type: "update",
 			javaFile: this.getJavaFileData(),
-			cppFiles: this.currentFiles.cpp.map((f) => this.getCppFileData(f)),
+			targetFiles: this.currentFiles.targets.map((f) => this.getTargetFileData(f)),
 			filenames: {
 				javaFile: path.basename(this.currentFiles.java),
-				cppFiles: this.currentFiles.cpp.map((f) => path.basename(f)),
+				targetFiles: this.currentFiles.targets.map((f) => path.basename(f)),
 			},
 		};
 
@@ -130,23 +149,23 @@ class DevServer {
 		}
 	}
 
-	private getCppFileData(cppFile: string): FileData {
+	private getTargetFileData(targetFile: string): FileData {
 		try {
-			if (!fs.existsSync(cppFile)) {
+			if (!fs.existsSync(targetFile)) {
 				return {
 					content: "// File does not exist yet",
 					diff: "// New file - no diff available",
 				};
 			}
 
-			const content = fs.readFileSync(cppFile, "utf8");
-			const diff = this.getWorkingTreeDiff(cppFile);
+			const content = fs.readFileSync(targetFile, "utf8");
+			const diff = this.getWorkingTreeDiff(targetFile);
 			return { content, diff };
 		} catch (error) {
 			return {
 				content: "",
 				diff: "",
-				error: `Error reading C++ file: ${error instanceof Error ? error.message : String(error)}`,
+				error: `Error reading target file: ${error instanceof Error ? error.message : String(error)}`,
 			};
 		}
 	}
@@ -192,7 +211,7 @@ class DevServer {
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Java-to-C++ Porting Viewer</title>
+	<title>Porting Viewer</title>
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.css" rel="stylesheet" />
 	<style>
@@ -219,11 +238,13 @@ class DevServer {
 </head>
 <body>
 	<div class="header">
-		<div class="title">Java-to-C++ Porting Viewer</div>
+		<div class="title">Porting Viewer</div>
 		<div id="connection-status">Connecting...</div>
 	</div>
 	
 	<div class="container">
+		<div id="target-panels"></div>
+		
 		<div class="panel" id="java-panel">
 			<div class="panel-header">
 				<div class="panel-title" id="java-title">Java File</div>
@@ -233,8 +254,6 @@ class DevServer {
 				<div class="file-content" id="java-content">Loading...</div>
 			</div>
 		</div>
-		
-		<div id="cpp-panels"></div>
 	</div>
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
@@ -294,28 +313,28 @@ class DevServer {
 				// Update Java panel title
 				document.getElementById('java-title').textContent = \`Java: \${this.data.filenames.javaFile}\`;
 				
-				// Create C++ panels
-				const cppContainer = document.getElementById('cpp-panels');
-				cppContainer.innerHTML = '';
+				// Create target panels
+				const targetContainer = document.getElementById('target-panels');
+				targetContainer.innerHTML = '';
 				
-				this.data.filenames.cppFiles.forEach((filename, index) => {
-					this.viewModes[\`cpp-\${index}\`] = 'content';
+				this.data.filenames.targetFiles.forEach((filename, index) => {
+					this.viewModes[\`target-\${index}\`] = 'content';
 					
 					const panel = document.createElement('div');
 					panel.className = 'panel';
 					panel.innerHTML = \`
 						<div class="panel-header">
-							<div class="panel-title">C++: \${filename}</div>
-							<button class="toggle-btn" id="cpp-toggle-\${index}">Show Diff</button>
+							<div class="panel-title">Target: \${filename}</div>
+							<button class="toggle-btn" id="target-toggle-\${index}">Show Diff</button>
 						</div>
 						<div class="content">
-							<div class="file-content" id="cpp-content-\${index}">Loading...</div>
+							<div class="file-content" id="target-content-\${index}">Loading...</div>
 						</div>
 					\`;
-					cppContainer.appendChild(panel);
+					targetContainer.appendChild(panel);
 					
 					// Setup toggle for this panel
-					document.getElementById(\`cpp-toggle-\${index}\`).onclick = () => this.toggleCppView(index);
+					document.getElementById(\`target-toggle-\${index}\`).onclick = () => this.toggleTargetView(index);
 				});
 				
 				// Setup Java toggle
@@ -329,18 +348,18 @@ class DevServer {
 				this.updateJavaPanel();
 			}
 
-			toggleCppView(index) {
-				const key = \`cpp-\${index}\`;
+			toggleTargetView(index) {
+				const key = \`target-\${index}\`;
 				this.viewModes[key] = this.viewModes[key] === 'content' ? 'diff' : 'content';
-				document.getElementById(\`cpp-toggle-\${index}\`).textContent = 
+				document.getElementById(\`target-toggle-\${index}\`).textContent = 
 					this.viewModes[key] === 'content' ? 'Show Diff' : 'Show Current';
-				this.updateCppPanel(index);
+				this.updateTargetPanel(index);
 			}
 
 			updateAllPanels() {
 				this.updateJavaPanel();
-				if (this.data && this.data.cppFiles) {
-					this.data.cppFiles.forEach((_, index) => this.updateCppPanel(index));
+				if (this.data && this.data.targetFiles) {
+					this.data.targetFiles.forEach((_, index) => this.updateTargetPanel(index));
 				}
 			}
 
@@ -351,13 +370,13 @@ class DevServer {
 				this.updatePanel('java-content', content, language, this.data.javaFile.error);
 			}
 
-			updateCppPanel(index) {
-				if (!this.data || !this.data.cppFiles[index]) return;
-				const data = this.data.cppFiles[index];
-				const key = \`cpp-\${index}\`;
+			updateTargetPanel(index) {
+				if (!this.data || !this.data.targetFiles[index]) return;
+				const data = this.data.targetFiles[index];
+				const key = \`target-\${index}\`;
 				const content = this.viewModes[key] === 'content' ? data.content : data.diff;
 				const language = this.viewModes[key] === 'content' ? 'cpp' : 'diff';
-				this.updatePanel(\`cpp-content-\${index}\`, content, language, data.error);
+				this.updatePanel(\`target-content-\${index}\`, content, language, data.error);
 			}
 
 			updatePanel(elementId, content, language, error) {
@@ -404,7 +423,7 @@ class DevServer {
 				const actualPort = (this.server.address() as any)?.port || port;
 				console.log(`🚀 Development server running at: http://localhost:${actualPort}`);
 				console.log(
-					`📖 Usage: http://localhost:${actualPort}/?java=/path/to/File.java&cpp=/path/to/File.h,/path/to/File.cpp&prevBranch=4.2&currentBranch=4.3-beta`,
+					`📖 Usage: http://localhost:${actualPort}/?java=/path/to/File.java&targets=/path/to/File.h,/path/to/File.cpp&prevBranch=4.2&currentBranch=4.3-beta`,
 				);
 				resolve(actualPort);
 			});
@@ -417,13 +436,31 @@ class DevServer {
 	}
 }
 
-// CLI usage - just start the server
+// CLI usage - start the server with spine runtimes directory
 if (process.argv[1] && process.argv[1].includes("dev-server.ts")) {
-	const server = new DevServer();
+	const args = process.argv.slice(2);
+
+	if (args.length < 1) {
+		console.error("Usage: npx tsx src/dev-server.ts <spine-runtimes-dir>");
+		console.error("");
+		console.error("Example:");
+		console.error("  npx tsx src/dev-server.ts /path/to/spine-runtimes");
+		process.exit(1);
+	}
+
+	const spineRuntimesDir = path.resolve(args[0]);
+	console.log(`📁 Spine runtimes directory: ${spineRuntimesDir}`);
+
+	const server = new DevServer(spineRuntimesDir);
 
 	server
 		.start()
-		.then(() => {
+		.then((port) => {
+			console.log(`📖 Example URL with relative paths:`);
+			console.log(
+				`http://localhost:${port}/?java=spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Bone.java&targets=spine-cpp/spine-cpp/include/spine/Bone.h,spine-cpp/spine-cpp/src/spine/Bone.cpp&prevBranch=4.2&currentBranch=4.3-beta`,
+			);
+
 			process.on("SIGINT", () => {
 				console.log("\n👋 Shutting down development server...");
 				server.stop();
