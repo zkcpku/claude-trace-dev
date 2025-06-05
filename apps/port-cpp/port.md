@@ -2,72 +2,77 @@
 
 ## Overview
 
-We are working on the Spine Runtime, a skeletal animation library for loading, manipulating and rendering Spine skeletons, porting Java code changes to C++. The Spine project maintains parallel implementations in multiple languages, and we need to keep the C++ version synchronized with Java updates.
+We are working collaboratively on the Spine Runtime, a skeletal animation library for loading, manipulating and rendering Spine skeletons, porting Java code changes to C++. The Spine project maintains parallel implementations in multiple languages, and we need to keep the C++ version synchronized with Java updates.
 
-**What we're doing:** Take a single Java type (class, interface, or enum) that potentially has changes between two git branches/commits/tags and port those changes to the corresponding C++ files.
+Our work is tracked in `porting-plan.json` which contains git branches, deleted files, the spine runtimes directory, and a priority-ordered porting sequence. The types in the porting-plan.json file (PortingPlan, PortingOrderItem, DeletedJavaFile) are described in src/types.ts (relative to this file).
 
-**Build verification:** Build verification is available but should only be used when explicitly requested by the user. Due to circular dependencies between Java types, there is no clean porting order where the code compiles after every individual type is ported.
+**Working Directory:** Paths are relative to the spine-runtimes directory:
 
-**The porting plan:** All work is tracked in a porting plan JSON file called `porting-plan.json` - a structured file containing metadata about git branches, lists of deleted Java files, and a priority-ordered porting sequence.
+- **Java sources:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/`
+- **C++ sources:** `spine-cpp/spine-cpp/src/spine/` and `spine-cpp/spine-cpp/include/spine/`
 
-```typescript
-/** Porting order item with complete denormalized information */
-interface PortingOrderItem {
-	// Java type info
-	simpleName: string;
-	fullName: string; // Fully qualified name like com.esotericsoftware.spine.Animation
-	type: "class" | "interface" | "enum";
-	javaSourcePath: string; // Absolute path to Java source file
-	startLine: number;
-	endLine: number;
+You are provided with tools to collaborate on the porting with the user, as well as a step by step workflow you execute together with the user.
 
-	// Dependency info
-	dependencyCount: number; // Number of dependencies this type has
+## Tools
 
-	// C++ mapping
-	targetFiles: string[]; // Absolute paths to suggested C++ files to modify/create
-	filesExist: boolean; // true = update existing, false = create new files
+### File Viewer
 
-	// Porting status
-	portingState?: "pending" | "skipped" | "incomplete" | "done";
-	filesModified?: string[]; // Absolute paths to C++ files that were actually modified
-	portingNotes?: string; // Complete porting notes including key changes, failure reason, remaining work, etc.
-}
+The user might want to view changes for review, question asking, or advice giving. For this, use the file viewer - a web-based interface that shows Java and C++ files side-by-side with syntax highlighting, diff views, and real-time updates. You can load different files, toggle between content and diff views, and take screenshots to show the user your progress.
 
-/** Final porting plan with priority-ordered items */
-interface PortingPlan {
-	metadata: {
-		prevBranch: string;
-		currentBranch: string;
-		generated: string; // ISO timestamp
-		spineRuntimesDir: string; // Absolute path to spine-runtimes directory
-		spineCppDir: string; // Absolute path to spine-cpp directory
-	};
-	deletedFiles: DeletedJavaFile[]; // Deleted files with tracking status
-	portingOrder: PortingOrderItem[]; // Priority-ordered list with complete denormalized data
-}
+**Start the dev server first (from the folder where port.md is located):**
 
-/** Deleted Java file entry for cleanup tracking */
-interface DeletedJavaFile {
-	filePath: string; // Absolute path to deleted Java file
-	status: "pending" | "done"; // Cleanup status
-}
+```bash
+nohup npx tsx src/dev-server.ts /path/to/spine-runtimes > dev-server.log 2>&1 &
+sleep 2
+cat dev-server.log
 ```
 
-**Working Directory:** Read the `spineRuntimesDir` from porting plan metadata
+**Then use puppeteer to navigate and control the viewer:**
 
-- **Spine Java sources:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/` (relative to spine runtimes dir)
-- **Spine C++ sources:** `spine-cpp/spine-cpp/src/spine/` and `spine-cpp/spine-cpp/include/spine/` (relative to spine runtimes dir)
+```javascript
+// Navigate to the viewer (find the port number in dev-server.log output)
+mcp__puppeteer__puppeteer_navigate("http://localhost:PORT");
+
+// Load files using the portingAPI
+mcp__puppeteer__puppeteer_evaluate(`
+  portingAPI.setJavaFile("spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java");
+  portingAPI.setTargetFiles(["spine-cpp/spine-cpp/include/spine/Animation.h", "spine-cpp/spine-cpp/src/spine/Animation.cpp"]);
+`);
+
+// Toggle diff views
+mcp__puppeteer__puppeteer_evaluate("portingAPI.toggleJavaDiff()");
+mcp__puppeteer__puppeteer_evaluate("portingAPI.toggleTargetDiff(0)"); // 0 = first target file, 1 = second, etc.
+```
+
+This allows the user to visually observe the changes you make during porting and provides a collaborative review interface. Can also be used if the user requests to view a specific file.
+
+### Build Tool
+
+**ONLY when explicitly requested by the user,** verify compilation using the CMake build system:
+
+```bash
+./build.sh  # Located in the same folder as this port.md file
+```
+
+**Important Notes:**
+
+- **Build failures are often expected** due to circular dependencies between types
+- A failed build after porting one type does NOT mean the porting was incorrect
+- Multiple related types may need to be ported before the code compiles cleanly
 
 ## Step-by-Step Workflow
 
-### 0. Locate the Porting Plan
+### 0. Load Porting Plan
 
-If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location.
+If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location. Load the porting plan and extract the spine runtimes directory from `metadata.spineRuntimesDir`.
 
-### 1. Find the Next Type to Port
+### 1. Start Dev Server and Spin Up Puppeteer
 
-Use the priority-ordered `portingOrder` array to find the next type to port:
+Start the development server with the extracted spine runtimes directory and open the file viewer using puppeteer for collaborative viewing.
+
+### 2. Find the Next Type to Port
+
+Use jq to extract the next item to port from "porting-plan.json":
 
 ```bash
 # Find the next pending type in priority order
@@ -81,71 +86,27 @@ This finds the first `PortingOrderItem` where `portingState` is "pending". The `
 3. **Interfaces and enums** - foundational types get priority boost
 4. **Classes by dependency count** - fewer dependencies first
 
-### 2. Confirm with User
+Open the Java file of the type and the candidate target files in the viewer using puppeteer.
+
+### 3. Confirm with User
 
 **STOP HERE** and ask the user if this is the type they want to work on. Show them the complete `PortingOrderItem` JSON.
-
-### 3. Extract Type Information
-
-Each `PortingOrderItem` is completely denormalized and contains all the information you need:
-
-- `simpleName` - Type name (e.g. "Animation", "Pose")
-- `fullName` - Fully qualified Java name (e.g. "com.esotericsoftware.spine.Animation")
-- `type` - "class", "interface", or "enum"
-- `javaSourcePath` - **Absolute path** to Java source file
-- `startLine`/`endLine` - Location in the Java file
-- `dependencyCount` - Number of dependencies this type has (for debugging dependency analysis)
-- `targetFiles[]` - **Absolute paths** to suggested C++ files to modify/create
-- `filesExist` - Whether the C++ files already exist (`true` = update existing, `false` = create new files)
-- `portingState` - Current status ("pending", "skipped", "incomplete", "done")
 
 ### 4. Read the Java Source Code
 
 Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
 
+If the file is too large and the Read tool returns an error or truncated content, read it in chunks using multiple Read calls with different offset and limit parameters.
+
 ### 5. Check if Git Changes Affect This Type
 
-Use git diff between `prevBranch` and `currentBranch` (from porting plan metadata) to see if changes actually touch this type's lines.
+Use git diff between `prevBranch` and `currentBranch` (from porting plan metadata) to see if changes actually touch this type's lines. If the git diff shows no changes for this type, you MUST ask the user what to do next.
 
-### 6. Open Development Viewer (Optional)
+### 6. Port to C++
 
-For better visualization during porting, you can start a development server and open a URL with file parameters:
+In this step you are encouraged to collaborate with the user, ask them questions in case something is unclear.
 
-```bash
-# Start the development server (run once)
-npx tsx src/dev-server.ts
-
-# Then open a URL in your browser with the files you want to view:
-# http://localhost:PORT/?java=/path/to/File.java&cpp=/path/to/File.h,/path/to/File.cpp&prevBranch=4.2&currentBranch=4.3-beta
-```
-
-Example workflow:
-
-```bash
-# Start server
-npx tsx src/dev-server.ts
-# Server will print: 🚀 Development server running at: http://localhost:3000
-
-# Open browser with files from porting plan
-open "http://localhost:3000/?java=/path/to/Animation.java&cpp=/path/to/Animation.h,/path/to/Animation.cpp&prevBranch=4.2&currentBranch=4.3-beta"
-```
-
-Features:
-
-- Shows Java file with toggle between diff view (prev→current branch) and current content
-- Shows C++ files with toggle between diff view (working tree changes) and current content
-- Auto-refreshes when C++ files are modified
-- Syntax highlighting for all file types
-
-### 7. Port to C++
-
-- **First, read the complete existing C++ files** (both header and source if they exist) to understand the current implementation
-- **CRITICAL: Check for missing dependencies FIRST**
-   - If the Java class extends/implements types that don't exist in C++, **STOP IMMEDIATELY**
-   - Tell the user: "Cannot port [ClassName] because it depends on [MissingType] which doesn't exist in C++ yet. We need to port [MissingType] first."
-   - Do NOT attempt to port with placeholder inheritance - this creates incorrect implementations
-- **Only proceed if all dependencies exist**
-- **NOTE:** Due to circular dependencies in the codebase, some types may have dependencies that create compilation errors until multiple related types are ported together
+- Read the complete existing C++ files (both header and source if they exist) to understand the current implementation. Use the Read tool and read in chunks if files are large.
 - **CRITICAL: Always do a complete mechanical translation** - never just add documentation comments and call it "done". The Java source must be ported faithfully and exhaustively.
 - **Compare EVERY aspect** of the Java class with the C++ version:
    - Class structure and inheritance (must match Java exactly)
@@ -154,51 +115,18 @@ Features:
    - All method signatures
    - All method implementations (translate Java logic to C++ following spine-cpp patterns and container classes like Vector instead of Java's Array.)
    - Documentation comments
+- If there are missing dependencies, infer their methods and fields from the corresponding Java type(s) and perform a mechanical translation, translating from Java to likely C++ signatures using the spine-cpp conventions detailed below.
 - **If C++ files don't exist:** Create them from scratch using spine-cpp conventions
 - **If C++ files exist:**
+   - Retain unaffected code in it
    - Compare line-by-line with Java implementation
    - Add any missing members, methods, or logic
    - Update any incorrect implementations
    - Ensure C++ version has 100% functional parity with Java
-- **Never mark as "done" unless the C++ implementation is functionally complete AND has correct inheritance**
+- **Never mark as "done" unless the C++ implementation is functionally complete and matches the Java type**
+- **For new types or types whose name and thus .h files have changed:** Add the header include to `spine.h`
 
-### 8. Verify Build Compilation (When Requested)
-
-**ONLY when explicitly requested by the user,** verify compilation using the CMake build system:
-
-```bash
-# Get spine runtimes directory from porting plan
-SPINE_DIR=$(jq -r '.metadata.spineRuntimesDir' porting-plan.json)
-SPINE_CPP_DIR="$SPINE_DIR/spine-cpp"
-BUILD_DIR="$SPINE_CPP_DIR/build"
-
-# For new files: Clean build to ensure CMake picks up new files
-if [[ "$filesExist" == "false" ]]; then
-    rm -rf "$BUILD_DIR"
-fi
-
-# Configure and build only the main spine-cpp target (not spine-cpp-lite)
-mkdir -p "$BUILD_DIR"
-cmake -G Ninja -S "$SPINE_CPP_DIR" -B "$BUILD_DIR"
-cmake --build "$BUILD_DIR" --target spine-cpp
-
-# Check for compilation errors
-if [ $? -eq 0 ]; then
-    echo "✅ Build successful - porting verified"
-else
-    echo "❌ Build failed - compilation errors exist"
-    echo "Note: Due to circular dependencies, some errors may be expected until related types are ported"
-fi
-```
-
-**Important Notes:**
-
-- **Build failures are often expected** due to circular dependencies between types
-- A failed build after porting one type does NOT mean the porting was incorrect
-- Multiple related types may need to be ported before the code compiles cleanly
-- **For new files:** Always clean the build directory (`rm -rf build/`) to force CMake to regenerate since CMake uses `file(GLOB ...)` to discover source files
-
-### 9. Update the Porting Plan
+### 7. Update the Porting Plan
 
 Update the `PortingOrderItem` in the porting plan with your results:
 
@@ -211,9 +139,9 @@ jq --arg name "$TYPE_NAME" --arg state "done" --arg notes "Successfully ported A
    porting-plan.json > tmp.json && mv tmp.json porting-plan.json
 ```
 
-Return a structured JSON report with your results.
+Output the resulting JSON to the user.
 
-### 10. STOP and Ask for Confirmation
+### 8. STOP and Ask for Confirmation
 
 - **MANDATORY:** After completing any type, you MUST STOP immediately
 - Tell the user exactly what you accomplished
@@ -223,59 +151,71 @@ Return a structured JSON report with your results.
 
 ## Spine-C++ Conventions
 
-### File Structure
+### Mapping File Names
 
-- **Java:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/ClassName.java`
-- **C++ Header:** `spine-cpp/spine-cpp/include/spine/ClassName.h`
-- **C++ Source:** `spine-cpp/spine-cpp/src/spine/ClassName.cpp`
+Each Java type typically maps to two C++ files: a header (.h) and source (.cpp) file.
 
-### Code Patterns
+- **Java:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TypeName.java`
+- **C++ Header:** `spine-cpp/spine-cpp/include/spine/TypeName.h`
+- **C++ Source:** `spine-cpp/spine-cpp/src/spine/TypeName.cpp`
 
-**All Classes:**
-
-```cpp
-class ClassName : public SpineObject {
-    RTTI_DECL
-private:
-    int _privateField;  // underscore prefix
-public:
-    void publicMethod();  // camelCase, same as Java
-};
-```
-
-**Source Files:**
-
-```cpp
-RTTI_IMPL(ClassName, SpineObject)  // or RTTI_IMPL_NOPARENT(ClassName)
-
-ClassName::ClassName() {
-    _field = new (__FILE__, __LINE__) SomeClass();  // memory allocation
-}
-```
-
-**Key Rules:**
-
-- Inherit from `SpineObject`
-- Use `RTTI_DECL` in headers, `RTTI_IMPL` in source
-- Private fields: `_underscore` prefix
-- Public methods: exact Java names (camelCase)
-- Memory: `new (__FILE__, __LINE__)`
-- Collections: `Vector<T>` not `std::vector<T>`
+Note: A single Java file may contain multiple types, so you cannot rely on file names alone for mapping.
 
 ### Type Translations
 
-- **Java class** → C++ class inheriting SpineObject + RTTI
-- **Java interface** → C++ abstract class with pure virtual methods + RTTI
+- **Java class** → C++ class inheriting SpineObject + RTTI (include `spine/RTTI.h`)
+- **Java interface** → C++ abstract class with pure virtual methods + RTTI (include `spine/RTTI.h`)
 - **Java enum** → C++ enum in namespace spine (header-only, no .cpp)
 
-## Expected Output
+### Code Patterns
 
-After porting, return JSON:
+**Class Structure:**
 
-```json
-{
-	"state": "done|incomplete|skipped|pending",
-	"filesModified": ["list", "of", "modified", "files"],
-	"portingNotes": "What was done, issues encountered, remaining work"
+- All classes inherit from `SpineObject` (provides custom memory management)
+- Use `RTTI_DECL` in header and `RTTI_IMPL(ClassName, ParentClass)` in source
+- Private fields have `_underscore` prefix
+- Public methods use exact Java names (camelCase)
+
+**Container Types:**
+
+- Java `Array` → `spine::Vector<T>` (not `std::vector`)
+- Java `String` → `spine::String` (not `std::string`)
+- Use spine's custom containers for consistency and memory management
+
+**Memory Management:**
+
+- Allocate using `SpineExtension::calloc<T>()` or `new (__FILE__, __LINE__)`
+- All allocations track file/line for debugging
+- Objects inherit SpineObject's custom new/delete operators
+
+**Header Example:**
+
+```cpp
+#include <spine/SpineObject.h>
+#include <spine/RTTI.h>
+#include <spine/Vector.h>
+
+class SP_API ClassName : public ParentClass {
+    RTTI_DECL
+private:
+    spine::Vector<SomeType*> _items;
+    spine::String _name;
+    float _value;
+public:
+    ClassName(float value);
+    void someMethod();
+};
+```
+
+**Source Example:**
+
+```cpp
+#include <spine/ClassName.h>
+using namespace spine;
+
+RTTI_IMPL(ClassName, ParentClass)
+
+ClassName::ClassName(float value) : ParentClass(), _value(value) {
+    // Constructor body
 }
 ```
