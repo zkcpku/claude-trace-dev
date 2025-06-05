@@ -216,18 +216,18 @@ class DevServer {
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.css" rel="stylesheet" />
 	<style>
 		* { margin: 0; padding: 0; box-sizing: border-box; }
-		body { font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; background: #1e1e1e; color: #d4d4d4; }
-		.header { background: #252526; padding: 1rem; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; }
-		.title { font-size: 1.2rem; font-weight: 600; }
-		.container { display: flex; height: calc(100vh - 60px); }
-		.panel { flex: 1; border-right: 1px solid #3e3e42; display: flex; flex-direction: column; }
+		body { font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; background: #1e1e1e; color: #d4d4d4; height: 100vh; }
+		.header { background: #252526; padding: 0.5rem 1rem; border-bottom: 1px solid #3e3e42; display: flex; justify-content: flex-end; align-items: center; height: 40px; }
+		.connection-status { font-size: 0.75rem; color: #888; }
+		.container { display: flex; height: calc(100vh - 40px); }
+		.panel { flex: 1; border-right: 1px solid #3e3e42; display: flex; flex-direction: column; min-width: 0; }
 		.panel:last-child { border-right: none; }
-		.panel-header { background: #2d2d30; padding: 0.75rem; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; }
-		.panel-title { font-weight: 500; }
-		.toggle-btn { background: #0e639c; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.875rem; }
+		.panel-header { background: #2d2d30; padding: 0.5rem 0.75rem; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; height: 36px; }
+		.panel-title { font-weight: 500; font-size: 0.875rem; }
+		.toggle-btn { background: #0e639c; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.75rem; }
 		.toggle-btn:hover { background: #1177bb; }
 		.content { flex: 1; overflow: auto; }
-		.file-content { padding: 1rem; white-space: pre-wrap; font-size: 0.875rem; line-height: 1.5; }
+		.file-content { padding: 0.75rem; white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4; }
 		.error { color: #f48771; background: #2d1b1b; padding: 1rem; margin: 1rem; border-radius: 4px; }
 		.loading { color: #cccccc; padding: 1rem; text-align: center; }
 		
@@ -238,8 +238,7 @@ class DevServer {
 </head>
 <body>
 	<div class="header">
-		<div class="title">Porting Viewer</div>
-		<div id="connection-status">Connecting...</div>
+		<div class="connection-status" id="connection-status">Connecting...</div>
 	</div>
 	
 	<div class="container">
@@ -247,7 +246,7 @@ class DevServer {
 		
 		<div class="panel" id="java-panel">
 			<div class="panel-header">
-				<div class="panel-title" id="java-title">Java File</div>
+				<div class="panel-title" id="java-title">Loading...</div>
 				<button class="toggle-btn" id="java-toggle">Show Diff</button>
 			</div>
 			<div class="content">
@@ -311,7 +310,7 @@ class DevServer {
 				if (!this.data) return;
 
 				// Update Java panel title
-				document.getElementById('java-title').textContent = \`Java: \${this.data.filenames.javaFile}\`;
+				document.getElementById('java-title').textContent = this.data.filenames.javaFile;
 				
 				// Create target panels
 				const targetContainer = document.getElementById('target-panels');
@@ -324,7 +323,7 @@ class DevServer {
 					panel.className = 'panel';
 					panel.innerHTML = \`
 						<div class="panel-header">
-							<div class="panel-title">Target: \${filename}</div>
+							<div class="panel-title">\${filename}</div>
 							<button class="toggle-btn" id="target-toggle-\${index}">Show Diff</button>
 						</div>
 						<div class="content">
