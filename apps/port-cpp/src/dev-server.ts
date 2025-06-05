@@ -387,33 +387,51 @@ class DevServer {
 			inferLanguageFromExtension(filename) {
 				const ext = filename.toLowerCase().split('.').pop();
 				const languageMap = {
-					'h': 'cpp',
-					'hpp': 'cpp', 
-					'hxx': 'cpp',
-					'cpp': 'cpp',
-					'cc': 'cpp',
-					'cxx': 'cpp',
+					// C/C++
 					'c': 'c',
+					'h': 'c', // C headers
+					'cpp': 'cpp',
+					'cxx': 'cpp',
+					'cc': 'cpp',
+					'c++': 'cpp',
+					'hpp': 'cpp',
+					'hxx': 'cpp',
+					'hh': 'cpp',
+					// C#
+					'cs': 'csharp',
+					// TypeScript
+					'ts': 'typescript',
+					'tsx': 'typescript',
+					// Swift
+					'swift': 'swift',
+					// Dart
+					'dart': 'dart',
+					// Haxe
+					'hx': 'haxe',
+					// Other languages
 					'java': 'java',
 					'js': 'javascript',
-					'ts': 'typescript',
+					'jsx': 'javascript',
 					'py': 'python',
 					'rb': 'ruby',
 					'go': 'go',
 					'rs': 'rust',
-					'swift': 'swift',
 					'kt': 'kotlin',
-					'cs': 'csharp',
 					'php': 'php',
 					'lua': 'lua',
 					'sh': 'bash',
+					'bash': 'bash',
 					'yaml': 'yaml',
 					'yml': 'yaml',
 					'json': 'json',
 					'xml': 'xml',
 					'html': 'html',
+					'htm': 'html',
 					'css': 'css',
+					'scss': 'scss',
+					'sass': 'sass',
 					'md': 'markdown',
+					'markdown': 'markdown',
 					'sql': 'sql'
 				};
 				return languageMap[ext] || 'text';
