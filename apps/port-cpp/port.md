@@ -6,27 +6,80 @@ We are working on the Spine Runtime, a skeletal animation library for loading, m
 
 **What we're doing:** Take a single Java type (class, interface, or enum) that potentially has changes between two git branches/commits/tags and port those changes to the corresponding C++ files.
 
-**Build verification:** We use dependency-ordered porting, you CAN and SHOULD verify your work compiles using the CMake build system. This provides immediate feedback and catches errors early.
+**Build verification:** Build verification is available but should only be used when explicitly requested by the user. Due to circular dependencies between Java types, there is no clean porting order where the code compiles after every individual type is ported.
 
-**The porting plan:** All work is tracked in a `PortingPlan` JSON file - a structured file containing metadata about git branches, lists of deleted Java files, and a dependency-ordered porting sequence. **First, read `/Users/badlogic/workspaces/lemmy/apps/port-cpp/src/types.ts` to understand the complete data structure** (`PortingPlan`, `PortingOrderItem`, `DeletedJavaFile` interfaces).
+**The porting plan:** All work is tracked in a porting plan JSON file called `porting-plan.json` - a structured file containing metadata about git branches, lists of deleted Java files, and a priority-ordered porting sequence.
+
+```typescript
+/** Porting order item with complete denormalized information */
+interface PortingOrderItem {
+	// Java type info
+	simpleName: string;
+	fullName: string; // Fully qualified name like com.esotericsoftware.spine.Animation
+	type: "class" | "interface" | "enum";
+	javaSourcePath: string; // Absolute path to Java source file
+	startLine: number;
+	endLine: number;
+
+	// Dependency info
+	dependencyCount: number; // Number of dependencies this type has
+
+	// C++ mapping
+	targetFiles: string[]; // Absolute paths to suggested C++ files to modify/create
+	filesExist: boolean; // true = update existing, false = create new files
+
+	// Porting status
+	portingState?: "pending" | "skipped" | "incomplete" | "done";
+	filesModified?: string[]; // Absolute paths to C++ files that were actually modified
+	portingNotes?: string; // Complete porting notes including key changes, failure reason, remaining work, etc.
+}
+
+/** Final porting plan with priority-ordered items */
+interface PortingPlan {
+	metadata: {
+		prevBranch: string;
+		currentBranch: string;
+		generated: string; // ISO timestamp
+		spineRuntimesDir: string; // Absolute path to spine-runtimes directory
+		spineCppDir: string; // Absolute path to spine-cpp directory
+	};
+	deletedFiles: DeletedJavaFile[]; // Deleted files with tracking status
+	portingOrder: PortingOrderItem[]; // Priority-ordered list with complete denormalized data
+}
+
+/** Deleted Java file entry for cleanup tracking */
+interface DeletedJavaFile {
+	filePath: string; // Absolute path to deleted Java file
+	status: "pending" | "done"; // Cleanup status
+}
+```
 
 **Working Directory:** Read the `spineRuntimesDir` from porting plan metadata
 
-- **Spine Java sources:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/`
-- **Spine C++ sources:** `spine-cpp/spine-cpp/src/spine/` and `spine-cpp/spine-cpp/include/spine/`
+- **Spine Java sources:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/` (relative to spine runtimes dir)
+- **Spine C++ sources:** `spine-cpp/spine-cpp/src/spine/` and `spine-cpp/spine-cpp/include/spine/` (relative to spine runtimes dir)
 
 ## Step-by-Step Workflow
 
+### 0. Locate the Porting Plan
+
+If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location.
+
 ### 1. Find the Next Type to Port
 
-Use the dependency-ordered `portingOrder` array to find the next type to port:
+Use the priority-ordered `portingOrder` array to find the next type to port:
 
 ```bash
-# Find the next pending type in dependency order
+# Find the next pending type in priority order
 jq -r '.portingOrder[] | select(.portingState == "pending") | . | @json' porting-plan.json | head -1 | jq .
 ```
 
-This finds the first `PortingOrderItem` where `portingState` is "pending". The `portingOrder` array is sorted by dependencies (leaf types first, complex types last).
+This finds the first `PortingOrderItem` where `portingState` is "pending". The `portingOrder` array is sorted by priority:
+
+1. **Zero dependencies first** - interfaces and enums with no dependencies
+2. **New files (added)** - get slight priority boost for fresh implementation
+3. **Interfaces and enums** - foundational types get priority boost
+4. **Classes by dependency count** - fewer dependencies first
 
 ### 2. Confirm with User
 
@@ -46,8 +99,6 @@ Each `PortingOrderItem` is completely denormalized and contains all the informat
 - `filesExist` - Whether the C++ files already exist (`true` = update existing, `false` = create new files)
 - `portingState` - Current status ("pending", "skipped", "incomplete", "done")
 
-**No need for complex queries** - everything is in the `PortingOrderItem`!
-
 ### 4. Read the Java Source Code
 
 Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
@@ -64,6 +115,7 @@ Use git diff between `prevBranch` and `currentBranch` (from porting plan metadat
    - Tell the user: "Cannot port [ClassName] because it depends on [MissingType] which doesn't exist in C++ yet. We need to port [MissingType] first."
    - Do NOT attempt to port with placeholder inheritance - this creates incorrect implementations
 - **Only proceed if all dependencies exist**
+- **NOTE:** Due to circular dependencies in the codebase, some types may have dependencies that create compilation errors until multiple related types are ported together
 - **CRITICAL: Always do a complete mechanical translation** - never just add documentation comments and call it "done". The Java source must be ported faithfully and exhaustively.
 - **Compare EVERY aspect** of the Java class with the C++ version:
    - Class structure and inheritance (must match Java exactly)
@@ -80,9 +132,9 @@ Use git diff between `prevBranch` and `currentBranch` (from porting plan metadat
    - Ensure C++ version has 100% functional parity with Java
 - **Never mark as "done" unless the C++ implementation is functionally complete AND has correct inheritance**
 
-### 7. Verify Build Compilation
+### 7. Verify Build Compilation (When Requested)
 
-**MANDATORY:** After porting any type, verify it compiles correctly:
+**ONLY when explicitly requested by the user,** verify compilation using the CMake build system:
 
 ```bash
 # Get spine runtimes directory from porting plan
@@ -104,16 +156,17 @@ cmake --build "$BUILD_DIR" --target spine-cpp
 if [ $? -eq 0 ]; then
     echo "✅ Build successful - porting verified"
 else
-    echo "❌ Build failed - fix compilation errors before marking as done"
-    # You MUST fix compilation errors before proceeding
+    echo "❌ Build failed - compilation errors exist"
+    echo "Note: Due to circular dependencies, some errors may be expected until related types are ported"
 fi
 ```
 
-**For new files specifically:**
+**Important Notes:**
 
-- Always clean the build directory (`rm -rf build/`) to force CMake to regenerate
-- CMake uses `file(GLOB ...)` which needs regeneration to pick up new source files
-- Only mark as "done" if the build succeeds after adding new files
+- **Build failures are often expected** due to circular dependencies between types
+- A failed build after porting one type does NOT mean the porting was incorrect
+- Multiple related types may need to be ported before the code compiles cleanly
+- **For new files:** Always clean the build directory (`rm -rf build/`) to force CMake to regenerate since CMake uses `file(GLOB ...)` to discover source files
 
 ### 8. Update the Porting Plan
 
@@ -136,7 +189,7 @@ Return a structured JSON report with your results.
 - Tell the user exactly what you accomplished
 - Tell the user what you would work on next and why
 - **WAIT for user confirmation** before proceeding to the next type
-- This ensures proper dependency order and prevents rushing through incomplete work
+- This ensures proper pacing and prevents rushing through incomplete work
 
 ## Spine-C++ Conventions
 
@@ -196,22 +249,3 @@ After porting, return JSON:
 	"portingNotes": "What was done, issues encountered, remaining work"
 }
 ```
-
-## Success Criteria
-
-✅ Java functionality fully implemented in C++
-✅ Public API matches Java exactly
-✅ Follows spine-cpp conventions
-✅ Files compile without errors (verified with CMake build)
-✅ No remaining work needed
-
-## Build System Notes
-
-The spine-cpp project uses CMake with Ninja generator. The CMakeLists.txt uses `file(GLOB ...)` to automatically discover source files, but this requires CMake regeneration when adding new files. The build process should be:
-
-1. **For existing files:** Just build the spine-cpp target normally
-2. **For new files:** Clean build directory to force CMake regeneration
-3. **Always verify:** Use the build system to catch compilation errors early
-4. **Target selection:** Only build `spine-cpp` target, not `spine-cpp-lite` (requires separate porting)
-
-Since we follow dependency order, earlier types should already compile before we work on types that depend on them.

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import { execSync } from "child_process";
-import { writeFileSync, existsSync } from "fs";
+import { existsSync } from "fs";
 import path from "path";
 
 // Helper function to convert fully qualified type name to simple name
@@ -19,7 +19,6 @@ function getSimpleTypeName(fullyQualifiedName: string): string {
 interface Dependency {
 	from: string;
 	to: string;
-	packageLevel: boolean;
 }
 
 interface TypeDependencies {
@@ -31,16 +30,8 @@ interface TypeDependencies {
 	portingStatus?: "pending" | "skipped" | "incomplete" | "done";
 }
 
-interface AnalysisOptions {
-	spineLibGdxPath?: string;
-	buildClassesPath?: string;
-}
-
-function analyzeSpineLibGDXDependencies(options: AnalysisOptions = {}) {
-	// Default to Gradle structure in spine-libgdx/spine-libgdx
-	const spineLibGdxPath =
-		options.spineLibGdxPath || "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx";
-	const buildClassesPath = options.buildClassesPath || path.join(spineLibGdxPath, "build/classes/java/main");
+function analyzeSpineLibGDXDependencies(spineLibGdxPath: string) {
+	const buildClassesPath = path.join(spineLibGdxPath, "build/classes/java/main");
 
 	try {
 		// Always do a clean build to ensure we start from a fresh state
@@ -86,7 +77,6 @@ function analyzeSpineLibGDXDependencies(options: AnalysisOptions = {}) {
 					dependencies.push({
 						from: cleanFrom,
 						to: cleanTo,
-						packageLevel: false,
 					});
 				}
 			}
@@ -178,9 +168,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 	const spineLibGdxPath = `${spineRuntimesDir}/spine-libgdx/spine-libgdx`;
 
 	try {
-		const result = analyzeSpineLibGDXDependencies({
-			spineLibGdxPath,
-		});
+		const result = analyzeSpineLibGDXDependencies(spineLibGdxPath);
 		console.log(JSON.stringify(result, null, 2));
 	} catch (error) {
 		console.error("Error:", error instanceof Error ? error.message : String(error));
@@ -188,4 +176,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 	}
 }
 
-export { analyzeSpineLibGDXDependencies, AnalysisOptions, getSimpleTypeName };
+export { analyzeSpineLibGDXDependencies, getSimpleTypeName };

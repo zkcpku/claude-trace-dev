@@ -2,88 +2,21 @@
 
 import fs from "fs";
 import { resolve } from "path";
-import { execSync } from "child_process";
 import { ChangeSet, PortingPlan, PortingOrderItem } from "./types.js";
 import { analyzeSpineLibGDXDependencies, getSimpleTypeName } from "./analyze-dependencies.js";
 import { enumerateChangedJavaFiles } from "./enumerate-changed-java-files.js";
 import { extractJavaTypesFromChangeSet } from "./extract-java-types.js";
 import { createCppTypeMapping } from "./extract-cpp-types.js";
 import { mapJavaTypesToCpp } from "./map-java-to-cpp.js";
-
-interface TypeDependencies {
-	type: string;
-	simpleName: string;
-	dependsOn: string[];
-	dependsOnSimple: string[];
-	dependencyCount: number;
-}
-
-function topologicalSort(dependencies: TypeDependencies[]): string[] {
-	// Create a map for faster lookup using simple names
-	const depMap = new Map<string, string[]>();
-	const allTypes = new Set<string>();
-
-	for (const dep of dependencies) {
-		depMap.set(dep.simpleName, dep.dependsOnSimple);
-		allTypes.add(dep.simpleName);
-		// Also add dependencies to all types (they might not have their own entries)
-		dep.dependsOnSimple.forEach((dep) => allTypes.add(dep));
-	}
-
-	// Kahn's algorithm for topological sorting
-	const inDegree = new Map<string, number>();
-	const adjList = new Map<string, string[]>();
-
-	// Initialize
-	for (const type of allTypes) {
-		inDegree.set(type, 0);
-		adjList.set(type, []);
-	}
-
-	// Build graph and calculate in-degrees
-	for (const [type, deps] of depMap) {
-		for (const dep of deps) {
-			if (allTypes.has(dep)) {
-				adjList.get(dep)!.push(type);
-				inDegree.set(type, inDegree.get(type)! + 1);
-			}
-		}
-	}
-
-	const queue: string[] = [];
-	const result: string[] = [];
-
-	// Find all types with no dependencies
-	for (const [type, degree] of inDegree) {
-		if (degree === 0) {
-			queue.push(type);
-		}
-	}
-
-	while (queue.length > 0) {
-		const current = queue.shift()!;
-		result.push(current);
-
-		// Process neighbors
-		for (const neighbor of adjList.get(current)!) {
-			const newDegree = inDegree.get(neighbor)! - 1;
-			inDegree.set(neighbor, newDegree);
-			if (newDegree === 0) {
-				queue.push(neighbor);
-			}
-		}
-	}
-
-	return result;
-}
+import { verifyCoverage } from "./verify-coverage.js";
 
 async function calculatePortingOrder(changeSet: ChangeSet): Promise<PortingOrderItem[]> {
 	const spineRuntimesDir = changeSet.metadata.spineRuntimesDir;
 
 	// Get dependency analysis
-	const dependencyAnalysisResult = await analyzeSpineLibGDXDependencies({
-		spineLibGdxPath: `${spineRuntimesDir}/spine-libgdx/spine-libgdx`,
-	});
+	const dependencyAnalysisResult = await analyzeSpineLibGDXDependencies(
+		`${spineRuntimesDir}/spine-libgdx/spine-libgdx`,
+	);
 
 	// Create mapping from simple names to full info for quick lookup
 	const typeMap = new Map<string, { fullName: string; javaSourcePath: string }>();
@@ -105,51 +38,63 @@ async function calculatePortingOrder(changeSet: ChangeSet): Promise<PortingOrder
 		}
 	}
 
-	// Convert dependency analysis to TypeDependencies format
-	const typeDependencies: TypeDependencies[] = dependencyAnalysisResult.typeDependencies.map((dep) => ({
-		type: dep.type,
-		simpleName: getSimpleTypeName(dep.type),
-		dependsOn: dep.dependsOn,
-		dependsOnSimple: dep.dependsOn.map(getSimpleTypeName),
-		dependencyCount: dep.dependsOn.length,
-	}));
+	// Create priority-based ordering instead of topological sort
+	// Priority: zero dependencies first, then by adjusted dependency count, then alphabetical
+	const allPortingOrderItems: PortingOrderItem[] = [];
 
-	// Perform topological sort
-	const sortedTypeNames = topologicalSort(typeDependencies);
+	for (const file of changeSet.files) {
+		for (const javaType of file.javaTypes) {
+			const packagePath = file.filePath
+				.replace(resolve(spineRuntimesDir, "spine-libgdx/spine-libgdx/src"), "")
+				.replace(/^\//, "")
+				.replace(/\.java$/, "")
+				.replace(/\//g, ".");
 
-	// Create PortingOrderItems with denormalized data
-	const portingOrderItems: PortingOrderItem[] = [];
+			// Find dependency count from analysis
+			const dependencyEntry = dependencyAnalysisResult.typeDependencies.find(
+				(dep) => getSimpleTypeName(dep.type) === javaType.name,
+			);
+			const dependencyCount = dependencyEntry ? dependencyEntry.dependsOn.length : 0;
 
-	for (const simpleName of sortedTypeNames) {
-		const typeInfo = typeMap.get(simpleName);
-		if (!typeInfo) continue; // Skip types not in our change set
+			// Calculate priority score
+			let priorityScore = dependencyCount;
+			if (file.changeType === "added") priorityScore -= 0.5; // Boost for new files
+			if (javaType.type === "interface" || javaType.type === "enum") priorityScore -= 1.0; // Boost for interfaces/enums
 
-		// Find the corresponding JavaType for complete info
-		let javaType = null;
-		for (const file of changeSet.files) {
-			javaType = file.javaTypes.find((t) => t.name === simpleName);
-			if (javaType) break;
-		}
-
-		// Find dependency count from the analysis
-		const typeDependency = typeDependencies.find((td) => td.simpleName === simpleName);
-		const dependencyCount = typeDependency ? typeDependency.dependencyCount : 0;
-
-		if (javaType) {
-			portingOrderItems.push({
-				simpleName,
-				fullName: typeInfo.fullName,
+			allPortingOrderItems.push({
+				simpleName: javaType.name,
+				fullName: packagePath,
 				type: javaType.type,
-				javaSourcePath: typeInfo.javaSourcePath,
+				javaSourcePath: file.filePath,
 				startLine: javaType.startLine,
 				endLine: javaType.endLine,
 				dependencyCount,
 				targetFiles: javaType.targetFiles,
 				filesExist: javaType.filesExist,
 				portingState: "pending",
+				priorityScore, // Add this for sorting
 			});
 		}
 	}
+
+	// Sort by priority: zero dependencies first, then by priority score, then alphabetically
+	allPortingOrderItems.sort((a, b) => {
+		// Zero dependencies always come first
+		if (a.dependencyCount === 0 && b.dependencyCount !== 0) return -1;
+		if (b.dependencyCount === 0 && a.dependencyCount !== 0) return 1;
+
+		// Then by priority score
+		if (a.priorityScore !== b.priorityScore) return a.priorityScore - b.priorityScore;
+
+		// Finally alphabetically
+		return a.simpleName.localeCompare(b.simpleName);
+	});
+
+	// Remove priorityScore from final items (it was just for sorting)
+	const portingOrderItems = allPortingOrderItems.map((item) => {
+		const { priorityScore, ...finalItem } = item as any;
+		return finalItem as PortingOrderItem;
+	});
 
 	return portingOrderItems;
 }
@@ -180,6 +125,18 @@ export async function createPortingPlan(
 		deletedFiles: changeSetMapped.deletedFiles,
 		portingOrder,
 	};
+
+	// Verify coverage
+	console.log("Phase 5: Verifying coverage...");
+	const coverageReport = verifyCoverage(prevBranch, currentBranch, spineRuntimesDir, portingPlan);
+
+	if (coverageReport.perfectCoverage) {
+		console.log(
+			`✅ Coverage verification passed: ${coverageReport.extractedTypes} types from ${coverageReport.gitFiles} files`,
+		);
+	} else {
+		console.warn(`⚠️ Coverage issues detected: ${coverageReport.filesWithZeroTypes} files with zero types`);
+	}
 
 	if (outputFile) {
 		fs.writeFileSync(outputFile, JSON.stringify(portingPlan, null, 2));
@@ -215,5 +172,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 		process.exit(1);
 	}
 }
-
-export default { createPortingPlan };

@@ -15,6 +15,7 @@ export function extractJavaTypesFromChangeSet(changeSet: ChangeSet): ChangeSet {
 	const updatedFiles = changeSet.files.map((file) => {
 		try {
 			const extractedTypes = extractJavaTypesFromFile(file.filePath);
+
 			return {
 				...file,
 				javaTypes: extractedTypes,
@@ -87,48 +88,6 @@ function findTypeBoundaries(types: ParsedJavaType[], lines: string[]): void {
 	}
 }
 
-function cleanTypeContext(typeLines: string[], typeName: string): string {
-	const cleanedLines: string[] = [];
-	let skipInner = false;
-	let innerBraceCount = 0;
-
-	for (let i = 0; i < typeLines.length; i++) {
-		const line = typeLines[i];
-
-		// Check if this line starts a public inner type (but not the first type declaration)
-		const isInnerType =
-			i > 0 && line.match(/public\s+(?:static\s+|final\s+|abstract\s+)*(?:class|interface|enum)\s+\w+/);
-
-		if (isInnerType && !skipInner) {
-			// Check if this inner type is different from our current type
-			const match = line.match(/(?:class|interface|enum)\s+(\w+)/);
-			if (match && match[1] !== typeName) {
-				skipInner = true;
-				innerBraceCount = 0;
-				cleanedLines.push("    // ... inner types removed ...");
-			} else {
-				cleanedLines.push(line);
-			}
-		} else if (skipInner) {
-			// Count braces to know when inner type ends
-			for (const char of line) {
-				if (char === "{") innerBraceCount++;
-				else if (char === "}") innerBraceCount--;
-			}
-
-			// If we've closed all braces for this inner type, stop skipping
-			if (innerBraceCount <= 0) {
-				skipInner = false;
-			}
-			// Skip this line (it's part of the inner type we're removing)
-		} else {
-			cleanedLines.push(line);
-		}
-	}
-
-	return cleanedLines.join("\n");
-}
-
 function extractJavaTypesFromFile(javaFilePath: string): JavaType[] {
 	// Check if file exists
 	if (!fs.existsSync(javaFilePath)) {
@@ -176,5 +135,3 @@ function extractJavaTypesFromFile(javaFilePath: string): JavaType[] {
 
 	return results;
 }
-
-export default { extractJavaTypesFromChangeSet };

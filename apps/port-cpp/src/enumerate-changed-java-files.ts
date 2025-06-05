@@ -80,5 +80,3 @@ export function enumerateChangedJavaFiles(
 		deletedFiles,
 	};
 }
-
-export default { enumerateChangedJavaFiles };

@@ -4,7 +4,8 @@
 	"description": "Java-to-C++ porting scripts for Spine runtimes",
 	"type": "module",
 	"scripts": {
-		"analyze-deps": "npx tsx src/analyze-dependencies.ts"
+		"analyze-deps": "npx tsx src/analyze-dependencies.ts",
+		"verify-coverage": "npx tsx src/verify-coverage.ts"
 	},
 	"dependencies": {
 		"tsx": "^4.19.4",

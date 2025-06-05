@@ -67,5 +67,3 @@ export function mapJavaTypesToCpp(changeSet: ChangeSet, cppTypeMapping: CppTypeM
 		files: updatedFiles,
 	};
 }
-
-export default { mapJavaTypesToCpp };

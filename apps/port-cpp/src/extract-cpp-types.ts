@@ -138,5 +138,3 @@ export function createCppTypeMapping(spineCppDir: string): CppTypeMapping {
 
 	return mapping;
 }
-
-export default { createCppTypeMapping };
