@@ -114,6 +114,15 @@ body {
     padding: 6px 12px;
     font-size: 11px;
     color: #cccccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.file-info-content {
+    flex: 1;
+    min-width: 0; /* Allow text to truncate */
 }
 
 .file-path {

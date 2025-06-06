@@ -67,9 +67,9 @@ class DevServer {
 			}
 		});
 
-		// Main route - just serve the HTML
+		// Main route - serve the new HTML
 		this.app.get("/", (req, res) => {
-			res.sendFile(path.join(__dirname, "frontend", "index.html"));
+			res.sendFile(path.join(__dirname, "frontend", "index-new.html"));
 		});
 
 		// Serve static files from frontend directory
