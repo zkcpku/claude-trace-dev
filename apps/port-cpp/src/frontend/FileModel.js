@@ -3,13 +3,15 @@
  * Each FileModel corresponds to a specific file+branch combination
  */
 class FileModel {
-	constructor(fileIdentity, content = "", diff = "") {
+	constructor(fileIdentity, content = "", diff = "", originalContent = "", modifiedContent = "") {
 		this.identity = fileIdentity;
 		this.filepath = fileIdentity.filepath; // Convenience accessor
 
 		// File content and diff
 		this.content = content;
 		this.diff = diff;
+		this.originalContent = originalContent;
+		this.modifiedContent = modifiedContent;
 		this.error = null;
 
 		// Create Monaco models with unique URIs
@@ -18,6 +20,7 @@ class FileModel {
 		// View states for different editor modes
 		this.contentViewState = null;
 		this.diffViewState = null;
+		this.fullDiffViewState = null;
 
 		// Highlight decorations
 		this.highlightDecorations = [];
@@ -37,7 +40,7 @@ class FileModel {
 			monaco.Uri.parse(`file://${baseUri}#content`),
 		);
 
-		// Diff models for diff editor
+		// Context-only diff models (parsed from unified diff)
 		const { original, modified } = this.parseDiffContent(this.diff);
 		this.originalModel = monaco.editor.createModel(
 			original,
@@ -50,18 +53,36 @@ class FileModel {
 			monaco.Uri.parse(`file://${baseUri}#modified`),
 		);
 
+		// Full diff models (complete file contents)
+		this.fullOriginalModel = monaco.editor.createModel(
+			this.originalContent || this.content,
+			language,
+			monaco.Uri.parse(`file://${baseUri}#fullOriginal`),
+		);
+		this.fullModifiedModel = monaco.editor.createModel(
+			this.modifiedContent || this.content,
+			language,
+			monaco.Uri.parse(`file://${baseUri}#fullModified`),
+		);
+
 		console.log(`✅ Created Monaco models for: ${baseUri}`);
 	}
 
 	/**
 	 * Update file content and refresh models
 	 */
-	updateContent(content, diff = null, error = null) {
+	updateContent(content, diff = null, originalContent = null, modifiedContent = null, error = null) {
 		this.content = content;
 		this.error = error;
 
 		if (diff !== null) {
 			this.diff = diff;
+		}
+		if (originalContent !== null) {
+			this.originalContent = originalContent;
+		}
+		if (modifiedContent !== null) {
+			this.modifiedContent = modifiedContent;
 		}
 
 		// Update content model
@@ -69,11 +90,19 @@ class FileModel {
 			this.contentModel.setValue(content);
 		}
 
-		// Update diff models if diff provided
+		// Update context diff models if diff provided
 		if (diff !== null && this.originalModel && this.modifiedModel) {
 			const { original, modified } = this.parseDiffContent(diff);
 			this.originalModel.setValue(original);
 			this.modifiedModel.setValue(modified);
+		}
+
+		// Update full diff models if full content provided
+		if (originalContent !== null && this.fullOriginalModel) {
+			this.fullOriginalModel.setValue(originalContent);
+		}
+		if (modifiedContent !== null && this.fullModifiedModel) {
+			this.fullModifiedModel.setValue(modifiedContent);
 		}
 	}
 
@@ -199,6 +228,12 @@ class FileModel {
 		}
 		if (this.modifiedModel) {
 			this.modifiedModel.dispose();
+		}
+		if (this.fullOriginalModel) {
+			this.fullOriginalModel.dispose();
+		}
+		if (this.fullModifiedModel) {
+			this.fullModifiedModel.dispose();
 		}
 	}
 }

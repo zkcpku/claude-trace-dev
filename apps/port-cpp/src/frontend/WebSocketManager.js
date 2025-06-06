@@ -81,7 +81,7 @@ class WebSocketManager {
 	handleMessage(data) {
 		if (data.type === "fileUpdate") {
 			// Route to appropriate subscriber
-			const { absolutePath, content, diff, error } = data;
+			const { absolutePath, content, diff, originalContent, modifiedContent, error } = data;
 
 			// Find all subscribers for this file path (could be multiple with different branches)
 			for (const [fileKey, fileIdentity] of this.watchedFiles.entries()) {
@@ -93,6 +93,8 @@ class WebSocketManager {
 							absolutePath,
 							content,
 							diff,
+							originalContent,
+							modifiedContent,
 							error,
 							fileIdentity,
 						});

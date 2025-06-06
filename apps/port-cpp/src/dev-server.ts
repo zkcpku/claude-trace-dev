@@ -15,6 +15,8 @@ const __dirname = path.dirname(__filename);
 interface FileData {
 	content: string;
 	diff: string;
+	originalContent?: string; // Full content from prevBranch
+	modifiedContent?: string; // Full content from currBranch (or current)
 	error?: string;
 }
 
@@ -39,6 +41,32 @@ class DevServer {
 	}
 
 	private setupRoutes() {
+		// Parse JSON bodies for API routes
+		this.app.use(express.json());
+
+		// API route to open files in Cursor
+		this.app.post("/api/open-in-cursor", (req, res) => {
+			try {
+				const { filepath } = req.body;
+
+				if (!filepath) {
+					return res.status(400).json({ error: "filepath is required" });
+				}
+
+				// Execute cursor command to open the file
+				console.log(`🎯 Opening in Cursor: ${filepath}`);
+				execSync(`cursor "${filepath}"`, { stdio: "inherit" });
+
+				res.json({ success: true, message: `Opened ${filepath} in Cursor` });
+			} catch (error) {
+				console.error(`❌ Failed to open file in Cursor:`, error);
+				res.status(500).json({
+					error: "Failed to open file in Cursor",
+					details: error instanceof Error ? error.message : String(error),
+				});
+			}
+		});
+
 		// Main route - just serve the HTML
 		this.app.get("/", (req, res) => {
 			res.sendFile(path.join(__dirname, "frontend", "index.html"));
@@ -251,19 +279,28 @@ class DevServer {
 		try {
 			const content = fs.readFileSync(absolutePath, "utf8");
 			let diff = "";
+			let originalContent: string | undefined;
+			let modifiedContent: string | undefined;
 
 			// Generate git diff if branches are provided
 			if (prevBranch && currBranch) {
 				diff = this.getGitDiff(absolutePath, prevBranch, currBranch);
+				// Get full content from both branches
+				originalContent = this.getFileContentFromBranch(absolutePath, prevBranch);
+				modifiedContent = this.getFileContentFromBranch(absolutePath, currBranch);
 			} else if (prevBranch) {
 				// Compare current state vs prevBranch
 				diff = this.getGitDiff(absolutePath, prevBranch, "HEAD");
+				originalContent = this.getFileContentFromBranch(absolutePath, prevBranch);
+				modifiedContent = content; // Current working directory content
 			} else {
 				// Compare current state vs last commit
 				diff = this.getGitDiff(absolutePath, "HEAD", null);
+				originalContent = this.getFileContentFromBranch(absolutePath, "HEAD");
+				modifiedContent = content; // Current working directory content
 			}
 
-			return { content, diff };
+			return { content, diff, originalContent, modifiedContent };
 		} catch (error) {
 			return {
 				content: "",
@@ -275,20 +312,56 @@ class DevServer {
 
 	private getGitDiff(filePath: string, fromRef: string, toRef: string | null): string {
 		try {
-			const cwd = path.dirname(filePath);
+			// Find git repository root by walking up the directory tree
+			let gitRoot = path.dirname(filePath);
+			while (gitRoot !== path.dirname(gitRoot)) {
+				if (fs.existsSync(path.join(gitRoot, ".git"))) {
+					break;
+				}
+				gitRoot = path.dirname(gitRoot);
+			}
+
+			// Convert absolute path to relative path from git root
+			const relativePath = path.relative(gitRoot, filePath);
 			let command: string;
 
 			if (toRef === null) {
 				// Compare working directory vs fromRef
-				command = `git diff ${fromRef} -- "${filePath}"`;
+				command = `git diff ${fromRef} -- "${relativePath}"`;
 			} else {
 				// Compare fromRef vs toRef
-				command = `git diff ${fromRef}..${toRef} -- "${filePath}"`;
+				command = `git diff ${fromRef}..${toRef} -- "${relativePath}"`;
 			}
 
-			return execSync(command, { cwd, encoding: "utf8" });
+			console.log(`Running git command: ${command} in ${gitRoot}`);
+			return execSync(command, { cwd: gitRoot, encoding: "utf8" });
 		} catch (error) {
 			return `Error generating git diff: ${error instanceof Error ? error.message : String(error)}`;
+		}
+	}
+
+	private getFileContentFromBranch(filePath: string, branch: string): string {
+		try {
+			// Find git repository root by walking up the directory tree
+			let gitRoot = path.dirname(filePath);
+			while (gitRoot !== path.dirname(gitRoot)) {
+				if (fs.existsSync(path.join(gitRoot, ".git"))) {
+					break;
+				}
+				gitRoot = path.dirname(gitRoot);
+			}
+
+			// Convert absolute path to relative path from git root
+			const relativePath = path.relative(gitRoot, filePath);
+			const command = `git show ${branch}:${relativePath}`;
+
+			console.log(`Getting file content: ${command} in ${gitRoot}`);
+			return execSync(command, { cwd: gitRoot, encoding: "utf8" });
+		} catch (error) {
+			console.log(
+				`Error getting file content from branch ${branch}: ${error instanceof Error ? error.message : String(error)}`,
+			);
+			return "";
 		}
 	}
 

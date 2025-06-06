@@ -15,7 +15,7 @@ class Panel {
 
 		// Current state
 		this.currentFileModel = null;
-		this.currentMode = null; // 'content' or 'diff'
+		this.currentMode = null; // 'content', 'diff', or 'fullDiff'
 
 		// Create permanent DOM structure
 		this.setupDOM();
@@ -31,16 +31,18 @@ class Panel {
 		this.container.innerHTML = `
             <div class="content-editor-container" style="width: 100%; height: 100%; display: none;"></div>
             <div class="diff-editor-container" style="width: 100%; height: 100%; display: none;"></div>
+            <div class="full-diff-editor-container" style="width: 100%; height: 100%; display: none;"></div>
             <div class="message-container" style="width: 100%; height: 100%; display: none; align-items: center; justify-content: center;"></div>
         `;
 
 		this.contentContainer = this.container.querySelector(".content-editor-container");
 		this.diffContainer = this.container.querySelector(".diff-editor-container");
+		this.fullDiffContainer = this.container.querySelector(".full-diff-editor-container");
 		this.messageContainer = this.container.querySelector(".message-container");
 	}
 
 	/**
-	 * Create both Monaco editors immediately
+	 * Create all Monaco editors immediately
 	 */
 	createEditors() {
 		const commonOptions = {
@@ -59,8 +61,15 @@ class Panel {
 			language: "text",
 		});
 
-		// Create diff editor
+		// Create context diff editor (only changed lines + context)
 		this.diffEditor = monaco.editor.createDiffEditor(this.diffContainer, {
+			...commonOptions,
+			renderSideBySide: true,
+			ignoreTrimWhitespace: false,
+		});
+
+		// Create full diff editor (complete files side-by-side)
+		this.fullDiffEditor = monaco.editor.createDiffEditor(this.fullDiffContainer, {
 			...commonOptions,
 			renderSideBySide: true,
 			ignoreTrimWhitespace: false,
@@ -79,6 +88,7 @@ class Panel {
 		// Switch to content mode
 		if (this.currentMode !== "content") {
 			this.diffContainer.style.display = "none";
+			this.fullDiffContainer.style.display = "none";
 			this.messageContainer.style.display = "none";
 			this.contentContainer.style.display = "block";
 			this.currentMode = "content";
@@ -117,6 +127,7 @@ class Panel {
 		// Switch to diff mode
 		if (this.currentMode !== "diff") {
 			this.contentContainer.style.display = "none";
+			this.fullDiffContainer.style.display = "none";
 			this.messageContainer.style.display = "none";
 			this.diffContainer.style.display = "block";
 			this.currentMode = "diff";
@@ -156,12 +167,66 @@ class Panel {
 	}
 
 	/**
+	 * Show file in full diff mode (complete files side-by-side)
+	 */
+	showFullDiff(fileModel) {
+		// Save current view state before switching
+		this.saveCurrentViewState();
+
+		// Check if we have full content available
+		if (!fileModel || !fileModel.fullOriginalModel || !fileModel.fullModifiedModel) {
+			this.showError("Full diff not available - no branch content found");
+			return;
+		}
+
+		// Switch to full diff mode
+		if (this.currentMode !== "fullDiff") {
+			this.contentContainer.style.display = "none";
+			this.diffContainer.style.display = "none";
+			this.messageContainer.style.display = "none";
+			this.fullDiffContainer.style.display = "block";
+			this.currentMode = "fullDiff";
+		}
+
+		// Set models and restore view state
+		this.fullDiffEditor.setModel({
+			original: fileModel.fullOriginalModel,
+			modified: fileModel.fullModifiedModel,
+		});
+
+		// Restore saved view state after diff calculation
+		const restoreViewState = () => {
+			if (fileModel.fullDiffViewState) {
+				this.fullDiffEditor.restoreViewState(fileModel.fullDiffViewState);
+			}
+		};
+
+		// Listen for diff update to know when to restore view state
+		const disposable = this.fullDiffEditor.onDidUpdateDiff(() => {
+			restoreViewState();
+			disposable.dispose();
+		});
+
+		// Also try after a timeout in case the event doesn't fire
+		setTimeout(() => {
+			restoreViewState();
+			if (fileModel.fullDiffViewState) {
+				console.log(`🔄 Restored full diff view state for: ${fileModel.identity.getKey()}`);
+			}
+		}, 200);
+
+		this.currentFileModel = fileModel;
+		console.log(`🔄 Panel ${this.containerId} showing full diff for: ${fileModel?.identity.getKey()}`);
+	}
+
+	/**
 	 * Show "no changes" message when diff is empty
 	 */
 	showNoDiff() {
 		// Hide editor containers and show message
 		this.contentContainer.style.display = "none";
 		this.diffContainer.style.display = "none";
+		this.fullDiffContainer.style.display = "none";
 
 		this.messageContainer.innerHTML = `
             <div class="no-changes">
@@ -183,6 +248,7 @@ class Panel {
 		// Hide editor containers and show message
 		this.contentContainer.style.display = "none";
 		this.diffContainer.style.display = "none";
+		this.fullDiffContainer.style.display = "none";
 
 		this.messageContainer.innerHTML = `
             <div class="error">
@@ -203,6 +269,7 @@ class Panel {
 		// Hide editor containers and show message
 		this.contentContainer.style.display = "none";
 		this.diffContainer.style.display = "none";
+		this.fullDiffContainer.style.display = "none";
 
 		this.messageContainer.innerHTML = `
             <div class="empty-state">
@@ -229,6 +296,10 @@ class Panel {
 				const viewState = this.diffEditor.saveViewState();
 				this.currentFileModel.diffViewState = viewState;
 				console.log(`💾 Saved diff view state for: ${this.currentFileModel.identity.getKey()}`);
+			} else if (this.currentMode === "fullDiff" && this.fullDiffEditor) {
+				const viewState = this.fullDiffEditor.saveViewState();
+				this.currentFileModel.fullDiffViewState = viewState;
+				console.log(`💾 Saved full diff view state for: ${this.currentFileModel.identity.getKey()}`);
 			}
 		} catch (error) {
 			console.error("Failed to save view state:", error);
@@ -245,13 +316,23 @@ class Panel {
 		if (this.diffEditor) {
 			this.diffEditor.layout();
 		}
+		if (this.fullDiffEditor) {
+			this.fullDiffEditor.layout();
+		}
 	}
 
 	/**
 	 * Highlight a specific line in the current editor
 	 */
 	highlightLine(lineNumber) {
-		const currentEditor = this.currentMode === "diff" ? this.diffEditor : this.contentEditor;
+		let currentEditor;
+		if (this.currentMode === "diff") {
+			currentEditor = this.diffEditor;
+		} else if (this.currentMode === "fullDiff") {
+			currentEditor = this.fullDiffEditor;
+		} else {
+			currentEditor = this.contentEditor;
+		}
 
 		if (!currentEditor || !this.currentFileModel) {
 			console.warn("Cannot highlight line - no active editor");
@@ -263,6 +344,12 @@ class Panel {
 			if (this.currentMode === "diff") {
 				// For diff editor, clear decorations from modified model
 				const model = this.diffEditor.getModel();
+				if (model && model.modified) {
+					model.modified.deltaDecorations(this.currentFileModel.highlightDecorations, []);
+				}
+			} else if (this.currentMode === "fullDiff") {
+				// For full diff editor, clear decorations from modified model
+				const model = this.fullDiffEditor.getModel();
 				if (model && model.modified) {
 					model.modified.deltaDecorations(this.currentFileModel.highlightDecorations, []);
 				}
@@ -293,6 +380,12 @@ class Panel {
 		if (this.currentMode === "diff") {
 			// For diff editor, highlight in modified (right) side
 			const model = this.diffEditor.getModel();
+			if (model && model.modified) {
+				this.currentFileModel.highlightDecorations = model.modified.deltaDecorations([], [decoration]);
+			}
+		} else if (this.currentMode === "fullDiff") {
+			// For full diff editor, highlight in modified (right) side
+			const model = this.fullDiffEditor.getModel();
 			if (model && model.modified) {
 				this.currentFileModel.highlightDecorations = model.modified.deltaDecorations([], [decoration]);
 			}
@@ -334,6 +427,9 @@ class Panel {
 		}
 		if (this.diffEditor) {
 			this.diffEditor.dispose();
+		}
+		if (this.fullDiffEditor) {
+			this.fullDiffEditor.dispose();
 		}
 
 		// Clear container

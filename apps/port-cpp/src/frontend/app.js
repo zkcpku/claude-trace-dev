@@ -412,25 +412,6 @@ class App {
 			})
 			.join("");
 
-		// Get active file info
-		const activeFileView = this.activeLeftTab ? this.fileViews.get(this.activeLeftTab) : null;
-		const currentMode = activeFileView ? activeFileView.getCurrentMode() : "content";
-
-		// Toggle button icon
-		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
-            <path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
-        </svg>`;
-
-		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
-            <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
-            <path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
-        </svg>`;
-
-		const toggleIcon = currentMode === "content" ? diffIcon : contentIcon;
-		const toggleTitle = currentMode === "content" ? "Diff" : "Content";
-
 		// Update only the header, preserve the content div with editor container
 		let header = leftSection.querySelector(".panel-header");
 		if (!header) {
@@ -440,7 +421,6 @@ class App {
 		}
 		header.innerHTML = `
             <div class="tabs">${tabs}</div>
-            <button class="toggle-btn" id="panel0-toggle" title="${toggleTitle}">${toggleIcon}</button>
         `;
 
 		// Ensure content div exists but don't touch existing editor container
@@ -450,6 +430,62 @@ class App {
 			content.className = "content";
 			content.innerHTML = '<div class="monaco-editor-container" id="panel0-editor"></div>';
 			leftSection.appendChild(content);
+		}
+
+		// Add file info section between header and content
+		let fileInfo = leftSection.querySelector(".file-info");
+		if (!fileInfo) {
+			fileInfo = document.createElement("div");
+			fileInfo.className = "file-info";
+			leftSection.insertBefore(fileInfo, content);
+		}
+
+		// Update file info content for active tab
+		if (this.activeLeftTab) {
+			const activeFileView = this.fileViews.get(this.activeLeftTab);
+			if (activeFileView) {
+				const identity = activeFileView.fileIdentity;
+				const branchInfo = this.formatBranchInfo(identity.prevBranch, identity.currBranch);
+				const currentMode = activeFileView.getCurrentMode();
+
+				// Toggle button icon
+				const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+		            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
+		            <path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
+		        </svg>`;
+
+				const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+		            <path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
+		            <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
+		            <path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
+		        </svg>`;
+
+				// Cycle through: content -> diff -> fullDiff -> content
+				let toggleIcon, toggleTitle;
+				if (currentMode === "content") {
+					toggleIcon = diffIcon;
+					toggleTitle = "Diff (Context)";
+				} else if (currentMode === "diff") {
+					toggleIcon = diffIcon; // TODO: Add fullDiff icon
+					toggleTitle = "Full Diff";
+				} else {
+					toggleIcon = contentIcon;
+					toggleTitle = "Content";
+				}
+
+				fileInfo.innerHTML = `
+					<div class="file-info-content">
+						<div class="file-path clickable" title="Click to open in Cursor: ${identity.filepath}" data-filepath="${identity.filepath}">${identity.filepath}</div>
+						<div class="branch-info">${branchInfo}</div>
+					</div>
+					<button class="toggle-btn" id="panel0-toggle" title="${toggleTitle}">${toggleIcon}</button>
+				`;
+				fileInfo.style.display = "flex";
+			} else {
+				fileInfo.style.display = "none";
+			}
+		} else {
+			fileInfo.style.display = "none";
 		}
 
 		// Setup event listeners
@@ -511,6 +547,16 @@ class App {
 					}
 					return;
 				}
+
+				// Handle file path clicks to open in Cursor
+				const filePath = e.target.closest(".file-path.clickable");
+				if (filePath) {
+					const filepath = filePath.dataset.filepath;
+					if (filepath) {
+						this.openInCursor(filepath);
+					}
+					return;
+				}
 			});
 		}
 	}
@@ -539,21 +585,6 @@ class App {
 		const displayInfo = fileView.getDisplayInfo();
 		const currentMode = fileView.getCurrentMode();
 
-		// Toggle button icon
-		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
-            <path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
-        </svg>`;
-
-		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
-            <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
-            <path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
-        </svg>`;
-
-		const toggleIcon = currentMode === "content" ? diffIcon : contentIcon;
-		const toggleTitle = currentMode === "content" ? "Diff" : "Content";
-
 		// Update with panel structure preserving the permanent editor container
 		let panel = rightSection.querySelector(".panel");
 		if (!panel) {
@@ -570,7 +601,6 @@ class App {
 		}
 		header.innerHTML = `
             <div class="panel-title" title="${displayInfo.filepath}">${displayInfo.filename}</div>
-            <button class="toggle-btn" id="panel1-toggle" title="${toggleTitle}">${toggleIcon}</button>
         `;
 
 		// Ensure content div exists but don't touch existing editor container
@@ -581,6 +611,52 @@ class App {
 			content.innerHTML = '<div class="monaco-editor-container" id="panel1-editor"></div>';
 			panel.appendChild(content);
 		}
+
+		// Add file info section between header and content
+		let fileInfo = panel.querySelector(".file-info");
+		if (!fileInfo) {
+			fileInfo = document.createElement("div");
+			fileInfo.className = "file-info";
+			panel.insertBefore(fileInfo, content);
+		}
+
+		// Update file info content
+		const identity = fileView.fileIdentity;
+		const branchInfo = this.formatBranchInfo(identity.prevBranch, identity.currBranch);
+
+		// Toggle button icon
+		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
+            <path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
+        </svg>`;
+
+		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
+            <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
+            <path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
+        </svg>`;
+
+		// Cycle through: content -> diff -> fullDiff -> content
+		let toggleIcon, toggleTitle;
+		if (currentMode === "content") {
+			toggleIcon = diffIcon;
+			toggleTitle = "Diff (Context)";
+		} else if (currentMode === "diff") {
+			toggleIcon = diffIcon; // TODO: Add fullDiff icon
+			toggleTitle = "Full Diff";
+		} else {
+			toggleIcon = contentIcon;
+			toggleTitle = "Content";
+		}
+
+		fileInfo.innerHTML = `
+			<div class="file-info-content">
+				<div class="file-path clickable" title="Click to open in Cursor: ${identity.filepath}" data-filepath="${identity.filepath}">${identity.filepath}</div>
+				<div class="branch-info">${branchInfo}</div>
+			</div>
+			<button class="toggle-btn" id="panel1-toggle" title="${toggleTitle}">${toggleIcon}</button>
+		`;
+		fileInfo.style.display = "flex";
 
 		// Setup event listeners
 		this.setupRightPanelEvents();
@@ -604,10 +680,68 @@ class App {
 				const fileView = this.fileViews.get(this.rightPanelFile);
 				if (fileView) {
 					fileView.toggleMode();
-					// Update UI after mode change
-					setTimeout(() => this.updateRightPanel(), 0);
+					// Update UI after mode change - give more time for async operations
+					setTimeout(() => this.updateRightPanel(), 100);
 				}
 			});
+		}
+
+		// Setup file path click listener for right panel
+		const rightSection = document.querySelector(".right-section");
+		if (rightSection) {
+			// Remove existing listener by cloning and replacing
+			const newRightSection = rightSection.cloneNode(true);
+			rightSection.parentNode.replaceChild(newRightSection, rightSection);
+
+			// Add file path click listener
+			newRightSection.addEventListener("click", (e) => {
+				const filePath = e.target.closest(".file-path.clickable");
+				if (filePath) {
+					const filepath = filePath.dataset.filepath;
+					if (filepath) {
+						this.openInCursor(filepath);
+					}
+				}
+			});
+		}
+	}
+
+	/**
+	 * Open file in Cursor editor
+	 */
+	async openInCursor(filepath) {
+		try {
+			console.log(`🎯 Opening in Cursor: ${filepath}`);
+
+			// Send request to backend to open file in Cursor
+			const response = await fetch("/api/open-in-cursor", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ filepath }),
+			});
+
+			if (response.ok) {
+				console.log(`✅ Successfully opened ${filepath} in Cursor`);
+			} else {
+				console.error(`❌ Failed to open ${filepath} in Cursor:`, response.statusText);
+			}
+		} catch (error) {
+			console.error(`❌ Error opening ${filepath} in Cursor:`, error);
+		}
+	}
+
+	/**
+	 * Format branch information for display
+	 */
+	formatBranchInfo(prevBranch, currBranch) {
+		if (prevBranch && currBranch) {
+			return `${prevBranch} → ${currBranch}`;
+		} else if (prevBranch) {
+			return `${prevBranch} → working`;
+		} else {
+			return `working → HEAD`;
 		}
 	}
 

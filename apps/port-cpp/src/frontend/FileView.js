@@ -3,16 +3,29 @@
  * Handles WebSocket subscription, file updates, and coordinates with Panel for display
  */
 class FileView {
-	constructor(fileIdentity, webSocketManager, initialContent = "", initialDiff = "") {
+	constructor(
+		fileIdentity,
+		webSocketManager,
+		initialContent = "",
+		initialDiff = "",
+		initialOriginalContent = "",
+		initialModifiedContent = "",
+	) {
 		this.fileIdentity = fileIdentity;
 		this.webSocketManager = webSocketManager;
 
 		// Create file model
-		this.fileModel = new FileModel(fileIdentity, initialContent, initialDiff);
+		this.fileModel = new FileModel(
+			fileIdentity,
+			initialContent,
+			initialDiff,
+			initialOriginalContent,
+			initialModifiedContent,
+		);
 
 		// Current display state
 		this.currentPanel = null;
-		this.currentMode = "content"; // 'content' or 'diff'
+		this.currentMode = "content"; // 'content', 'diff', or 'fullDiff'
 
 		// Event listeners
 		this.updateListeners = new Set();
@@ -37,10 +50,10 @@ class FileView {
 		console.log(`📥 Update received for: ${this.fileIdentity.getKey()}`, data);
 
 		if (data.type === "fileUpdate") {
-			const { content, diff, error } = data;
+			const { content, diff, originalContent, modifiedContent, error } = data;
 
 			// Update file model
-			this.fileModel.updateContent(content, diff, error);
+			this.fileModel.updateContent(content, diff, originalContent, modifiedContent, error);
 
 			// Notify panel if currently displayed
 			if (this.currentPanel) {
@@ -53,6 +66,8 @@ class FileView {
 				fileView: this,
 				content,
 				diff,
+				originalContent,
+				modifiedContent,
 				error,
 			});
 		} else if (data.type === "fileRemoved") {
@@ -82,6 +97,8 @@ class FileView {
 			panel.showContent(this.fileModel);
 		} else if (mode === "diff") {
 			panel.showDiff(this.fileModel);
+		} else if (mode === "fullDiff") {
+			panel.showFullDiff(this.fileModel);
 		}
 
 		console.log(`📺 FileView ${this.fileIdentity.getKey()} displayed in panel ${panel.containerId} (${mode} mode)`);
@@ -125,7 +142,7 @@ class FileView {
 	}
 
 	/**
-	 * Toggle between content and diff modes
+	 * Toggle between content, diff, and fullDiff modes
 	 */
 	toggleMode() {
 		// Check the actual panel mode, not just the FileView mode
@@ -134,8 +151,10 @@ class FileView {
 		let newMode;
 		if (actualPanelMode === "content") {
 			newMode = "diff";
+		} else if (actualPanelMode === "diff") {
+			newMode = "fullDiff";
 		} else {
-			// If in 'diff', 'no-diff', or any other mode, switch to content
+			// If in 'fullDiff', 'no-diff', or any other mode, switch to content
 			newMode = "content";
 		}
 
