@@ -151,13 +151,13 @@ Open the Java file of the type and the candidate target files in the viewer usin
 
 **IMPORTANT:** Before asking for confirmation, play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
 
-### 4. Read and show the Java Source Code
+### 4. Open, Highlight and Read the Java Source Code
 
-Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
+**FIRST:** Open the Java source file in the right panel of the file viewer (index 1) and immediately highlight the type definition using `fileViewer.highlight(path, startLine, endLine)` to highlight the complete type definition from `startLine` to `endLine`. This should be done automatically without waiting for user confirmation.
+
+**THEN:** Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
 
 If the file is too large and the Read tool returns an error or truncated content, read it in chunks using multiple Read calls with different offset and limit parameters.
-
-**IMPORTANT:** When opening Java files in the file viewer, ALWAYS highlight the type definition immediately after reading it. Use `fileViewer.highlight(path, startLine, endLine)` to highlight the complete type definition from `startLine` to `endLine`. This should be done automatically without waiting for user confirmation.
 
 ### 5. Check if Git Changes Affect This Type
 
@@ -190,7 +190,30 @@ In this step you are encouraged to collaborate with the user, ask them questions
 
 IMPORTANT: DO NOT FORGET TO OPEN NEWLY CREATED FILES IN THE LEFT PANEL (index 0)
 
-### 7. Update the Porting Plan
+### 7. Test Compilation (Optional but Recommended)
+
+After porting a type, test if it compiles in isolation to catch basic errors like missing includes:
+
+```bash
+# For .cpp files
+clang++ -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.cpp -o /tmp/test.o && echo "Compiled successfully" || echo "Compilation failed"
+rm -f /tmp/test.o
+
+# For header-only files
+clang++ -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.h -o /tmp/test.o 2>/dev/null && echo "Header compiles" || echo "Header has issues"
+rm -f /tmp/test.o
+```
+
+**Common compilation issues:**
+
+- Missing `#include <spine/dll.h>` for `SP_API`
+- Missing `#include <spine/RTTI.h>` for RTTI classes
+- Wrong inheritance (interfaces shouldn't inherit from SpineObject)
+- Missing forward declarations
+
+**Note:** Some compilation errors are expected due to missing dependencies that haven't been ported yet.
+
+### 8. Update the Porting Plan
 
 Update the `PortingOrderItem` in the porting plan with your results:
 
@@ -205,7 +228,7 @@ jq --arg name "$TYPE_NAME" --arg state "done" --arg notes "Successfully ported A
 
 Output the resulting JSON to the user.
 
-### 8. STOP and Ask for Confirmation
+### 9. STOP and Ask for Confirmation
 
 1. Play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
 2. STOP HERE: After completing any type, you MUST STOP immediately, and ask and wait for the user to confirm moving on to the next type.
@@ -225,18 +248,26 @@ Note: A single Java file may contain multiple types, so you cannot rely on file 
 
 ### Type Translations
 
-- **Java class** → C++ class inheriting SpineObject + RTTI (include `spine/RTTI.h`)
-- **Java interface** → C++ abstract class with pure virtual methods + RTTI (include `spine/RTTI.h`)
+- **Java class** → C++ class inheriting from appropriate base class + RTTI (include `spine/RTTI.h`)
+- **Java interface** → C++ pure abstract class, no inheritance, no RTTI (include `spine/dll.h` for SP_API)
 - **Java enum** → C++ enum in namespace spine (header-only, no .cpp)
 
 ### Code Patterns
 
 **Class Structure:**
 
-- All classes inherit from `SpineObject` (provides custom memory management)
-- Use `RTTI_DECL` in header and `RTTI_IMPL(ClassName, ParentClass)` in source
+- **Concrete classes**: Inherit from appropriate base class (e.g., `Timeline`, `SpineObject`)
+- **Interface classes**: Pure abstract classes, no inheritance, no RTTI
+- Use `RTTI_DECL` in header and `RTTI_IMPL(ClassName, ParentClass)` in source for concrete classes
 - Private fields have `_underscore` prefix
 - Public methods use exact Java names (camelCase)
+
+**RTTI Inheritance Hierarchy:**
+
+- `Timeline` is the root RTTI class for timelines (uses `RTTI_IMPL_NOPARENT`)
+- Timeline subclasses inherit from `Timeline` and use `RTTI_IMPL(ClassName, Timeline)`
+- `SpineObject` is for memory management only, does NOT have RTTI
+- Interface classes do NOT inherit from anything and do NOT use RTTI
 
 **Container Types:**
 
@@ -322,41 +353,49 @@ namespace spine {
 }
 ```
 
-**Interface → Abstract Class Example:**
+**Interface → Pure Abstract Class Example:**
 
 ```cpp
-// Header: AttachmentLoader.h
-#include <spine/SpineObject.h>
-#include <spine/RTTI.h>
+// Header: BoneTimeline.h
+#include <spine/dll.h>
 
 namespace spine {
-    class Attachment;
-    class Skin;
-
-    class SP_API AttachmentLoader : public SpineObject {
-        RTTI_DECL
+    /// An interface for timelines which change the property of a bone.
+    class SP_API BoneTimeline {
     public:
-        AttachmentLoader();
-        virtual ~AttachmentLoader();
-        virtual Attachment* newRegionAttachment(Skin& skin, const String& name, const String& path) = 0;
-        virtual Attachment* newMeshAttachment(Skin& skin, const String& name, const String& path) = 0;
+        BoneTimeline();
+        virtual ~BoneTimeline();
+
+        /// The index of the bone in Skeleton::getBones() that will be changed when this timeline is applied.
+        virtual int getBoneIndex() = 0;
     };
 }
 ```
 
 ```cpp
-// Source: AttachmentLoader.cpp
-#include <spine/AttachmentLoader.h>
+// Source: BoneTimeline.cpp
+#include <spine/BoneTimeline.h>
 
 using namespace spine;
 
-RTTI_IMPL(AttachmentLoader, SpineObject)
-
-AttachmentLoader::AttachmentLoader() {
+BoneTimeline::BoneTimeline() {
 }
 
-AttachmentLoader::~AttachmentLoader() {
+BoneTimeline::~BoneTimeline() {
 }
+```
+
+**Concrete Class Implementing Interface:**
+
+```cpp
+// Concrete timeline class inherits from Timeline AND implements interface
+class SP_API RotateTimeline : public Timeline, public BoneTimeline {
+    RTTI_DECL
+public:
+    RotateTimeline(int frameCount, int bezierCount, int boneIndex);
+    virtual int getBoneIndex() override;
+    // Timeline methods...
+};
 ```
 
 **Generic Interface → Template Class Example:**
