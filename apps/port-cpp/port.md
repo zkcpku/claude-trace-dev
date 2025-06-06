@@ -157,7 +157,7 @@ Use the Read tool to examine the Java type at the specified file path and line r
 
 If the file is too large and the Read tool returns an error or truncated content, read it in chunks using multiple Read calls with different offset and limit parameters.
 
-Open the Java source file in the right panel in the file viewer (index 1), then highlight the Java type's `startLine` to `endLine` range. IMPORTANT: NEVER FORGET TO HIGHLIGHT the complete type definition using `fileViewer.highlight(path, startLine, endLine)`
+**IMPORTANT:** When opening Java files in the file viewer, ALWAYS highlight the type definition immediately after reading it. Use `fileViewer.highlight(path, startLine, endLine)` to highlight the complete type definition from `startLine` to `endLine`. This should be done automatically without waiting for user confirmation.
 
 ### 5. Check if Git Changes Affect This Type
 
@@ -257,6 +257,26 @@ Note: A single Java file may contain multiple types, so you cannot rely on file 
 - Source files use `using namespace spine;`
 - Follow existing patterns in the file you're editing
 
+**Documentation:**
+
+- Use Doxygen-compatible triple-slash comments (`///`) for documentation
+- Convert Java `/** */` comments to C++ `///` style
+- Document only what's documented in the Java source (maintain parity)
+
+**Javadoc to Doxygen Translation Guide:**
+
+- `/** comment */` → `/// comment`
+- `@param name description` → `@param name description` (same)
+- `@return description` → `@return description` (same)
+- `@throws Exception description` → `@throws Exception description` (same)
+- `{@link Class}` → `Class` (remove link markup)
+- `{@link Class#method}` → `Class::method`
+- `{@link #method}` → `method()` (same class method)
+- `Class#method(args)` → `Class::method()`
+- `Skeleton#getBones()` → `Skeleton::getBones()`
+- `{@code example}` → `example` (remove code markup)
+- HTML tags (`<p>`, `<code>`, etc.) → Remove or convert to Doxygen equivalents
+
 **Header Example:**
 
 ```cpp
@@ -338,3 +358,59 @@ AttachmentLoader::AttachmentLoader() {
 AttachmentLoader::~AttachmentLoader() {
 }
 ```
+
+**Generic Interface → Template Class Example:**
+
+```cpp
+// Header: Pose.h (Java: interface Pose<P>)
+#include <spine/SpineObject.h>
+
+namespace spine {
+    template<class P>
+    class SP_API Pose : public SpineObject {
+        // NO RTTI_DECL - template classes don't need RTTI
+    public:
+        Pose();
+        virtual ~Pose();
+        virtual void set(P& pose) = 0;
+    };
+
+    template<class P>
+    Pose<P>::Pose() {
+    }
+
+    template<class P>
+    Pose<P>::~Pose() {
+    }
+}
+```
+
+**Template Interface + Concrete Implementation:**
+
+```cpp
+// Concrete class implementing template interface
+class SP_API IkConstraintPose : public Pose<IkConstraint> {
+    RTTI_DECL  // Concrete classes DO get RTTI
+public:
+    IkConstraintPose();
+    virtual ~IkConstraintPose();
+    virtual void set(IkConstraint& pose) override;
+};
+```
+
+```cpp
+// Source: IkConstraintPose.cpp
+#include <spine/IkConstraintPose.h>
+using namespace spine;
+
+RTTI_IMPL(IkConstraintPose, SpineObject)  // RTTI for concrete class
+
+// Implementation...
+```
+
+**Template + RTTI Rules:**
+
+- **Java generic interface** → C++ template class (header-only, no RTTI, no .cpp file)
+- **Java class implementing generic interface** → C++ class inheriting from template (with RTTI + .cpp file)
+- **Template classes are compile-time constructs** - they don't need runtime type information
+- **Concrete implementations get RTTI** - for runtime polymorphism and type checking
