@@ -12,22 +12,15 @@
 		<span id="connection-status">Connecting...</span>
 	</div>
 	
-	
 	<div class="container">
 		<div class="left-section">
-			<div class="panel">
-				<div class="content">
-					<div class="empty-state">
-						<div class="empty-message">No files opened</div>
-					</div>
-				</div>
-			</div>
+			<!-- Panel 0 will be created here -->
 		</div>
 		
 		<div class="resizer" id="resizer"></div>
 		
 		<div class="right-section">
-			<!-- Panel 1 content will be dynamically generated -->
+			<!-- Panel 1 will be created here -->
 		</div>
 	</div>
 
@@ -38,48 +31,8 @@
 	<script src="/FileIdentity.js"></script>
 	<script src="/FileModel.js"></script>
 	<script src="/WebSocketManager.js"></script>
-	<script src="/Panel.js"></script>
 	<script src="/FileView.js"></script>
+	<script src="/TabbedPanel.js"></script>
 	<script src="/app.js"></script>
-	
-	<!-- Initialize the application -->
-	<script>
-		// Capture console logs for debugging
-		window.capturedLogs = [];
-		const originalConsoleLog = console.log;
-		const originalConsoleError = console.error;
-		
-		console.log = function(...args) {
-			window.capturedLogs.push({ type: 'log', args: args, timestamp: Date.now() });
-			originalConsoleLog.apply(console, args);
-		};
-		
-		console.error = function(...args) {
-			window.capturedLogs.push({ type: 'error', args: args, timestamp: Date.now() });
-			originalConsoleError.apply(console, args);
-		};
-		
-		// Initialize the new file viewer app
-		let app;
-		
-		// Wait for DOM to be ready
-		document.addEventListener('DOMContentLoaded', () => {
-			console.log('🚀 Starting new File Viewer architecture');
-			try {
-				app = new App();
-				window.app = app; // Make app accessible for debugging
-				
-			} catch (error) {
-				console.error('Failed to initialize app:', error);
-			}
-		});
-		
-		// Cleanup on page unload
-		window.addEventListener('beforeunload', () => {
-			if (app) {
-				app.dispose();
-			}
-		});
-	</script>
 </body>
 </html>
