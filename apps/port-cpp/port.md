@@ -93,9 +93,16 @@ This allows the user to visually observe the changes you make during porting and
 
 ## Step-by-Step Workflow
 
-### 0. Load Porting Plan
+### 0. Load Porting Plan metadata
 
-If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location. Load the porting plan and extract the spine runtimes directory from `metadata.spineRuntimesDir` for constructing absolute paths to source files.
+If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location. Fetch the porting plan metadata and extract the spine runtimes directory from `metadata.spineRuntimesDir` for constructing absolute paths to source files, as well as the previous and current branch names diffs for the Java files have been generated from.
+
+```bash
+# Fetch porting plan metadata
+jq '.metadata' porting-plan.json
+```
+
+**IMPORTANT:** Never read `porting-plan.json` entirely using the Read tool, as it's too large. Always use `jq` commands to read specific parts and update it.
 
 ### 1. Start Dev Server and Spin Up Puppeteer
 
@@ -117,7 +124,7 @@ This finds the first `PortingOrderItem` where `portingState` is "pending". The `
 3. **Interfaces and enums** - foundational types get priority boost
 4. **Classes by dependency count** - fewer dependencies first
 
-Open the Java file of the type and the candidate target files in the viewer using puppeteer.
+Open the Java file of the type and the candidate target files in the viewer using puppeteer. **IMPORTANT:** The Java source for the currently ported Java type MUST be opened in the right panel (index 1), while target files must be opened in the left panel (index 0).
 
 ### 3. Confirm with User
 
