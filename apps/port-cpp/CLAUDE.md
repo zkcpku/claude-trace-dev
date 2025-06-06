@@ -1,4 +1,5 @@
 - IF taking screenshots via puppeteer, ALWAYS use a Task to get the info you need, to not clog up your context.
-- When opening a puppeteer browser, always use maximized window without viewport constraints
+- Always start the Puppeteer browser via `mcp__puppeteer__puppeteer_navigate("http://localhost:PORT", { launchOptions: { headless: false, args: ["--start-maximized"], defaultViewport: null },});` so we don't have any viewport constraints
 - To start the dev server: `nohup npx tsx src/dev-server.ts > dev-server.log 2>&1 & sleep 2; cat dev-server.log` (check log for port number)
 - Always kill old dev-servers before starting a new dev server
+- Try to evaluate the dom via puppeteer instead of taking screenshots all the time.

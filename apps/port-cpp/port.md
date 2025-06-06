@@ -143,13 +143,15 @@ Open the Java file of the type and the candidate target files in the viewer usin
 
 **STOP HERE** and ask the user if this is the type they want to work on. Show them the complete `PortingOrderItem` JSON.
 
+**IMPORTANT:** Before asking for confirmation, play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
+
 ### 4. Read and show the Java Source Code
 
 Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
 
 If the file is too large and the Read tool returns an error or truncated content, read it in chunks using multiple Read calls with different offset and limit parameters.
 
-Open the Java source file in the righ panel in the file viewer (index 1), then highlight the Java type's `startLine`.
+Open the Java source file in the righ panel in the file viewer (index 1), then highlight the Java type's `startLine`. IMPORTANT: NEVER FORGET TO HIGHLIGHT `startLine`
 
 ### 5. Check if Git Changes Affect This Type
 
@@ -199,11 +201,9 @@ Output the resulting JSON to the user.
 
 ### 8. STOP and Ask for Confirmation
 
-- **MANDATORY:** After completing any type, you MUST STOP immediately
-- Tell the user exactly what you accomplished
-- Tell the user what you would work on next and why
-- **WAIT for user confirmation** before proceeding to the next type
-- This ensures proper pacing and prevents rushing through incomplete work
+1. Play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
+2. STOP HERE: After completing any type, you MUST STOP immediately, and ask and wait for the user to confirm moving on to the next type.
+3. ONLY AFTER CONFIRMATION, close all open files in the file viewer, and continue
 
 ## Spine-C++ Conventions
 

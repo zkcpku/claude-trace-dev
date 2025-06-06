@@ -1,853 +1,687 @@
-class FileViewer {
+/**
+ * App class coordinates the entire file viewer application
+ * Manages panels, file views, tabs, and overall UI state
+ */
+class App {
 	constructor() {
-		this.ws = null;
-		this.panel0Files = new Map(); // filepath -> {content, diff, error, viewMode, scrollPosition, editor}
-		this.panel1File = null; // {filepath, content, diff, error, viewMode, scrollPosition, editor}
-		this.activePanel0Tab = null;
-		this.monacoLoaded = false;
-		this.setupResizer();
-		this.initializeMonaco();
+		console.log("🚀 Starting File Viewer App");
+
+		// Step 1: Create WebSocket manager immediately
+		this.webSocketManager = new WebSocketManager();
+
+		// Step 2: Wait for Monaco, then create everything else
+		this.initializeAsync();
 	}
 
-	async initializeMonaco() {
+	/**
+	 * Initialize the application asynchronously
+	 */
+	async initializeAsync() {
+		// Step 3: Wait for Monaco to be FULLY ready
+		await this.waitForMonaco();
+
+		// Step 4: Create the permanent editor containers in DOM
+		this.createEditorContainers();
+
+		// Step 5: Now create panels (containers exist!)
+		this.leftPanel = new Panel("panel0-editor");
+		this.rightPanel = new Panel("panel1-editor");
+
+		// File management
+		this.fileViews = new Map();
+		this.leftPanelTabs = [];
+		this.activeLeftTab = null;
+		this.rightPanelFile = null;
+
+		// Initialize everything
+		this.initializeWebSocket();
+		this.initializeResizer();
+		this.initializeUI();
+		this.setupGlobalAPI();
+
+		console.log("✅ File Viewer App fully initialized");
+	}
+
+	/**
+	 * Create permanent editor containers in the DOM
+	 */
+	createEditorContainers() {
+		// Replace left section content with permanent structure
+		const leftContent = document.querySelector(".left-section .content");
+		if (leftContent) {
+			leftContent.innerHTML = '<div class="monaco-editor-container" id="panel0-editor"></div>';
+		}
+
+		// Replace right section with permanent structure including panel wrapper
+		const rightSection = document.querySelector(".right-section");
+		if (rightSection) {
+			rightSection.innerHTML = `
+                <div class="panel">
+                    <div class="content">
+                        <div class="monaco-editor-container" id="panel1-editor"></div>
+                    </div>
+                </div>
+            `;
+		}
+
+		console.log("📦 Permanent editor containers created");
+	}
+
+	/**
+	 * Wait for Monaco Editor to be available
+	 */
+	async waitForMonaco() {
 		return new Promise((resolve) => {
+			console.log("🔧 Initializing Monaco Editor...");
+
+			// Configure require.js for Monaco
 			require.config({
 				paths: {
 					vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs",
 				},
 			});
 
+			// Load Monaco Editor
 			require(["vs/editor/editor.main"], () => {
-				// Set Monaco theme to match our dark UI
-				monaco.editor.defineTheme("custom-dark", {
-					base: "vs-dark",
-					inherit: true,
-					rules: [],
-					colors: {
-						"editor.background": "#1e1e1e",
-						"editor.foreground": "#d4d4d4",
-						"editorLineNumber.foreground": "#858585",
-						"editorLineNumber.activeForeground": "#c6c6c6",
-						"editor.selectionBackground": "#264f78",
-						"editor.selectionHighlightBackground": "#add6ff26",
-					},
-				});
+				console.log("✅ Monaco Editor loaded");
 
-				monaco.editor.setTheme("custom-dark");
-				this.monacoLoaded = true;
-				this.connect();
-				this.updateLayout();
-				resolve();
+				try {
+					// Set Monaco theme to match our dark UI
+					monaco.editor.defineTheme("custom-dark", {
+						base: "vs-dark",
+						inherit: true,
+						rules: [],
+						colors: {
+							"editor.background": "#1e1e1e",
+							"editor.foreground": "#d4d4d4",
+							"editorLineNumber.foreground": "#858585",
+							"editorLineNumber.activeForeground": "#c6c6c6",
+							"editor.selectionBackground": "#264f78",
+							"editor.selectionHighlightBackground": "#add6ff26",
+						},
+					});
+
+					monaco.editor.setTheme("custom-dark");
+					console.log("✅ Monaco theme configured");
+					resolve();
+				} catch (error) {
+					console.error("Failed to configure Monaco theme:", error);
+					resolve(); // Still resolve to continue initialization
+				}
 			});
 		});
 	}
 
-	connect() {
-		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-		this.ws = new WebSocket(`${protocol}//${window.location.host}`);
+	/**
+	 * Initialize WebSocket connection
+	 */
+	initializeWebSocket() {
+		// Add connection status listener
+		this.webSocketManager.addConnectionListener((connected) => {
+			this.updateConnectionStatus(connected);
+		});
 
-		this.ws.onopen = () => {
-			document.getElementById("connection-status").textContent = "Connected";
-			document.getElementById("status-circle").classList.add("connected");
-		};
+		// Connect
+		this.webSocketManager.connect();
 
-		this.ws.onmessage = (event) => {
-			const message = JSON.parse(event.data);
-			this.handleFileUpdate(message);
-		};
-
-		this.ws.onclose = () => {
-			document.getElementById("connection-status").textContent = "Disconnected";
-			document.getElementById("status-circle").classList.remove("connected");
-			setTimeout(() => this.connect(), 2000);
-		};
+		console.log("🔌 WebSocket manager initialized");
 	}
 
-	handleFileUpdate(data) {
-		if (data.type === "fileUpdate") {
-			const { absolutePath, content, diff, error } = data;
-
-			// Update panel 0 files
-			if (this.panel0Files.has(absolutePath)) {
-				const fileData = this.panel0Files.get(absolutePath);
-				fileData.content = content;
-				fileData.diff = diff;
-				fileData.error = error;
-
-				// If this file is currently active in panel 0, update its editor content
-				if (this.activePanel0Tab === absolutePath && fileData.editor) {
-					this.updateEditorContent(fileData);
-				}
-			}
-
-			// Update panel 1 file
-			if (this.panel1File && this.panel1File.filepath === absolutePath) {
-				this.panel1File.content = content;
-				this.panel1File.diff = diff;
-				this.panel1File.error = error;
-
-				// If this file has an editor, update its content
-				if (this.panel1File.editor) {
-					this.updateEditorContent(this.panel1File);
-				}
-			}
-
-			// Only update UI if the updated file is not currently displayed (no editor to update)
-			const isPanel0Active = this.panel0Files.has(absolutePath) && this.activePanel0Tab === absolutePath;
-			const isPanel1Active = this.panel1File && this.panel1File.filepath === absolutePath;
-			const hasActiveEditor =
-				(isPanel0Active && this.panel0Files.get(absolutePath).editor) || (isPanel1Active && this.panel1File.editor);
-
-			if (!hasActiveEditor) {
-				this.updateUI();
-			}
-		} else if (data.type === "fileRemoved") {
-			const { absolutePath } = data;
-
-			// Remove from panel 0 if present
-			if (this.panel0Files.has(absolutePath)) {
-				this.close(absolutePath);
-			}
-
-			// Remove from panel 1 if present
-			if (this.panel1File && this.panel1File.filepath === absolutePath) {
-				this.close(absolutePath);
-			}
-		}
-	}
-
-	setupResizer() {
+	/**
+	 * Initialize resizer for panel splitting
+	 */
+	initializeResizer() {
 		const resizer = document.getElementById("resizer");
 		const leftSection = document.querySelector(".left-section");
 		const rightSection = document.querySelector(".right-section");
-		const container = document.querySelector(".container");
+
+		if (!resizer || !leftSection || !rightSection) {
+			console.warn("Resizer elements not found");
+			return;
+		}
 
 		let isResizing = false;
 
 		resizer.addEventListener("mousedown", (e) => {
 			isResizing = true;
-			document.body.style.cursor = "col-resize";
-			document.body.style.userSelect = "none";
+			document.addEventListener("mousemove", handleMouseMove);
+			document.addEventListener("mouseup", handleMouseUp);
+			e.preventDefault();
 		});
 
-		document.addEventListener("mousemove", (e) => {
+		const handleMouseMove = (e) => {
 			if (!isResizing) return;
 
-			const containerRect = container.getBoundingClientRect();
-			const containerWidth = containerRect.width;
-			const mouseX = e.clientX - containerRect.left;
+			const containerWidth = document.querySelector(".container").offsetWidth;
+			const leftWidth = (e.clientX / containerWidth) * 100;
+			const rightWidth = 100 - leftWidth;
 
-			let leftPercent = (mouseX / containerWidth) * 100;
-			leftPercent = Math.max(20, Math.min(80, leftPercent));
+			if (leftWidth > 20 && rightWidth > 20) {
+				leftSection.style.width = `${leftWidth}%`;
+				rightSection.style.width = `${rightWidth}%`;
 
-			const rightPercent = 100 - leftPercent;
-
-			leftSection.style.width = leftPercent + "%";
-			rightSection.style.width = rightPercent + "%";
-
-			// Trigger Monaco layout update after resize
-			setTimeout(() => {
-				this.resizeAllEditors();
-			}, 0);
-		});
-
-		document.addEventListener("mouseup", () => {
-			if (isResizing) {
-				isResizing = false;
-				document.body.style.cursor = "";
-				document.body.style.userSelect = "";
+				// Layout editors after resize
+				setTimeout(() => {
+					this.leftPanel.layout();
+					this.rightPanel.layout();
+				}, 0);
 			}
-		});
+		};
+
+		const handleMouseUp = () => {
+			isResizing = false;
+			document.removeEventListener("mousemove", handleMouseMove);
+			document.removeEventListener("mouseup", handleMouseUp);
+		};
+
+		console.log("📐 Resizer initialized");
 	}
 
-	resizeAllEditors() {
-		// Resize panel 0 active editor
-		if (this.activePanel0Tab) {
-			const activeFile = this.panel0Files.get(this.activePanel0Tab);
-			if (activeFile && activeFile.editor) {
-				activeFile.editor.layout();
-			}
-		}
-
-		// Resize panel 1 editor
-		if (this.panel1File && this.panel1File.editor) {
-			this.panel1File.editor.layout();
-		}
-	}
-
-	open(filepath, panel, prevBranch, currBranch) {
-		if (panel === 0) {
-			// Add to panel 0
-			this.panel0Files.set(filepath, {
-				filepath: filepath,
-				content: "",
-				diff: "",
-				error: null,
-				viewMode: "content", // content, diff
-				scrollPosition: { lineNumber: 1, column: 1 },
-				editor: null,
-			});
-			this.activePanel0Tab = filepath;
-		} else if (panel === 1) {
-			// Set panel 1 file
-			this.panel1File = {
-				filepath: filepath,
-				content: "",
-				diff: "",
-				error: null,
-				viewMode: "content", // content, diff
-				scrollPosition: { lineNumber: 1, column: 1 },
-				editor: null,
-			};
-		}
-
-		// Send watch request to server
-		this.sendWatchRequest(filepath, prevBranch, currBranch);
-		this.updateUI();
-	}
-
-	close(filepath) {
-		let wasWatched = false;
-
-		// Remove from panel 0
-		if (this.panel0Files.has(filepath)) {
-			const fileData = this.panel0Files.get(filepath);
-			if (fileData.editor) {
-				fileData.editor.dispose();
-			}
-			this.panel0Files.delete(filepath);
-			wasWatched = true;
-
-			// Update active tab
-			if (this.activePanel0Tab === filepath) {
-				const remaining = Array.from(this.panel0Files.keys());
-				this.activePanel0Tab = remaining.length > 0 ? remaining[0] : null;
-			}
-		}
-
-		// Remove from panel 1
-		if (this.panel1File && this.panel1File.filepath === filepath) {
-			if (this.panel1File.editor) {
-				this.panel1File.editor.dispose();
-			}
-			this.panel1File = null;
-			wasWatched = true;
-		}
-
-		// Send unwatch request if file was being watched
-		if (wasWatched) {
-			this.sendUnwatchRequest(filepath);
-		}
-
-		this.updateUI();
-	}
-
-	closeAll() {
-		// Send unwatch requests for all files
-		for (const filepath of this.panel0Files.keys()) {
-			this.sendUnwatchRequest(filepath);
-		}
-		if (this.panel1File) {
-			this.sendUnwatchRequest(this.panel1File.filepath);
-		}
-
-		// Dispose all editors
-		for (const [filepath, fileData] of this.panel0Files) {
-			if (fileData.editor) {
-				fileData.editor.dispose();
-			}
-		}
-		if (this.panel1File && this.panel1File.editor) {
-			this.panel1File.editor.dispose();
-		}
-
-		// Clear all files
-		this.panel0Files.clear();
-		this.activePanel0Tab = null;
-		this.panel1File = null;
-		this.updateUI();
-	}
-
-	sendWatchRequest(filepath, prevBranch, currBranch) {
-		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-			this.ws.send(
-				JSON.stringify({
-					type: "watch",
-					absolutePath: filepath,
-					prevBranch: prevBranch,
-					currBranch: currBranch,
-				}),
-			);
-		}
-	}
-
-	sendUnwatchRequest(filepath) {
-		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-			this.ws.send(
-				JSON.stringify({
-					type: "unwatch",
-					absolutePath: filepath,
-				}),
-			);
-		}
-	}
-
-	saveScrollPositions() {
-		// Save Panel 0 view state (includes scroll position, cursor, selections, etc.)
-		if (this.activePanel0Tab) {
-			const activeFile = this.panel0Files.get(this.activePanel0Tab);
-			if (activeFile && activeFile.editor) {
-				activeFile.viewState = activeFile.editor.saveViewState();
-			}
-		}
-
-		// Save Panel 1 view state
-		if (this.panel1File && this.panel1File.editor) {
-			this.panel1File.viewState = this.panel1File.editor.saveViewState();
-		}
-	}
-
-	updateUI() {
-		if (!this.monacoLoaded) return;
-
-		this.saveScrollPositions();
-		this.updatePanel0();
-		this.updatePanel1();
+	/**
+	 * Initialize UI and layout
+	 */
+	initializeUI() {
+		this.updateLeftPanel();
+		this.updateRightPanel();
 		this.updateLayout();
 
-		// Restore scroll positions after a short delay to ensure editors are ready
-		setTimeout(() => {
-			this.restoreScrollPositions();
-		}, 100);
+		console.log("🎨 UI initialized");
 	}
 
-	updatePanel0() {
-		const panel = document.querySelector(".left-section .panel");
+	/**
+	 * Setup global fileViewer API for external access
+	 */
+	setupGlobalAPI() {
+		window.fileViewer = {
+			open: (filepath, panel, prevBranch, currBranch) => {
+				this.open(filepath, panel, prevBranch, currBranch);
+			},
+			close: (filepath, prevBranch, currBranch) => {
+				this.close(filepath, prevBranch, currBranch);
+			},
+			closeAll: () => {
+				this.closeAll();
+			},
+			highlight: (filepath, lineNumber, prevBranch, currBranch) => {
+				this.highlight(filepath, lineNumber, prevBranch, currBranch);
+			},
+			refresh: () => {
+				this.refresh();
+			},
+		};
 
-		if (this.panel0Files.size === 0) {
-			// No files - show empty state without header
-			panel.innerHTML = `
-				<div class="content">
-					<div class="file-content">No files opened</div>
-				</div>
-			`;
+		console.log("🌐 Global fileViewer API created");
+	}
+
+	/**
+	 * Open a file in specified panel
+	 */
+	open(filepath, panel, prevBranch = null, currBranch = null) {
+		console.log(`📂 Opening: ${filepath} in panel ${panel}`, { prevBranch, currBranch });
+
+		// Create file identity
+		const fileIdentity = new FileIdentity(filepath, prevBranch, currBranch);
+		const fileKey = fileIdentity.getKey();
+
+		// Create FileView if doesn't exist
+		if (!this.fileViews.has(fileKey)) {
+			const fileView = new FileView(fileIdentity, this.webSocketManager);
+			this.fileViews.set(fileKey, fileView);
+
+			// Listen for file view events
+			fileView.addUpdateListener((event) => {
+				this.handleFileViewEvent(event);
+			});
+		}
+
+		const fileView = this.fileViews.get(fileKey);
+
+		if (panel === 0) {
+			// Add to left panel tabs
+			if (!this.leftPanelTabs.includes(fileKey)) {
+				this.leftPanelTabs.push(fileKey);
+			}
+			this.activeLeftTab = fileKey;
+
+			// Display in left panel
+			const mode = fileView.getCurrentMode();
+			fileView.displayIn(this.leftPanel, mode);
+
+			this.updateLeftPanel();
+		} else if (panel === 1) {
+			// Set as right panel file
+			this.rightPanelFile = fileKey;
+
+			// Display in right panel
+			const mode = fileView.getCurrentMode();
+			fileView.displayIn(this.rightPanel, mode);
+
+			this.updateRightPanel();
+		}
+
+		this.updateLayout();
+
+		console.log(`✅ File opened: ${fileKey}`);
+	}
+
+	/**
+	 * Close a file
+	 */
+	close(filepath, prevBranch = null, currBranch = null) {
+		const fileIdentity = new FileIdentity(filepath, prevBranch, currBranch);
+		const fileKey = fileIdentity.getKey();
+
+		console.log(`🗑️ Closing: ${fileKey}`);
+
+		// Remove from left panel tabs
+		const leftTabIndex = this.leftPanelTabs.indexOf(fileKey);
+		if (leftTabIndex >= 0) {
+			this.leftPanelTabs.splice(leftTabIndex, 1);
+
+			// Update active tab
+			if (this.activeLeftTab === fileKey) {
+				this.activeLeftTab = this.leftPanelTabs.length > 0 ? this.leftPanelTabs[0] : null;
+			}
+		}
+
+		// Remove from right panel
+		if (this.rightPanelFile === fileKey) {
+			this.rightPanelFile = null;
+		}
+
+		// Dispose file view
+		const fileView = this.fileViews.get(fileKey);
+		if (fileView) {
+			fileView.dispose();
+			this.fileViews.delete(fileKey);
+		}
+
+		// Update UI
+		this.updateLeftPanel();
+		this.updateRightPanel();
+		this.updateLayout();
+
+		console.log(`✅ File closed: ${fileKey}`);
+	}
+
+	/**
+	 * Close all files
+	 */
+	closeAll() {
+		console.log("🗑️ Closing all files");
+
+		// Dispose all file views
+		for (const fileView of this.fileViews.values()) {
+			fileView.dispose();
+		}
+
+		// Clear all state
+		this.fileViews.clear();
+		this.leftPanelTabs = [];
+		this.activeLeftTab = null;
+		this.rightPanelFile = null;
+
+		// Update UI
+		this.updateLeftPanel();
+		this.updateRightPanel();
+		this.updateLayout();
+
+		console.log("✅ All files closed");
+	}
+
+	/**
+	 * Highlight a line in a file
+	 */
+	highlight(filepath, lineNumber, prevBranch = null, currBranch = null) {
+		const fileIdentity = new FileIdentity(filepath, prevBranch, currBranch);
+		const fileKey = fileIdentity.getKey();
+
+		const fileView = this.fileViews.get(fileKey);
+		if (fileView) {
+			fileView.highlightLine(lineNumber);
+			console.log(`🎯 Highlighted line ${lineNumber} in ${fileKey}`);
+		} else {
+			console.warn(`Cannot highlight line - file not open: ${fileKey}`);
+		}
+	}
+
+	/**
+	 * Refresh all files
+	 */
+	refresh() {
+		console.log("🔄 Refreshing all files");
+		this.webSocketManager.refresh();
+	}
+
+	/**
+	 * Handle file view events
+	 */
+	handleFileViewEvent(event) {
+		if (event.type === "removed") {
+			// File was removed, close it
+			const fileKey = event.fileView.getFileIdentity().getKey();
+			this.close(
+				event.fileView.getFileIdentity().filepath,
+				event.fileView.getFileIdentity().prevBranch,
+				event.fileView.getFileIdentity().currBranch,
+			);
+		}
+		// Other events can be handled here as needed
+	}
+
+	/**
+	 * Update left panel UI
+	 */
+	updateLeftPanel() {
+		const leftSection = document.querySelector(".left-section .panel");
+
+		if (this.leftPanelTabs.length === 0) {
+			// No files - show empty message but preserve editor container
+			let header = leftSection.querySelector(".panel-header");
+			if (!header) {
+				header = document.createElement("div");
+				header.className = "panel-header";
+				leftSection.insertBefore(header, leftSection.firstChild);
+			}
+			header.innerHTML = '<div class="empty-message">No files opened</div>';
+
+			// Ensure content div exists but don't touch editor container
+			let content = leftSection.querySelector(".content");
+			if (!content) {
+				content = document.createElement("div");
+				content.className = "content";
+				content.innerHTML = '<div class="monaco-editor-container" id="panel0-editor"></div>';
+				leftSection.appendChild(content);
+			}
 			return;
 		}
 
 		// Build tabs
-		const tabs = Array.from(this.panel0Files.keys())
-			.map((filepath) => {
-				const filename = filepath.split("/").pop();
-				const isActive = filepath === this.activePanel0Tab;
-				return `<div class="tab ${isActive ? "active" : ""}" data-filepath="${filepath}">
-					<span class="tab-name">${filename}</span>
-					<button class="tab-close" data-filepath="${filepath}" title="Close">×</button>
-				</div>`;
+		const tabs = this.leftPanelTabs
+			.map((fileKey) => {
+				const fileView = this.fileViews.get(fileKey);
+				const displayInfo = fileView.getDisplayInfo();
+				const isActive = fileKey === this.activeLeftTab;
+
+				return `
+                <div class="tab ${isActive ? "active" : ""}" data-file-key="${fileKey}">
+                    <span class="tab-name" title="${displayInfo.filepath}">${displayInfo.filename}</span>
+                    <button class="tab-close" data-file-key="${fileKey}" title="Close">×</button>
+                </div>
+            `;
 			})
 			.join("");
 
-		// Get active file data
-		const activeFile = this.panel0Files.get(this.activePanel0Tab);
+		// Get active file info
+		const activeFileView = this.activeLeftTab ? this.fileViews.get(this.activeLeftTab) : null;
+		const currentMode = activeFileView ? activeFileView.getCurrentMode() : "content";
 
-		// SVG icons for toggle button - 2 view modes
+		// Toggle button icon
 		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-			<path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
-			<path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
-		</svg>`;
+            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
+            <path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
+        </svg>`;
 
 		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-			<path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
-			<path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
-			<path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
-		</svg>`;
+            <path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
+            <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
+            <path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
+        </svg>`;
 
-		// Determine current icon and next action based on current view mode
-		let toggleIcon, toggleTitle;
-		if (!activeFile) {
-			toggleIcon = diffIcon;
-			toggleTitle = "Diff";
-		} else if (activeFile.viewMode === "content") {
-			toggleIcon = diffIcon;
-			toggleTitle = "Diff";
-		} else {
-			toggleIcon = contentIcon;
-			toggleTitle = "Content";
+		const toggleIcon = currentMode === "content" ? diffIcon : contentIcon;
+		const toggleTitle = currentMode === "content" ? "Diff" : "Content";
+
+		// Update only the header, preserve the content div with editor container
+		let header = leftSection.querySelector(".panel-header");
+		if (!header) {
+			header = document.createElement("div");
+			header.className = "panel-header";
+			leftSection.insertBefore(header, leftSection.firstChild);
+		}
+		header.innerHTML = `
+            <div class="tabs">${tabs}</div>
+            <button class="toggle-btn" id="panel0-toggle" title="${toggleTitle}">${toggleIcon}</button>
+        `;
+
+		// Ensure content div exists but don't touch existing editor container
+		let content = leftSection.querySelector(".content");
+		if (!content) {
+			content = document.createElement("div");
+			content.className = "content";
+			content.innerHTML = '<div class="monaco-editor-container" id="panel0-editor"></div>';
+			leftSection.appendChild(content);
 		}
 
-		panel.innerHTML = `
-			<div class="panel-header">
-				<div class="tabs">${tabs}</div>
-				<button class="toggle-btn" id="panel0-toggle" title="${toggleTitle}">${toggleIcon}</button>
-			</div>
-			<div class="content">
-				<div class="monaco-editor-container" id="panel0-editor"></div>
-			</div>
-		`;
+		// Setup event listeners
+		this.setupLeftPanelEvents();
 
-		// Setup tab clicks
-		panel.querySelectorAll(".tab").forEach((tab) => {
-			// Click anywhere on tab (except close button) to switch tabs
-			tab.addEventListener("click", (e) => {
-				// Don't trigger if clicking on close button
-				if (e.target.classList.contains("tab-close")) {
+		// Display active file
+		if (activeFileView) {
+			activeFileView.displayIn(this.leftPanel, currentMode);
+		}
+	}
+
+	/**
+	 * Setup left panel event listeners
+	 */
+	setupLeftPanelEvents() {
+		// Use event delegation for tabs to avoid multiple listeners
+		const leftSection = document.querySelector(".left-section");
+
+		// Remove existing delegated listeners by cloning the left section header
+		const header = leftSection.querySelector(".panel-header");
+		if (header) {
+			const newHeader = header.cloneNode(true);
+			header.parentNode.replaceChild(newHeader, header);
+
+			// Setup delegated event listeners on the new header
+			newHeader.addEventListener("click", (e) => {
+				// Handle tab clicks
+				const tab = e.target.closest(".tab");
+				if (tab && !e.target.classList.contains("tab-close")) {
+					const fileKey = tab.dataset.fileKey;
+					if (fileKey && fileKey !== this.activeLeftTab) {
+						this.activeLeftTab = fileKey;
+						this.updateLeftPanel();
+					}
 					return;
 				}
-				e.stopPropagation();
-				// Save current scroll position before switching
-				this.saveScrollPositions();
-				this.activePanel0Tab = tab.dataset.filepath;
-				this.updatePanel0();
-			});
-		});
 
-		// Setup close buttons
-		panel.querySelectorAll(".tab-close").forEach((closeBtn) => {
-			closeBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				const filepath = closeBtn.dataset.filepath;
-				this.close(filepath);
-			});
-		});
-
-		// Setup toggle
-		const toggleBtn = document.getElementById("panel0-toggle");
-		if (toggleBtn) {
-			toggleBtn.addEventListener("click", () => {
-				if (activeFile) {
-					this.saveScrollPositions();
-					// Toggle between: content <-> diff
-					if (activeFile.viewMode === "content") {
-						activeFile.viewMode = "diff";
-					} else {
-						activeFile.viewMode = "content";
+				// Handle tab close buttons
+				const closeBtn = e.target.closest(".tab-close");
+				if (closeBtn) {
+					e.stopPropagation();
+					const fileKey = closeBtn.dataset.fileKey;
+					const fileView = this.fileViews.get(fileKey);
+					if (fileView) {
+						const identity = fileView.getFileIdentity();
+						this.close(identity.filepath, identity.prevBranch, identity.currBranch);
 					}
-					this.updatePanel0();
+					return;
+				}
+
+				// Handle toggle button
+				const toggleBtn = e.target.closest("#panel0-toggle");
+				if (toggleBtn && this.activeLeftTab) {
+					const fileView = this.fileViews.get(this.activeLeftTab);
+					if (fileView) {
+						fileView.toggleMode();
+						// Update UI after mode change
+						setTimeout(() => this.updateLeftPanel(), 0);
+					}
+					return;
 				}
 			});
 		}
-
-		// Create or update Monaco editor
-		this.createOrUpdateEditor(activeFile, "panel0-editor");
 	}
 
-	updatePanel1() {
+	/**
+	 * Update right panel UI
+	 */
+	updateRightPanel() {
 		const rightSection = document.querySelector(".right-section");
 
-		if (!this.panel1File) {
-			// Clear the content completely when no file is open
-			rightSection.innerHTML = "";
+		if (!this.rightPanelFile) {
+			// Hide right panel when no file
+			rightSection.style.display = "none";
 			return;
 		}
 
-		const filename = this.panel1File.filepath.split("/").pop();
+		const fileView = this.fileViews.get(this.rightPanelFile);
+		if (!fileView) {
+			rightSection.style.display = "none";
+			return;
+		}
 
-		// SVG icons for toggle button - 2 view modes
+		// Show right panel
+		rightSection.style.display = "flex";
+
+		const displayInfo = fileView.getDisplayInfo();
+		const currentMode = fileView.getCurrentMode();
+
+		// Toggle button icon
 		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-			<path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
-			<path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
-		</svg>`;
+            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
+            <path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
+        </svg>`;
 
 		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-			<path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
-			<path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
-			<path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
-		</svg>`;
+            <path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
+            <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
+            <path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
+        </svg>`;
 
-		// Determine current icon and next action based on current view mode
-		let toggleIcon, toggleTitle;
-		if (this.panel1File.viewMode === "content") {
-			toggleIcon = diffIcon;
-			toggleTitle = "Diff";
-		} else {
-			toggleIcon = contentIcon;
-			toggleTitle = "Content";
+		const toggleIcon = currentMode === "content" ? diffIcon : contentIcon;
+		const toggleTitle = currentMode === "content" ? "Diff" : "Content";
+
+		// Update with panel structure preserving the permanent editor container
+		let panel = rightSection.querySelector(".panel");
+		if (!panel) {
+			panel = document.createElement("div");
+			panel.className = "panel";
+			rightSection.appendChild(panel);
 		}
 
-		rightSection.innerHTML = `
-			<div class="panel">
-				<div class="panel-header">
-					<div class="panel-title">${filename}</div>
-					<button class="toggle-btn" id="panel1-toggle" title="${toggleTitle}">${toggleIcon}</button>
-				</div>
-				<div class="content">
-					<div class="monaco-editor-container" id="panel1-editor"></div>
-				</div>
-			</div>
-		`;
+		let header = panel.querySelector(".panel-header");
+		if (!header) {
+			header = document.createElement("div");
+			header.className = "panel-header";
+			panel.insertBefore(header, panel.firstChild);
+		}
+		header.innerHTML = `
+            <div class="panel-title" title="${displayInfo.filepath}">${displayInfo.filename}</div>
+            <button class="toggle-btn" id="panel1-toggle" title="${toggleTitle}">${toggleIcon}</button>
+        `;
 
-		// Setup toggle
+		// Ensure content div exists but don't touch existing editor container
+		let content = panel.querySelector(".content");
+		if (!content) {
+			content = document.createElement("div");
+			content.className = "content";
+			content.innerHTML = '<div class="monaco-editor-container" id="panel1-editor"></div>';
+			panel.appendChild(content);
+		}
+
+		// Setup event listeners
+		this.setupRightPanelEvents();
+
+		// Display file
+		fileView.displayIn(this.rightPanel, currentMode);
+	}
+
+	/**
+	 * Setup right panel event listeners
+	 */
+	setupRightPanelEvents() {
 		const toggleBtn = document.getElementById("panel1-toggle");
-		if (toggleBtn) {
-			toggleBtn.addEventListener("click", () => {
-				this.saveScrollPositions();
-				// Toggle between: content <-> diff
-				if (this.panel1File.viewMode === "content") {
-					this.panel1File.viewMode = "diff";
-				} else {
-					this.panel1File.viewMode = "content";
+		if (toggleBtn && this.rightPanelFile) {
+			// Remove any existing listeners by cloning the button
+			const newToggleBtn = toggleBtn.cloneNode(true);
+			toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
+
+			// Add fresh event listener
+			newToggleBtn.addEventListener("click", () => {
+				const fileView = this.fileViews.get(this.rightPanelFile);
+				if (fileView) {
+					fileView.toggleMode();
+					// Update UI after mode change
+					setTimeout(() => this.updateRightPanel(), 0);
 				}
-				this.updatePanel1();
 			});
-		}
-
-		// Create or update Monaco editor
-		this.createOrUpdateEditor(this.panel1File, "panel1-editor");
-	}
-
-	createOrUpdateEditor(fileData, containerId) {
-		if (!fileData || fileData.error) {
-			const container = document.getElementById(containerId);
-			if (container) {
-				container.innerHTML = `<div class="error">${fileData?.error || "File data not available"}</div>`;
-			}
-			return;
-		}
-
-		const container = document.getElementById(containerId);
-		if (!container) return;
-
-		const language = this.inferLanguageFromPath(fileData.filepath || fileData.absolutePath);
-		const isDiffMode = fileData.viewMode === "diff" && fileData.diff;
-		const isSideBySide = true; // Always use side-by-side diff mode
-
-		// Dispose existing editor and create new one
-		if (fileData.editor) {
-			fileData.editor.dispose();
-			fileData.editor = null;
-		}
-
-		if (isDiffMode) {
-			// Create diff editor (inline or side-by-side)
-			fileData.editor = monaco.editor.createDiffEditor(container, {
-				theme: "custom-dark",
-				readOnly: true,
-				automaticLayout: false,
-				scrollBeyondLastLine: false,
-				minimap: { enabled: false },
-				renderSideBySide: isSideBySide,
-				ignoreTrimWhitespace: false,
-				renderWhitespace: "selection",
-			});
-
-			// Parse diff content to extract original and modified
-			const { original, modified } = this.parseDiffContent(fileData.diff);
-
-			const originalModel = monaco.editor.createModel(original, language);
-			const modifiedModel = monaco.editor.createModel(modified, language);
-
-			fileData.editor.setModel({
-				original: originalModel,
-				modified: modifiedModel,
-			});
-		} else {
-			// Create regular editor
-			fileData.editor = monaco.editor.create(container, {
-				value: fileData.content || "",
-				language: language,
-				theme: "custom-dark",
-				readOnly: true,
-				automaticLayout: false,
-				scrollBeyondLastLine: false,
-				minimap: { enabled: false },
-				renderWhitespace: "selection",
-			});
-		}
-
-		// Layout the editor and restore view state
-		setTimeout(() => {
-			if (fileData.editor) {
-				fileData.editor.layout();
-				// Restore view state after layout
-				if (fileData.viewState) {
-					setTimeout(() => {
-						fileData.editor.restoreViewState(fileData.viewState);
-					}, 50);
-				}
-			}
-		}, 0);
-	}
-
-	updateEditorContent(fileData) {
-		if (!fileData.editor) return;
-
-		// Save current view state to preserve cursor position and scroll
-		const currentViewState = fileData.editor.saveViewState();
-
-		const isDiffMode = fileData.viewMode === "diff" && fileData.diff;
-
-		if (isDiffMode) {
-			// Update diff editor content
-			const { original, modified } = this.parseDiffContent(fileData.diff);
-			const models = fileData.editor.getModel();
-			if (models && models.original && models.modified) {
-				models.original.setValue(original);
-				models.modified.setValue(modified);
-			}
-		} else {
-			// Update regular editor content
-			const model = fileData.editor.getModel();
-			if (model) {
-				model.setValue(fileData.content || "");
-			}
-		}
-
-		// Restore view state to maintain cursor position and scroll
-		if (currentViewState) {
-			setTimeout(() => {
-				fileData.editor.restoreViewState(currentViewState);
-			}, 0);
 		}
 	}
 
-	parseDiffContent(diff) {
-		// Simple diff parser - assumes unified diff format
-		const lines = diff.split("\n");
-		let original = [];
-		let modified = [];
-
-		for (const line of lines) {
-			if (line.startsWith("@@")) {
-				// Skip diff headers
-				continue;
-			} else if (line.startsWith("-")) {
-				// Line removed in modified version
-				original.push(line.substring(1));
-			} else if (line.startsWith("+")) {
-				// Line added in modified version
-				modified.push(line.substring(1));
-			} else if (
-				line.startsWith(" ") ||
-				(!line.startsWith("-") && !line.startsWith("+") && !line.startsWith("@@"))
-			) {
-				// Context line (same in both)
-				const content = line.startsWith(" ") ? line.substring(1) : line;
-				original.push(content);
-				modified.push(content);
-			}
-		}
-
-		return {
-			original: original.join("\n"),
-			modified: modified.join("\n"),
-		};
-	}
-
+	/**
+	 * Update layout based on visible panels
+	 */
 	updateLayout() {
 		const leftSection = document.querySelector(".left-section");
 		const rightSection = document.querySelector(".right-section");
 		const resizer = document.getElementById("resizer");
 
-		if (!this.panel1File) {
-			// Hide right panel and resizer, give left panel full width
+		if (!this.rightPanelFile) {
+			// Hide right panel and resizer
 			rightSection.style.display = "none";
 			resizer.style.display = "none";
 			leftSection.style.width = "100%";
 		} else {
-			// Show both panels with resizer
-			rightSection.style.display = "block";
+			// Show both panels
+			rightSection.style.display = "flex";
 			resizer.style.display = "block";
 			leftSection.style.width = "50%";
 			rightSection.style.width = "50%";
 		}
 
-		// Trigger editor layout updates
+		// Layout editors
 		setTimeout(() => {
-			this.resizeAllEditors();
+			this.leftPanel.layout();
+			this.rightPanel.layout();
 		}, 0);
 	}
 
-	getFileExtensionClass(filepath) {
-		if (!filepath) return "";
+	/**
+	 * Update connection status display
+	 */
+	updateConnectionStatus(connected) {
+		const statusElement = document.getElementById("connection-status");
+		const circleElement = document.getElementById("status-circle");
 
-		const ext = filepath.toLowerCase().split(".").pop();
-		const extClassMap = {
-			js: "file-js",
-			jsx: "file-js",
-			ts: "file-ts",
-			tsx: "file-tsx",
-			java: "file-java",
-			c: "file-c",
-			h: "file-h",
-			cpp: "file-cpp",
-			cxx: "file-cpp",
-			cc: "file-cpp",
-			"c++": "file-cpp",
-			hpp: "file-hpp",
-			hxx: "file-hpp",
-			hh: "file-hpp",
-			cs: "file-cs",
-			py: "file-py",
-			swift: "file-swift",
-			dart: "file-dart",
-			hx: "file-hx",
-			md: "file-md",
-			markdown: "file-md",
-		};
-		return extClassMap[ext] || "";
-	}
-
-	inferLanguageFromPath(filepath) {
-		if (!filepath) return "text";
-
-		const ext = filepath.toLowerCase().split(".").pop();
-		const languageMap = {
-			c: "c",
-			h: "c",
-			cpp: "cpp",
-			cxx: "cpp",
-			cc: "cpp",
-			"c++": "cpp",
-			hpp: "cpp",
-			hxx: "cpp",
-			hh: "cpp",
-			cs: "csharp",
-			ts: "typescript",
-			tsx: "typescript",
-			swift: "swift",
-			dart: "dart",
-			hx: "javascript", // Haxe syntax is similar to JavaScript/ActionScript
-			java: "java",
-			js: "javascript",
-			jsx: "javascript",
-			py: "python",
-			rb: "ruby",
-			go: "go",
-			rs: "rust",
-			kt: "kotlin",
-			php: "php",
-			lua: "lua",
-			sh: "shell",
-			bash: "shell",
-			yaml: "yaml",
-			yml: "yaml",
-			json: "json",
-			xml: "xml",
-			html: "html",
-			htm: "html",
-			css: "css",
-			scss: "scss",
-			sass: "sass",
-			md: "markdown",
-			markdown: "markdown",
-			sql: "sql",
-		};
-		return languageMap[ext] || "text";
-	}
-
-	refresh() {
-		// Send refresh message to server to recalculate all file states
-		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-			this.ws.send(JSON.stringify({ type: "refresh" }));
-			console.log("Sent refresh request to server");
-		} else {
-			console.warn("WebSocket not connected, cannot refresh");
-		}
-	}
-
-	highlightLine(absolutePath, lineNumber) {
-		// Find the file in either panel
-		let fileData = null;
-		let isPanel0 = false;
-
-		// Check panel 0
-		if (this.panel0Files.has(absolutePath) && this.activePanel0Tab === absolutePath) {
-			fileData = this.panel0Files.get(absolutePath);
-			isPanel0 = true;
-		}
-		// Check panel 1
-		else if (this.panel1File && this.panel1File.filepath === absolutePath) {
-			fileData = this.panel1File;
-			isPanel0 = false;
+		if (statusElement) {
+			statusElement.textContent = connected ? "Connected" : "Disconnected";
 		}
 
-		if (!fileData || !fileData.editor) {
-			console.warn(`File ${absolutePath} is not open or has no editor`);
-			return;
-		}
-
-		// Clear existing decorations
-		if (fileData.highlightDecorations) {
-			if (fileData.viewMode === "diff") {
-				// For diff editor, we need to clear decorations from both models
-				const model = fileData.editor.getModel();
-				if (model && model.modified) {
-					model.modified.deltaDecorations(fileData.highlightDecorations, []);
-				}
+		if (circleElement) {
+			if (connected) {
+				circleElement.classList.add("connected");
 			} else {
-				// For regular editor
-				fileData.editor.deltaDecorations(fileData.highlightDecorations, []);
+				circleElement.classList.remove("connected");
 			}
 		}
+	}
 
-		// Create highlight decoration using Monaco's built-in styling
-		const decoration = {
-			range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-			options: {
-				isWholeLine: true,
-				className: "highlighted-line",
-				overviewRuler: {
-					color: "#ffd700",
-					position: monaco.editor.OverviewRulerLane.Full,
-				},
-				minimap: {
-					color: "#ffd700",
-					position: monaco.editor.MinimapPosition.Inline,
-				},
-			},
-		};
+	/**
+	 * Dispose app and cleanup
+	 */
+	dispose() {
+		console.log("🗑️ Disposing App");
 
-		// Apply decoration based on view mode
-		if (fileData.viewMode === "diff") {
-			// For diff editor, highlight in the modified (right) side
-			const model = fileData.editor.getModel();
-			if (model && model.modified) {
-				fileData.highlightDecorations = model.modified.deltaDecorations([], [decoration]);
-			}
-		} else {
-			// For regular editor
-			fileData.highlightDecorations = fileData.editor.deltaDecorations([], [decoration]);
+		// Close all files
+		this.closeAll();
+
+		// Dispose panels
+		if (this.leftPanel) {
+			this.leftPanel.dispose();
+		}
+		if (this.rightPanel) {
+			this.rightPanel.dispose();
 		}
 
-		// Scroll to the line and center it
-		if (fileData.viewMode === "diff") {
-			// For diff editor, reveal line in modified editor
-			fileData.editor.revealLineInCenter(lineNumber);
-		} else {
-			// For regular editor
-			fileData.editor.revealLineInCenter(lineNumber);
-		}
+		// Disconnect WebSocket
+		this.webSocketManager.disconnect();
 
-		console.log(`Highlighted line ${lineNumber} in ${absolutePath}`);
+		// Clear global API
+		delete window.fileViewer;
+
+		console.log("✅ App disposed");
 	}
 }
-
-// Initialize the viewer
-const viewer = new FileViewer();
-
-// Expose fileViewer API
-window.fileViewer = {
-	// Open file in specified panel with optional git diff (absolute paths only)
-	open(absolutePath, panel, prevBranch, currBranch) {
-		viewer.open(absolutePath, panel, prevBranch, currBranch);
-	},
-
-	// Close specific file (auto-hides panel 1 if that file was closed)
-	close(absolutePath) {
-		viewer.close(absolutePath);
-	},
-
-	// Close all files in both panels
-	closeAll() {
-		viewer.closeAll();
-	},
-
-	// Refresh all watched files to get latest git state
-	refresh() {
-		viewer.refresh();
-	},
-
-	// Highlight a specific line in an open file
-	highlightLine(absolutePath, lineNumber) {
-		viewer.highlightLine(absolutePath, lineNumber);
-	},
-};

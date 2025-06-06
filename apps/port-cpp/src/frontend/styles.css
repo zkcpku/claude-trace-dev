@@ -98,13 +98,14 @@ body {
 }
 
 .panel-header { 
-	background: #2d2d30; 
+	background: linear-gradient(to bottom, #2d2d30, #252528); 
 	padding: 0 0.5rem; 
 	border-bottom: 1px solid #3e3e42; 
 	display: flex; 
 	justify-content: space-between; 
 	align-items: center; 
 	height: 35px; 
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .panel-title { 
@@ -141,6 +142,7 @@ body {
 	height: 35px;
 	min-width: 120px;
 	position: relative;
+	transition: all 0.15s ease;
 }
 
 .tab:hover {
@@ -151,6 +153,8 @@ body {
 	background: #1e1e1e;
 	color: white;
 	border-bottom: 2px solid #0e639c;
+	transform: translateY(-1px);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .tab-name {
@@ -195,11 +199,14 @@ body {
 	justify-content: center;
 	min-width: 24px;
 	height: 24px;
-	transition: background-color 0.2s ease;
+	transition: all 0.2s ease;
+	opacity: 0.9;
 }
 
 .toggle-btn:hover { 
 	background: #1177bb; 
+	opacity: 1;
+	transform: scale(1.05);
 }
 
 .content { 
@@ -264,4 +271,90 @@ body {
 	background-color: rgba(255, 215, 0, 0.15) !important;
 	border: 1px solid rgba(255, 215, 0, 0.3);
 	border-radius: 3px;
+}
+
+/* No changes message */
+.no-changes {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	text-align: center;
+	color: #888;
+	padding: 2rem;
+}
+
+.no-changes-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+	opacity: 0.6;
+}
+
+.no-changes-title {
+	font-size: 1.2rem;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+	color: #cccccc;
+}
+
+.no-changes-message {
+	font-size: 0.9rem;
+	line-height: 1.4;
+	max-width: 400px;
+}
+
+/* Empty state message */
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	text-align: center;
+	color: #888;
+	padding: 2rem;
+}
+
+.empty-message {
+	font-size: 0.9rem;
+	color: #888;
+}
+
+/* Error state styling */
+.error-title {
+	font-size: 1.1rem;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+	color: #f48771;
+}
+
+.error-message {
+	font-size: 0.9rem;
+	line-height: 1.4;
+}
+
+/* Editor container improvements */
+.content-editor-container,
+.diff-editor-container {
+	width: 100%;
+	height: 100%;
+	border: none;
+	overflow: hidden;
+}
+
+/* Tab improvements for new architecture */
+.tab[data-file-key] {
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.tab[data-file-key]:hover {
+	background: #37373d;
+}
+
+.tab[data-file-key].active {
+	background: #1e1e1e;
+	color: white;
+	border-bottom: 2px solid #0e639c;
 }
