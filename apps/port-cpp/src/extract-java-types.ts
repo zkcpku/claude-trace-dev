@@ -97,11 +97,23 @@ function extractJavaTypesFromFile(javaFilePath: string): JavaType[] {
 	// Find type declarations with start/end boundaries
 	const content = fs.readFileSync(javaFilePath, "utf8");
 	const lines = content.split("\n");
+
+	// Extract package name from file content
+	let packageName = "";
+	for (const line of lines) {
+		const packageMatch = line.match(/^package\s+([\w.]+);/);
+		if (packageMatch) {
+			packageName = packageMatch[1];
+			break;
+		}
+	}
 	const types: ParsedJavaType[] = [];
 
 	// Find all public type declarations (including indented inner classes)
 	lines.forEach((line, i) => {
-		const match = line.match(/public\s+(?:static\s+|final\s+|abstract\s+)*(class|interface|enum)\s+(\w+)/);
+		const match = line.match(
+			/(?:public\s+static|static\s+public|public)\s+(?:final\s+|abstract\s+)*(class|interface|enum)\s+(\w+)/,
+		);
 		if (match) {
 			const indentMatch = line.match(/^\s*/);
 			types.push({
@@ -121,10 +133,35 @@ function extractJavaTypesFromFile(javaFilePath: string): JavaType[] {
 		return [];
 	}
 
-	// Extract types
-	const results: JavaType[] = types.map((type) => {
+	// Build fully qualified names for all types based on nesting level
+	const results: JavaType[] = types.map((type, currentIndex) => {
+		let fullName: string;
+
+		if (type.level === 0) {
+			// Top-level type: packageName.typeName
+			fullName = `${packageName}.${type.name}`;
+		} else {
+			// Inner type: find immediate parent and build name
+			let parentType: ParsedJavaType | undefined;
+			for (let i = currentIndex - 1; i >= 0; i--) {
+				if (types[i].level === type.level - 1) {
+					parentType = types[i];
+					break;
+				}
+			}
+
+			if (parentType) {
+				const parentFullName = `${packageName}.${parentType.name}`;
+				fullName = `${parentFullName}$${type.name}`;
+			} else {
+				// Fallback
+				fullName = `${packageName}.${type.name}`;
+			}
+		}
+
 		return {
 			name: type.name,
+			fullName,
 			type: type.type,
 			startLine: type.startLine,
 			endLine: type.endLine || lines.length,

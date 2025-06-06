@@ -18,7 +18,8 @@ export interface JavaFile {
 /** A Java type (class/interface/enum) and its C++ porting information */
 export interface JavaType {
 	// Java type info
-	name: string;
+	name: string; // Simple name (e.g., "PositionMode")
+	fullName: string; // Fully qualified name (e.g., "com.esotericsoftware.spine.PathConstraintData$PositionMode")
 	type: "class" | "interface" | "enum";
 	startLine: number;
 	endLine: number;

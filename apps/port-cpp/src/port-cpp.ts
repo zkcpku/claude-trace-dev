@@ -68,7 +68,7 @@ async function calculatePortingOrder(changeSet: ChangeSet): Promise<PortingOrder
 
 			allPortingOrderItems.push({
 				simpleName: javaType.name,
-				fullName: packagePath,
+				fullName: javaType.fullName,
 				type: javaType.type,
 				javaSourcePath: file.filePath,
 				startLine: javaType.startLine,
