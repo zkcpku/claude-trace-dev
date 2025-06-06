@@ -10,6 +10,11 @@ import { createCppTypeMapping } from "./extract-cpp-types.js";
 import { mapJavaTypesToCpp } from "./map-java-to-cpp.js";
 import { verifyCoverage } from "./verify-coverage.js";
 
+// Temporary interface for sorting that includes priorityScore
+interface PortingOrderItemWithScore extends PortingOrderItem {
+	priorityScore: number;
+}
+
 async function calculatePortingOrder(changeSet: ChangeSet): Promise<PortingOrderItem[]> {
 	const spineRuntimesDir = changeSet.metadata.spineRuntimesDir;
 
@@ -40,7 +45,7 @@ async function calculatePortingOrder(changeSet: ChangeSet): Promise<PortingOrder
 
 	// Create priority-based ordering instead of topological sort
 	// Priority: zero dependencies first, then by adjusted dependency count, then alphabetical
-	const allPortingOrderItems: PortingOrderItem[] = [];
+	const allPortingOrderItems: PortingOrderItemWithScore[] = [];
 
 	for (const file of changeSet.files) {
 		for (const javaType of file.javaTypes) {
@@ -92,8 +97,8 @@ async function calculatePortingOrder(changeSet: ChangeSet): Promise<PortingOrder
 
 	// Remove priorityScore from final items (it was just for sorting)
 	const portingOrderItems = allPortingOrderItems.map((item) => {
-		const { priorityScore, ...finalItem } = item as any;
-		return finalItem as PortingOrderItem;
+		const { priorityScore, ...finalItem } = item;
+		return finalItem;
 	});
 
 	return portingOrderItems;
