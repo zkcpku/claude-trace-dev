@@ -313,10 +313,10 @@ class App {
 		const fileView = panel.fileViews.get(fileKey);
 		if (fileView) {
 			setTimeout(() => {
-				if (arguments.length === 4) {
+				if (start === undefined) {
 					// Just filepath - clear highlights
 					panel.highlight();
-				} else if (arguments.length === 5 || end === undefined) {
+				} else if (end === undefined) {
 					// filepath + line - highlight single line
 					panel.highlight(start);
 				} else {
@@ -327,9 +327,9 @@ class App {
 		}
 
 		const action =
-			arguments.length === 4
+			start === undefined
 				? "cleared highlights"
-				: arguments.length === 5 || end === undefined
+				: end === undefined
 					? `highlighted line ${start}`
 					: `highlighted lines ${start}-${end}`;
 		console.log(`🎯 ${action} in ${fileKey}`);

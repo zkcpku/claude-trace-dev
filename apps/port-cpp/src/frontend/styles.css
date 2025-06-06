@@ -324,6 +324,11 @@ body {
 	border-radius: 3px;
 }
 
+/* Monaco Editor range highlighting - no borders for seamless appearance */
+.highlighted-range {
+	background-color: rgba(255, 215, 0, 0.2) !important;
+}
+
 /* No changes message */
 .no-changes {
 	display: flex;

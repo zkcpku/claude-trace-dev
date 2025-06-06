@@ -575,12 +575,30 @@ class TabbedPanel {
 
 		// Create decorations for the range
 		const decorations = [];
-		for (let line = start; line <= end; line++) {
+		if (start === end) {
+			// Single line - use individual line decoration
 			decorations.push({
-				range: new monaco.Range(line, 1, line, 1),
+				range: new monaco.Range(start, 1, start, 1),
 				options: {
 					isWholeLine: true,
 					className: "highlighted-line",
+					overviewRuler: {
+						color: "#ffd700",
+						position: monaco.editor.OverviewRulerLane.Full,
+					},
+					minimap: {
+						color: "#ffd700",
+						position: monaco.editor.MinimapPosition.Inline,
+					},
+				},
+			});
+		} else {
+			// Multi-line range - use CSS class with better styling for seamless appearance
+			decorations.push({
+				range: new monaco.Range(start, 1, end, Number.MAX_SAFE_INTEGER),
+				options: {
+					className: "highlighted-range",
+					isWholeLine: false, // Don't use whole line to avoid line-by-line borders
 					overviewRuler: {
 						color: "#ffd700",
 						position: monaco.editor.OverviewRulerLane.Full,
