@@ -22,6 +22,8 @@ The user might want to view changes for review, question asking, or advice givin
 **Start the dev server first (from the folder where port.md is located):**
 
 ```bash
+# Always kill old dev servers before starting new ones
+pkill -f "npx tsx src/dev-server.ts" || true
 nohup npx tsx src/dev-server.ts > dev-server.log 2>&1 &
 sleep 2
 cat dev-server.log
@@ -55,6 +57,11 @@ mcp__puppeteer__puppeteer_evaluate('fileViewer.close("/path/to/Animation.java")'
 
 // Close all files
 mcp__puppeteer__puppeteer_evaluate("fileViewer.closeAll()");
+
+// Highlight specific line in an open file (useful for showing Java types being ported)
+mcp__puppeteer__puppeteer_evaluate(`
+  fileViewer.highlightLine("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java", 565);
+`);
 ```
 
 **fileViewer API:**
@@ -62,6 +69,7 @@ mcp__puppeteer__puppeteer_evaluate("fileViewer.closeAll()");
 - **`fileViewer.open(absolutePath, panel, prevBranch?, currBranch?)`** - Open file in panel 0 (tabbed) or 1 (single)
 - **`fileViewer.close(absolutePath)`** - Close specific file (auto-hides panel 1 if that file closed)
 - **`fileViewer.closeAll()`** - Close all files in both panels
+- **`fileViewer.highlightLine(absolutePath, lineNumber)`** - Highlight and scroll to specific line in an open file (works in both content and diff modes)
 
 **Git Diff Logic:**
 
@@ -135,11 +143,13 @@ Open the Java file of the type and the candidate target files in the viewer usin
 
 **STOP HERE** and ask the user if this is the type they want to work on. Show them the complete `PortingOrderItem` JSON.
 
-### 4. Read the Java Source Code
+### 4. Read and show the Java Source Code
 
 Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
 
 If the file is too large and the Read tool returns an error or truncated content, read it in chunks using multiple Read calls with different offset and limit parameters.
+
+Open the Java source file in the righ panel in the file viewer (index 1), and highlight the Java type's `startLine`.
 
 ### 5. Check if Git Changes Affect This Type
 
@@ -159,8 +169,9 @@ In this step you are encouraged to collaborate with the user, ask them questions
    - All method implementations (translate Java logic to C++ following spine-cpp patterns and container classes like Vector instead of Java's Array.)
    - Documentation comments
 - If there are missing dependencies, infer their methods and fields from the corresponding Java type(s) and perform a mechanical translation, translating from Java to likely C++ signatures using the spine-cpp conventions detailed below.
-- **If C++ files don't exist:** Create them from scratch using spine-cpp conventions
+- **If C++ files don't exist:** Create them from scratch using spine-cpp conventions, then open them in the file viewers left panel (index 0)
 - **If C++ files exist:**
+   - Open the files in the file viewer's left panel (index 0)
    - Retain unaffected code in it
    - Compare line-by-line with Java implementation
    - Add any missing members, methods, or logic
@@ -168,8 +179,6 @@ In this step you are encouraged to collaborate with the user, ask them questions
    - Ensure C++ version has 100% functional parity with Java
 - **Never mark as "done" unless the C++ implementation is functionally complete and matches the Java type**
 - **For new types or types whose name and thus .h files have changed:** Add the header include to `spine.h`
-
-IMPORTANT: if you create a new file, open it in the left panel (index 0) of the file viewer.
 
 ### 7. Update the Porting Plan
 

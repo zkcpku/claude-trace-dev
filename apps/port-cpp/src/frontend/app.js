@@ -743,6 +743,82 @@ class FileViewer {
 			console.warn("WebSocket not connected, cannot refresh");
 		}
 	}
+
+	highlightLine(absolutePath, lineNumber) {
+		// Find the file in either panel
+		let fileData = null;
+		let isPanel0 = false;
+
+		// Check panel 0
+		if (this.panel0Files.has(absolutePath) && this.activePanel0Tab === absolutePath) {
+			fileData = this.panel0Files.get(absolutePath);
+			isPanel0 = true;
+		}
+		// Check panel 1
+		else if (this.panel1File && this.panel1File.filepath === absolutePath) {
+			fileData = this.panel1File;
+			isPanel0 = false;
+		}
+
+		if (!fileData || !fileData.editor) {
+			console.warn(`File ${absolutePath} is not open or has no editor`);
+			return;
+		}
+
+		// Clear existing decorations
+		if (fileData.highlightDecorations) {
+			if (fileData.viewMode === "diff") {
+				// For diff editor, we need to clear decorations from both models
+				const model = fileData.editor.getModel();
+				if (model && model.modified) {
+					model.modified.deltaDecorations(fileData.highlightDecorations, []);
+				}
+			} else {
+				// For regular editor
+				fileData.editor.deltaDecorations(fileData.highlightDecorations, []);
+			}
+		}
+
+		// Create highlight decoration using Monaco's built-in styling
+		const decoration = {
+			range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+			options: {
+				isWholeLine: true,
+				className: "highlighted-line",
+				overviewRuler: {
+					color: "#ffd700",
+					position: monaco.editor.OverviewRulerLane.Full,
+				},
+				minimap: {
+					color: "#ffd700",
+					position: monaco.editor.MinimapPosition.Inline,
+				},
+			},
+		};
+
+		// Apply decoration based on view mode
+		if (fileData.viewMode === "diff") {
+			// For diff editor, highlight in the modified (right) side
+			const model = fileData.editor.getModel();
+			if (model && model.modified) {
+				fileData.highlightDecorations = model.modified.deltaDecorations([], [decoration]);
+			}
+		} else {
+			// For regular editor
+			fileData.highlightDecorations = fileData.editor.deltaDecorations([], [decoration]);
+		}
+
+		// Scroll to the line and center it
+		if (fileData.viewMode === "diff") {
+			// For diff editor, reveal line in modified editor
+			fileData.editor.revealLineInCenter(lineNumber);
+		} else {
+			// For regular editor
+			fileData.editor.revealLineInCenter(lineNumber);
+		}
+
+		console.log(`Highlighted line ${lineNumber} in ${absolutePath}`);
+	}
 }
 
 // Initialize the viewer
@@ -768,5 +844,10 @@ window.fileViewer = {
 	// Refresh all watched files to get latest git state
 	refresh() {
 		viewer.refresh();
+	},
+
+	// Highlight a specific line in an open file
+	highlightLine(absolutePath, lineNumber) {
+		viewer.highlightLine(absolutePath, lineNumber);
 	},
 };
