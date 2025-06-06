@@ -342,7 +342,10 @@ class FileViewer {
 			.map((filepath) => {
 				const filename = filepath.split("/").pop();
 				const isActive = filepath === this.activePanel0Tab;
-				return `<div class="tab ${isActive ? "active" : ""}" data-filepath="${filepath}">${filename}</div>`;
+				return `<div class="tab ${isActive ? "active" : ""}" data-filepath="${filepath}">
+					<span class="tab-name">${filename}</span>
+					<button class="tab-close" data-filepath="${filepath}" title="Close">×</button>
+				</div>`;
 			})
 			.join("");
 
@@ -394,11 +397,25 @@ class FileViewer {
 
 		// Setup tab clicks
 		panel.querySelectorAll(".tab").forEach((tab) => {
-			tab.addEventListener("click", () => {
-				// Save current scroll position before switching
-				this.saveScrollPositions();
-				this.activePanel0Tab = tab.dataset.filepath;
-				this.updatePanel0();
+			// Click on tab name to switch tabs
+			const tabName = tab.querySelector(".tab-name");
+			if (tabName) {
+				tabName.addEventListener("click", (e) => {
+					e.stopPropagation();
+					// Save current scroll position before switching
+					this.saveScrollPositions();
+					this.activePanel0Tab = tab.dataset.filepath;
+					this.updatePanel0();
+				});
+			}
+		});
+
+		// Setup close buttons
+		panel.querySelectorAll(".tab-close").forEach((closeBtn) => {
+			closeBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				const filepath = closeBtn.dataset.filepath;
+				this.close(filepath);
 			});
 		});
 
@@ -621,6 +638,36 @@ class FileViewer {
 		setTimeout(() => {
 			this.resizeAllEditors();
 		}, 0);
+	}
+
+	getFileExtensionClass(filepath) {
+		if (!filepath) return "";
+
+		const ext = filepath.toLowerCase().split(".").pop();
+		const extClassMap = {
+			js: "file-js",
+			jsx: "file-js",
+			ts: "file-ts",
+			tsx: "file-tsx",
+			java: "file-java",
+			c: "file-c",
+			h: "file-h",
+			cpp: "file-cpp",
+			cxx: "file-cpp",
+			cc: "file-cpp",
+			"c++": "file-cpp",
+			hpp: "file-hpp",
+			hxx: "file-hpp",
+			hh: "file-hpp",
+			cs: "file-cs",
+			py: "file-py",
+			swift: "file-swift",
+			dart: "file-dart",
+			hx: "file-hx",
+			md: "file-md",
+			markdown: "file-md",
+		};
+		return extClassMap[ext] || "";
 	}
 
 	inferLanguageFromPath(filepath) {
