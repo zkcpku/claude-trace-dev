@@ -17,12 +17,12 @@ You are provided with tools to collaborate on the porting with the user, as well
 
 ### File Viewer
 
-The user might want to view changes for review, question asking, or advice giving. For this, use the file viewer - a web-based interface that shows Java and C++ files side-by-side with syntax highlighting, diff views, and real-time updates. You can load different files, toggle between content and diff views, and take screenshots to show the user your progress.
+The user might want to view changes for review, question asking, or advice giving. For this, use the file viewer - a web-based interface with two panels: a tabbed left panel for multiple files and a single-file right panel. Both panels support syntax highlighting, diff views, and real-time updates.
 
 **Start the dev server first (from the folder where port.md is located):**
 
 ```bash
-nohup npx tsx src/dev-server.ts /path/to/spine-runtimes > dev-server.log 2>&1 &
+nohup npx tsx src/dev-server.ts > dev-server.log 2>&1 &
 sleep 2
 cat dev-server.log
 ```
@@ -33,16 +33,44 @@ cat dev-server.log
 // Navigate to the viewer (find the port number in dev-server.log output)
 mcp__puppeteer__puppeteer_navigate("http://localhost:PORT");
 
-// Load files using the portingAPI
+// Open files in panel 0 (left, tabbed) - all paths must be absolute
 mcp__puppeteer__puppeteer_evaluate(`
-  portingAPI.setJavaFile("spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java");
-  portingAPI.setTargetFiles(["spine-cpp/spine-cpp/include/spine/Animation.h", "spine-cpp/spine-cpp/src/spine/Animation.cpp"]);
+  fileViewer.open("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java", 0, "4.2", "4.3-beta");
+  fileViewer.open("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Bone.java", 0, "4.2", "4.3-beta");
 `);
 
-// Toggle diff views
-mcp__puppeteer__puppeteer_evaluate("portingAPI.toggleJavaDiff()");
-mcp__puppeteer__puppeteer_evaluate("portingAPI.toggleTargetDiff(0)"); // 0 = first target file, 1 = second, etc.
+// Open file in panel 1 (right, single file)
+mcp__puppeteer__puppeteer_evaluate(
+	'fileViewer.open("/path/to/spine-runtimes/spine-cpp/spine-cpp/include/spine/Animation.h", 1, "4.2")',
+);
+
+// View documentation or any file
+mcp__puppeteer__puppeteer_evaluate('fileViewer.open("/Users/badlogic/workspaces/lemmy/apps/port-cpp/port.md", 1)');
+
+// Close specific files
+mcp__puppeteer__puppeteer_evaluate('fileViewer.close("/path/to/Animation.java")');
+
+// Close all files
+mcp__puppeteer__puppeteer_evaluate("fileViewer.closeAll()");
 ```
+
+**fileViewer API:**
+
+- **`fileViewer.open(absolutePath, panel, prevBranch?, currBranch?)`** - Open file in panel 0 (tabbed) or 1 (single)
+- **`fileViewer.close(absolutePath)`** - Close specific file (auto-hides panel 1 if that file closed)
+- **`fileViewer.closeAll()`** - Close all files in both panels
+
+**Git Diff Logic:**
+
+- **Both branches provided** → diff between `prevBranch..currBranch`
+- **Only prevBranch provided** → current state vs. that branch
+- **No branches** → current state vs. HEAD (if git repo), no diff otherwise
+
+**Panel Behavior:**
+
+- **Panel 0 (Left)**: Tabbed interface, multiple files, shows "No files opened" when empty
+- **Panel 1 (Right)**: Single file view, auto-hides when no file open
+- **All paths must be absolute** - no relative path resolution
 
 This allows the user to visually observe the changes you make during porting and provides a collaborative review interface. Can also be used if the user requests to view a specific file.
 
@@ -64,11 +92,11 @@ This allows the user to visually observe the changes you make during porting and
 
 ### 0. Load Porting Plan
 
-If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location. Load the porting plan and extract the spine runtimes directory from `metadata.spineRuntimesDir`.
+If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location. Load the porting plan and extract the spine runtimes directory from `metadata.spineRuntimesDir` for constructing absolute paths to source files.
 
 ### 1. Start Dev Server and Spin Up Puppeteer
 
-Start the development server with the extracted spine runtimes directory and open the file viewer using puppeteer for collaborative viewing.
+Start the development server and open the file viewer using puppeteer for collaborative viewing.
 
 ### 2. Find the Next Type to Port
 
@@ -188,6 +216,13 @@ Note: A single Java file may contain multiple types, so you cannot rely on file 
 - All allocations track file/line for debugging
 - Objects inherit SpineObject's custom new/delete operators
 
+**Code Organization:**
+
+- Prefer forward declarations of classes in header files
+- All code is in the `spine` namespace
+- Source files use `using namespace spine;`
+- Follow existing patterns in the file you're editing
+
 **Header Example:**
 
 ```cpp
@@ -217,5 +252,39 @@ RTTI_IMPL(ClassName, ParentClass)
 
 ClassName::ClassName(float value) : ParentClass(), _value(value) {
     // Constructor body
+}
+```
+
+**Enum Example:**
+
+```cpp
+namespace spine {
+    enum MixBlend {
+        MixBlend_Setup,
+        MixBlend_First,
+        MixBlend_Replace,
+        MixBlend_Add
+    };
+}
+```
+
+**Interface → Abstract Class Example:**
+
+```cpp
+// Header: AttachmentLoader.h
+#include <spine/SpineObject.h>
+#include <spine/RTTI.h>
+
+namespace spine {
+    class Attachment;
+    class Skin;
+
+    class SP_API AttachmentLoader : public SpineObject {
+        RTTI_DECL
+    public:
+        virtual ~AttachmentLoader() {}
+        virtual Attachment* newRegionAttachment(Skin& skin, const String& name, const String& path) = 0;
+        virtual Attachment* newMeshAttachment(Skin& skin, const String& name, const String& path) = 0;
+    };
 }
 ```

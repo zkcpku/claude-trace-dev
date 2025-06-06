@@ -42,20 +42,27 @@ body {
 
 .container { 
 	display: flex; 
-	height: calc(100vh - 24px); 
+	height: calc(100vh - 24px);
+	min-height: 0;
+	overflow: hidden;
 }
 
 .left-section { 
 	width: 50%; 
 	display: flex; 
 	flex-direction: column; 
-	border-right: 1px solid #3e3e42; 
+	border-right: 1px solid #3e3e42;
+	min-height: 0;
+	overflow: hidden;
 }
 
 .right-section { 
 	width: 50%; 
 	display: flex; 
-	flex-direction: column; 
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+	height: 100%;
 }
 
 .resizer { 
@@ -76,7 +83,10 @@ body {
 	border-right: 1px solid #3e3e42; 
 	display: flex; 
 	flex-direction: column; 
-	min-width: 0; 
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	height: 100%;
 }
 
 .panel:last-child { 
@@ -91,12 +101,12 @@ body {
 
 .panel-header { 
 	background: #2d2d30; 
-	padding: 0.5rem 0.75rem; 
+	padding: 0.25rem 0.5rem; 
 	border-bottom: 1px solid #3e3e42; 
 	display: flex; 
 	justify-content: space-between; 
 	align-items: center; 
-	height: 36px; 
+	height: 28px; 
 }
 
 .panel-title { 
@@ -104,14 +114,47 @@ body {
 	font-size: 0.875rem; 
 }
 
+.tabs {
+	display: flex;
+	gap: 0.25rem;
+	flex: 1;
+}
+
+.tab {
+	background: #3c3c3c;
+	color: #cccccc;
+	padding: 0.25rem 0.5rem;
+	border-radius: 3px 3px 0 0;
+	cursor: pointer;
+	font-size: 0.75rem;
+	white-space: nowrap;
+	border: 1px solid #3e3e42;
+	border-bottom: none;
+}
+
+.tab:hover {
+	background: #4a4a4a;
+}
+
+.tab.active {
+	background: #0e639c;
+	color: white;
+}
+
 .toggle-btn { 
 	background: #0e639c; 
 	color: white; 
 	border: none; 
-	padding: 0.25rem 0.5rem; 
+	padding: 0.25rem 0.4rem; 
 	border-radius: 3px; 
 	cursor: pointer; 
-	font-size: 0.75rem; 
+	font-size: 0.8rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	transition: background-color 0.2s ease;
 }
 
 .toggle-btn:hover { 
@@ -120,7 +163,9 @@ body {
 
 .content { 
 	flex: 1; 
-	overflow: auto; 
+	overflow: auto;
+	min-height: 0;
+	height: 0; /* Force flex child to respect parent height */
 }
 
 .file-content { 

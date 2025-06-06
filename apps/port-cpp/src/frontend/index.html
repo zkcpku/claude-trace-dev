@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Porting Viewer</title>
+	<title>File Viewer</title>
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.css" rel="stylesheet" />
 	<link rel="stylesheet" href="/styles.css">
@@ -18,21 +18,17 @@
 	
 	<div class="container">
 		<div class="left-section">
-			<div class="target-panels" id="target-panels"></div>
+			<div class="panel">
+				<div class="content">
+					<div class="file-content">No files opened</div>
+				</div>
+			</div>
 		</div>
 		
 		<div class="resizer" id="resizer"></div>
 		
 		<div class="right-section">
-			<div class="panel" id="java-panel">
-				<div class="panel-header">
-					<div class="panel-title" id="java-title">Loading...</div>
-					<button class="toggle-btn" id="java-toggle">Show Diff</button>
-				</div>
-				<div class="content">
-					<div class="file-content" id="java-content">Loading...</div>
-				</div>
-			</div>
+			<!-- Panel 1 content will be dynamically generated -->
 		</div>
 	</div>
 

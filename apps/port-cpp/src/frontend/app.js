@@ -1,26 +1,13 @@
-class PortingViewer {
+class FileViewer {
 	constructor() {
 		this.ws = null;
-		this.data = null;
-		this.viewModes = { java: "content" };
-		this.config = this.parseUrlParams();
+		this.panel0Files = new Map(); // filepath -> {content, diff, error, viewMode, scrollPosition}
+		this.panel1File = null; // {filepath, content, diff, error, viewMode, scrollPosition}
+		this.activePanel0Tab = null;
 		this.setupResizer();
 		this.connect();
-	}
-
-	parseUrlParams() {
-		const params = new URLSearchParams(window.location.search);
-		return {
-			java: params.get("java"),
-			targets:
-				params
-					.get("targets")
-					?.split(",")
-					.map((t) => t.trim())
-					.filter(Boolean) || [],
-			prevBranch: params.get("prevBranch"),
-			currentBranch: params.get("currentBranch"),
-		};
+		// Set initial layout
+		this.updateLayout();
 	}
 
 	connect() {
@@ -30,30 +17,11 @@ class PortingViewer {
 		this.ws.onopen = () => {
 			document.getElementById("connection-status").textContent = "Connected";
 			document.getElementById("status-circle").classList.add("connected");
-
-			// Send configuration to server if we have URL parameters
-			if (
-				this.config.java &&
-				this.config.targets.length > 0 &&
-				this.config.prevBranch &&
-				this.config.currentBranch
-			) {
-				this.ws.send(
-					JSON.stringify({
-						type: "configure",
-						config: this.config,
-					}),
-				);
-			}
 		};
 
 		this.ws.onmessage = (event) => {
 			const message = JSON.parse(event.data);
-			if (message.type === "update") {
-				this.data = message;
-				this.setupPanels();
-				this.updateAllPanels();
-			}
+			this.handleFileUpdate(message);
 		};
 
 		this.ws.onclose = () => {
@@ -61,6 +29,41 @@ class PortingViewer {
 			document.getElementById("status-circle").classList.remove("connected");
 			setTimeout(() => this.connect(), 2000);
 		};
+	}
+
+	handleFileUpdate(data) {
+		if (data.type === "fileUpdate") {
+			const { absolutePath, content, diff, error } = data;
+
+			// Update panel 0 files
+			if (this.panel0Files.has(absolutePath)) {
+				const fileData = this.panel0Files.get(absolutePath);
+				fileData.content = content;
+				fileData.diff = diff;
+				fileData.error = error;
+			}
+
+			// Update panel 1 file
+			if (this.panel1File && this.panel1File.filepath === absolutePath) {
+				this.panel1File.content = content;
+				this.panel1File.diff = diff;
+				this.panel1File.error = error;
+			}
+
+			this.updateUI();
+		} else if (data.type === "fileRemoved") {
+			const { absolutePath } = data;
+
+			// Remove from panel 0 if present
+			if (this.panel0Files.has(absolutePath)) {
+				this.close(absolutePath);
+			}
+
+			// Remove from panel 1 if present
+			if (this.panel1File && this.panel1File.filepath === absolutePath) {
+				this.close(absolutePath);
+			}
+		}
 	}
 
 	setupResizer() {
@@ -82,12 +85,10 @@ class PortingViewer {
 
 			const containerRect = container.getBoundingClientRect();
 			const containerWidth = containerRect.width;
-			const resizerWidth = 4;
 			const mouseX = e.clientX - containerRect.left;
 
-			// Calculate percentage, ensuring minimum widths
 			let leftPercent = (mouseX / containerWidth) * 100;
-			leftPercent = Math.max(20, Math.min(80, leftPercent)); // Between 20% and 80%
+			leftPercent = Math.max(20, Math.min(80, leftPercent));
 
 			const rightPercent = 100 - leftPercent;
 
@@ -104,89 +105,321 @@ class PortingViewer {
 		});
 	}
 
-	setupPanels() {
-		if (!this.data) return;
+	open(filepath, panel, prevBranch, currBranch) {
+		if (panel === 0) {
+			// Add to panel 0
+			this.panel0Files.set(filepath, {
+				content: "",
+				diff: "",
+				error: null,
+				viewMode: "content",
+				scrollPosition: 0,
+			});
+			this.activePanel0Tab = filepath;
+		} else if (panel === 1) {
+			// Set panel 1 file
+			this.panel1File = {
+				filepath: filepath,
+				content: "",
+				diff: "",
+				error: null,
+				viewMode: "content",
+				scrollPosition: 0,
+			};
+		}
 
-		// Update Java panel title
-		document.getElementById("java-title").textContent = this.data.filenames.javaFile;
-
-		// Create target panels
-		const targetContainer = document.getElementById("target-panels");
-		targetContainer.innerHTML = "";
-
-		this.data.filenames.targetFiles.forEach((filename, index) => {
-			this.viewModes[`target-${index}`] = "content";
-
-			const panel = document.createElement("div");
-			panel.className = "panel";
-			panel.innerHTML = `
-				<div class="panel-header">
-					<div class="panel-title">${filename}</div>
-					<button class="toggle-btn" id="target-toggle-${index}">Show Diff</button>
-				</div>
-				<div class="content">
-					<div class="file-content" id="target-content-${index}">Loading...</div>
-				</div>
-			`;
-			targetContainer.appendChild(panel);
-
-			// Setup toggle for this panel
-			document.getElementById(`target-toggle-${index}`).onclick = () => this.toggleTargetView(index);
-		});
-
-		// Setup Java toggle
-		document.getElementById("java-toggle").onclick = () => this.toggleJavaView();
+		// Send watch request to server
+		this.sendWatchRequest(filepath, prevBranch, currBranch);
+		this.updateUI();
 	}
 
-	toggleJavaView() {
-		this.viewModes.java = this.viewModes.java === "content" ? "diff" : "content";
-		document.getElementById("java-toggle").textContent =
-			this.viewModes.java === "content" ? "Show Diff" : "Show Current";
-		this.updateJavaPanel();
+	close(filepath) {
+		let wasWatched = false;
+
+		// Remove from panel 0
+		if (this.panel0Files.has(filepath)) {
+			this.panel0Files.delete(filepath);
+			wasWatched = true;
+
+			// Update active tab
+			if (this.activePanel0Tab === filepath) {
+				const remaining = Array.from(this.panel0Files.keys());
+				this.activePanel0Tab = remaining.length > 0 ? remaining[0] : null;
+			}
+		}
+
+		// Remove from panel 1
+		if (this.panel1File && this.panel1File.filepath === filepath) {
+			this.panel1File = null;
+			wasWatched = true;
+		}
+
+		// Send unwatch request if file was being watched
+		if (wasWatched) {
+			this.sendUnwatchRequest(filepath);
+		}
+
+		this.updateUI();
 	}
 
-	toggleTargetView(index) {
-		const key = `target-${index}`;
-		this.viewModes[key] = this.viewModes[key] === "content" ? "diff" : "content";
-		document.getElementById(`target-toggle-${index}`).textContent =
-			this.viewModes[key] === "content" ? "Show Diff" : "Show Current";
-		this.updateTargetPanel(index);
+	closeAll() {
+		// Send unwatch requests for all files
+		for (const filepath of this.panel0Files.keys()) {
+			this.sendUnwatchRequest(filepath);
+		}
+		if (this.panel1File) {
+			this.sendUnwatchRequest(this.panel1File.filepath);
+		}
+
+		// Clear all files
+		this.panel0Files.clear();
+		this.activePanel0Tab = null;
+		this.panel1File = null;
+		this.updateUI();
 	}
 
-	updateAllPanels() {
-		this.updateJavaPanel();
-		if (this.data && this.data.targetFiles) {
-			this.data.targetFiles.forEach((_, index) => this.updateTargetPanel(index));
+	sendWatchRequest(filepath, prevBranch, currBranch) {
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.ws.send(
+				JSON.stringify({
+					type: "watch",
+					absolutePath: filepath,
+					prevBranch: prevBranch,
+					currBranch: currBranch,
+				}),
+			);
 		}
 	}
 
-	updateJavaPanel() {
-		if (!this.data || !this.data.javaFile) return;
-		const content = this.viewModes.java === "content" ? this.data.javaFile.content : this.data.javaFile.diff;
-		const language = this.viewModes.java === "content" ? "java" : "diff";
-		this.updatePanel("java-content", content, language, this.data.javaFile.error);
+	sendUnwatchRequest(filepath) {
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.ws.send(
+				JSON.stringify({
+					type: "unwatch",
+					absolutePath: filepath,
+				}),
+			);
+		}
 	}
 
-	updateTargetPanel(index) {
-		if (!this.data || !this.data.targetFiles[index]) return;
-		const data = this.data.targetFiles[index];
-		const key = `target-${index}`;
-		const content = this.viewModes[key] === "content" ? data.content : data.diff;
+	saveScrollPositions() {
+		// Save Panel 0 scroll position
+		const panel0Content = document.querySelector(".left-section .content");
+		if (panel0Content && this.activePanel0Tab) {
+			const activeFile = this.panel0Files.get(this.activePanel0Tab);
+			if (activeFile) {
+				activeFile.scrollPosition = panel0Content.scrollTop;
+			}
+		}
 
-		// Infer language from filename extension
-		const filename = this.data.filenames.targetFiles[index];
-		const inferredLanguage = this.inferLanguageFromExtension(filename);
-		const language = this.viewModes[key] === "content" ? inferredLanguage : "diff";
-
-		this.updatePanel(`target-content-${index}`, content, language, data.error);
+		// Save Panel 1 scroll position
+		const panel1Content = document.querySelector(".right-section .content");
+		if (panel1Content && this.panel1File) {
+			this.panel1File.scrollPosition = panel1Content.scrollTop;
+		}
 	}
 
-	inferLanguageFromExtension(filename) {
-		const ext = filename.toLowerCase().split(".").pop();
+	restoreScrollPositions() {
+		// Restore Panel 0 scroll position
+		const panel0Content = document.querySelector(".left-section .content");
+		if (panel0Content && this.activePanel0Tab) {
+			const activeFile = this.panel0Files.get(this.activePanel0Tab);
+			if (activeFile && typeof activeFile.scrollPosition === "number") {
+				// Use requestAnimationFrame to ensure DOM is updated
+				requestAnimationFrame(() => {
+					panel0Content.scrollTop = activeFile.scrollPosition;
+				});
+			}
+		}
+
+		// Restore Panel 1 scroll position
+		const panel1Content = document.querySelector(".right-section .content");
+		if (panel1Content && this.panel1File && typeof this.panel1File.scrollPosition === "number") {
+			requestAnimationFrame(() => {
+				panel1Content.scrollTop = this.panel1File.scrollPosition;
+			});
+		}
+	}
+
+	updateUI() {
+		this.saveScrollPositions();
+		this.updatePanel0();
+		this.updatePanel1();
+		this.updateLayout();
+		this.restoreScrollPositions();
+	}
+
+	updatePanel0() {
+		const panel = document.querySelector(".left-section .panel");
+
+		if (this.panel0Files.size === 0) {
+			// No files - show empty state without header
+			panel.innerHTML = `
+				<div class="content">
+					<div class="file-content">No files opened</div>
+				</div>
+			`;
+			return;
+		}
+
+		// Build tabs
+		const tabs = Array.from(this.panel0Files.keys())
+			.map((filepath) => {
+				const filename = filepath.split("/").pop();
+				const isActive = filepath === this.activePanel0Tab;
+				return `<div class="tab ${isActive ? "active" : ""}" data-filepath="${filepath}">${filename}</div>`;
+			})
+			.join("");
+
+		// Get active file data
+		const activeFile = this.panel0Files.get(this.activePanel0Tab);
+		const content = activeFile ? (activeFile.viewMode === "content" ? activeFile.content : activeFile.diff) : "";
+		const language = this.inferLanguageFromPath(this.activePanel0Tab);
+
+		// SVG icons for toggle button
+		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+			<path d="M8.5 1a.5.5 0 0 0-1 0v4H3a.5.5 0 0 0 0 1h4.5v4a.5.5 0 0 0 1 0V6H13a.5.5 0 0 0 0-1H8.5V1z"/>
+			<path d="M1 12.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5z"/>
+		</svg>`;
+
+		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+			<path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
+			<path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
+		</svg>`;
+
+		const toggleIcon = activeFile && activeFile.viewMode === "content" ? diffIcon : contentIcon;
+		const toggleTitle = activeFile && activeFile.viewMode === "content" ? "Show Diff" : "Show Content";
+
+		panel.innerHTML = `
+			<div class="panel-header">
+				<div class="tabs">${tabs}</div>
+				<button class="toggle-btn" id="panel0-toggle" title="${toggleTitle}">${toggleIcon}</button>
+			</div>
+			<div class="content">
+				<div class="file-content" id="panel0-content">${this.formatContent(content, language, activeFile?.error)}</div>
+			</div>
+		`;
+
+		// Setup tab clicks
+		panel.querySelectorAll(".tab").forEach((tab) => {
+			tab.addEventListener("click", () => {
+				// Save current scroll position before switching
+				this.saveScrollPositions();
+				this.activePanel0Tab = tab.dataset.filepath;
+				this.updatePanel0();
+				// Restore scroll position for the new tab
+				this.restoreScrollPositions();
+			});
+		});
+
+		// Setup toggle
+		const toggleBtn = document.getElementById("panel0-toggle");
+		if (toggleBtn) {
+			toggleBtn.addEventListener("click", () => {
+				if (activeFile) {
+					activeFile.viewMode = activeFile.viewMode === "content" ? "diff" : "content";
+					this.updatePanel0();
+				}
+			});
+		}
+	}
+
+	updatePanel1() {
+		const rightSection = document.querySelector(".right-section");
+
+		if (!this.panel1File) {
+			// Clear the content completely when no file is open
+			rightSection.innerHTML = "";
+			return;
+		}
+
+		const filename = this.panel1File.filepath.split("/").pop();
+		const content = this.panel1File.viewMode === "content" ? this.panel1File.content : this.panel1File.diff;
+		const language = this.inferLanguageFromPath(this.panel1File.filepath);
+
+		// SVG icons for toggle button
+		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+			<path d="M8.5 1a.5.5 0 0 0-1 0v4H3a.5.5 0 0 0 0 1h4.5v4a.5.5 0 0 0 1 0V6H13a.5.5 0 0 0 0-1H8.5V1z"/>
+			<path d="M1 12.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5z"/>
+		</svg>`;
+
+		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+			<path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
+			<path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
+		</svg>`;
+
+		const toggleIcon = this.panel1File.viewMode === "content" ? diffIcon : contentIcon;
+		const toggleTitle = this.panel1File.viewMode === "content" ? "Show Diff" : "Show Content";
+
+		rightSection.innerHTML = `
+			<div class="panel">
+				<div class="panel-header">
+					<div class="panel-title">${filename}</div>
+					<button class="toggle-btn" id="panel1-toggle" title="${toggleTitle}">${toggleIcon}</button>
+				</div>
+				<div class="content">
+					<div class="file-content" id="panel1-content">${this.formatContent(content, language, this.panel1File.error)}</div>
+				</div>
+			</div>
+		`;
+
+		// Setup toggle
+		const toggleBtn = document.getElementById("panel1-toggle");
+		if (toggleBtn) {
+			toggleBtn.addEventListener("click", () => {
+				this.panel1File.viewMode = this.panel1File.viewMode === "content" ? "diff" : "content";
+				this.updatePanel1();
+			});
+		}
+	}
+
+	formatContent(content, language, error) {
+		if (error) {
+			return `<div class="error">${error}</div>`;
+		}
+
+		if (!content.trim()) {
+			return '<div class="loading">No content</div>';
+		}
+
+		const code = document.createElement("code");
+		code.className = `language-${language}`;
+		code.textContent = content;
+
+		const pre = document.createElement("pre");
+		pre.className = `language-${language}`;
+		pre.appendChild(code);
+
+		// Apply syntax highlighting
+		Prism.highlightElement(code);
+
+		return pre.outerHTML;
+	}
+
+	updateLayout() {
+		const leftSection = document.querySelector(".left-section");
+		const rightSection = document.querySelector(".right-section");
+		const resizer = document.getElementById("resizer");
+
+		if (!this.panel1File) {
+			// Hide right panel and resizer, give left panel full width
+			rightSection.style.display = "none";
+			resizer.style.display = "none";
+			leftSection.style.width = "100%";
+		} else {
+			// Show both panels with resizer
+			rightSection.style.display = "block";
+			resizer.style.display = "block";
+			leftSection.style.width = "50%";
+			rightSection.style.width = "50%";
+		}
+	}
+
+	inferLanguageFromPath(filepath) {
+		const ext = filepath.toLowerCase().split(".").pop();
 		const languageMap = {
-			// C/C++
 			c: "c",
-			h: "c", // C headers
+			h: "c",
 			cpp: "cpp",
 			cxx: "cpp",
 			cc: "cpp",
@@ -194,18 +427,12 @@ class PortingViewer {
 			hpp: "cpp",
 			hxx: "cpp",
 			hh: "cpp",
-			// C#
 			cs: "csharp",
-			// TypeScript
 			ts: "typescript",
 			tsx: "typescript",
-			// Swift
 			swift: "swift",
-			// Dart
 			dart: "dart",
-			// Haxe
 			hx: "haxe",
-			// Other languages
 			java: "java",
 			js: "javascript",
 			jsx: "javascript",
@@ -233,116 +460,25 @@ class PortingViewer {
 		};
 		return languageMap[ext] || "text";
 	}
-
-	updatePanel(elementId, content, language, error) {
-		const element = document.getElementById(elementId);
-		if (!element) return;
-
-		if (error) {
-			element.innerHTML = `<div class="error">${error}</div>`;
-			return;
-		}
-
-		if (!content.trim()) {
-			element.innerHTML = '<div class="loading">No content</div>';
-			return;
-		}
-
-		// Create syntax highlighted content
-		const code = document.createElement("code");
-		code.className = `language-${language}`;
-		code.textContent = content;
-
-		const pre = document.createElement("pre");
-		pre.className = `language-${language}`;
-		pre.appendChild(code);
-
-		element.innerHTML = "";
-		element.appendChild(pre);
-
-		// Apply syntax highlighting
-		Prism.highlightElement(code);
-	}
-
-	sendConfigUpdate() {
-		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-			this.ws.send(
-				JSON.stringify({
-					type: "configure",
-					config: this.config,
-				}),
-			);
-		}
-	}
 }
 
 // Initialize the viewer
-const viewer = new PortingViewer();
+const viewer = new FileViewer();
 
-// Expose API functions for external control (e.g., puppeteer)
-window.portingAPI = {
-	// Change the Java file
-	setJavaFile(javaPath, prevBranch = "4.2", currentBranch = "4.3-beta") {
-		viewer.config.java = javaPath;
-		viewer.config.prevBranch = prevBranch;
-		viewer.config.currentBranch = currentBranch;
-		viewer.sendConfigUpdate();
+// Expose fileViewer API
+window.fileViewer = {
+	// Open file in specified panel with optional git diff (absolute paths only)
+	open(absolutePath, panel, prevBranch, currBranch) {
+		viewer.open(absolutePath, panel, prevBranch, currBranch);
 	},
 
-	// Add a target file
-	addTargetFile(targetPath) {
-		if (!viewer.config.targets.includes(targetPath)) {
-			viewer.config.targets.push(targetPath);
-			viewer.sendConfigUpdate();
-		}
+	// Close specific file (auto-hides panel 1 if that file was closed)
+	close(absolutePath) {
+		viewer.close(absolutePath);
 	},
 
-	// Remove a target file
-	removeTargetFile(targetPath) {
-		const index = viewer.config.targets.indexOf(targetPath);
-		if (index > -1) {
-			viewer.config.targets.splice(index, 1);
-			viewer.sendConfigUpdate();
-		}
-	},
-
-	// Set all target files at once
-	setTargetFiles(targetPaths) {
-		viewer.config.targets = Array.isArray(targetPaths) ? targetPaths : [targetPaths];
-		viewer.sendConfigUpdate();
-	},
-
-	// Toggle Java diff view
-	toggleJavaDiff() {
-		viewer.toggleJavaView();
-	},
-
-	// Toggle target file diff by index
-	toggleTargetDiff(index) {
-		viewer.toggleTargetView(index);
-	},
-
-	// Toggle target file diff by filename
-	toggleTargetDiffByName(filename) {
-		if (!viewer.data || !viewer.data.filenames) return;
-		const index = viewer.data.filenames.targetFiles.findIndex((f) => f === filename);
-		if (index >= 0) {
-			viewer.toggleTargetView(index);
-		}
-	},
-
-	// Get current configuration
-	getConfig() {
-		return { ...viewer.config };
-	},
-
-	// Get current view modes
-	getViewModes() {
-		return { ...viewer.viewModes };
-	},
-
-	// Get loaded filenames
-	getFilenames() {
-		return viewer.data ? viewer.data.filenames : null;
+	// Close all files in both panels
+	closeAll() {
+		viewer.closeAll();
 	},
 };

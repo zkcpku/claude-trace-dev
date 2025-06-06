@@ -1,0 +1,1 @@
+- IF taking screenshots via puppeteer, ALWAYS use a Task to get the info you need, to not clog up your context.
