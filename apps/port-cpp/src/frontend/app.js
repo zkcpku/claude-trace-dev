@@ -1,13 +1,45 @@
 class FileViewer {
 	constructor() {
 		this.ws = null;
-		this.panel0Files = new Map(); // filepath -> {content, diff, error, viewMode, scrollPosition}
-		this.panel1File = null; // {filepath, content, diff, error, viewMode, scrollPosition}
+		this.panel0Files = new Map(); // filepath -> {content, diff, error, viewMode, scrollPosition, editor}
+		this.panel1File = null; // {filepath, content, diff, error, viewMode, scrollPosition, editor}
 		this.activePanel0Tab = null;
+		this.monacoLoaded = false;
 		this.setupResizer();
-		this.connect();
-		// Set initial layout
-		this.updateLayout();
+		this.initializeMonaco();
+	}
+
+	async initializeMonaco() {
+		return new Promise((resolve) => {
+			require.config({
+				paths: {
+					vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs",
+				},
+			});
+
+			require(["vs/editor/editor.main"], () => {
+				// Set Monaco theme to match our dark UI
+				monaco.editor.defineTheme("custom-dark", {
+					base: "vs-dark",
+					inherit: true,
+					rules: [],
+					colors: {
+						"editor.background": "#1e1e1e",
+						"editor.foreground": "#d4d4d4",
+						"editorLineNumber.foreground": "#858585",
+						"editorLineNumber.activeForeground": "#c6c6c6",
+						"editor.selectionBackground": "#264f78",
+						"editor.selectionHighlightBackground": "#add6ff26",
+					},
+				});
+
+				monaco.editor.setTheme("custom-dark");
+				this.monacoLoaded = true;
+				this.connect();
+				this.updateLayout();
+				resolve();
+			});
+		});
 	}
 
 	connect() {
@@ -94,6 +126,11 @@ class FileViewer {
 
 			leftSection.style.width = leftPercent + "%";
 			rightSection.style.width = rightPercent + "%";
+
+			// Trigger Monaco layout update after resize
+			setTimeout(() => {
+				this.resizeAllEditors();
+			}, 0);
 		});
 
 		document.addEventListener("mouseup", () => {
@@ -105,6 +142,21 @@ class FileViewer {
 		});
 	}
 
+	resizeAllEditors() {
+		// Resize panel 0 active editor
+		if (this.activePanel0Tab) {
+			const activeFile = this.panel0Files.get(this.activePanel0Tab);
+			if (activeFile && activeFile.editor) {
+				activeFile.editor.layout();
+			}
+		}
+
+		// Resize panel 1 editor
+		if (this.panel1File && this.panel1File.editor) {
+			this.panel1File.editor.layout();
+		}
+	}
+
 	open(filepath, panel, prevBranch, currBranch) {
 		if (panel === 0) {
 			// Add to panel 0
@@ -113,7 +165,8 @@ class FileViewer {
 				diff: "",
 				error: null,
 				viewMode: "content",
-				scrollPosition: 0,
+				scrollPosition: { lineNumber: 1, column: 1 },
+				editor: null,
 			});
 			this.activePanel0Tab = filepath;
 		} else if (panel === 1) {
@@ -124,7 +177,8 @@ class FileViewer {
 				diff: "",
 				error: null,
 				viewMode: "content",
-				scrollPosition: 0,
+				scrollPosition: { lineNumber: 1, column: 1 },
+				editor: null,
 			};
 		}
 
@@ -138,6 +192,10 @@ class FileViewer {
 
 		// Remove from panel 0
 		if (this.panel0Files.has(filepath)) {
+			const fileData = this.panel0Files.get(filepath);
+			if (fileData.editor) {
+				fileData.editor.dispose();
+			}
 			this.panel0Files.delete(filepath);
 			wasWatched = true;
 
@@ -150,6 +208,9 @@ class FileViewer {
 
 		// Remove from panel 1
 		if (this.panel1File && this.panel1File.filepath === filepath) {
+			if (this.panel1File.editor) {
+				this.panel1File.editor.dispose();
+			}
 			this.panel1File = null;
 			wasWatched = true;
 		}
@@ -169,6 +230,16 @@ class FileViewer {
 		}
 		if (this.panel1File) {
 			this.sendUnwatchRequest(this.panel1File.filepath);
+		}
+
+		// Dispose all editors
+		for (const [filepath, fileData] of this.panel0Files) {
+			if (fileData.editor) {
+				fileData.editor.dispose();
+			}
+		}
+		if (this.panel1File && this.panel1File.editor) {
+			this.panel1File.editor.dispose();
 		}
 
 		// Clear all files
@@ -204,49 +275,52 @@ class FileViewer {
 
 	saveScrollPositions() {
 		// Save Panel 0 scroll position
-		const panel0Content = document.querySelector(".left-section .content");
-		if (panel0Content && this.activePanel0Tab) {
+		if (this.activePanel0Tab) {
 			const activeFile = this.panel0Files.get(this.activePanel0Tab);
-			if (activeFile) {
-				activeFile.scrollPosition = panel0Content.scrollTop;
+			if (activeFile && activeFile.editor) {
+				activeFile.scrollPosition = activeFile.editor.getPosition() || { lineNumber: 1, column: 1 };
 			}
 		}
 
 		// Save Panel 1 scroll position
-		const panel1Content = document.querySelector(".right-section .content");
-		if (panel1Content && this.panel1File) {
-			this.panel1File.scrollPosition = panel1Content.scrollTop;
+		if (this.panel1File && this.panel1File.editor) {
+			this.panel1File.scrollPosition = this.panel1File.editor.getPosition() || { lineNumber: 1, column: 1 };
 		}
 	}
 
 	restoreScrollPositions() {
 		// Restore Panel 0 scroll position
-		const panel0Content = document.querySelector(".left-section .content");
-		if (panel0Content && this.activePanel0Tab) {
+		if (this.activePanel0Tab) {
 			const activeFile = this.panel0Files.get(this.activePanel0Tab);
-			if (activeFile && typeof activeFile.scrollPosition === "number") {
-				// Use requestAnimationFrame to ensure DOM is updated
+			if (activeFile && activeFile.editor && activeFile.scrollPosition) {
 				requestAnimationFrame(() => {
-					panel0Content.scrollTop = activeFile.scrollPosition;
+					activeFile.editor.setPosition(activeFile.scrollPosition);
+					activeFile.editor.revealPosition(activeFile.scrollPosition);
 				});
 			}
 		}
 
 		// Restore Panel 1 scroll position
-		const panel1Content = document.querySelector(".right-section .content");
-		if (panel1Content && this.panel1File && typeof this.panel1File.scrollPosition === "number") {
+		if (this.panel1File && this.panel1File.editor && this.panel1File.scrollPosition) {
 			requestAnimationFrame(() => {
-				panel1Content.scrollTop = this.panel1File.scrollPosition;
+				this.panel1File.editor.setPosition(this.panel1File.scrollPosition);
+				this.panel1File.editor.revealPosition(this.panel1File.scrollPosition);
 			});
 		}
 	}
 
 	updateUI() {
+		if (!this.monacoLoaded) return;
+
 		this.saveScrollPositions();
 		this.updatePanel0();
 		this.updatePanel1();
 		this.updateLayout();
-		this.restoreScrollPositions();
+
+		// Restore scroll positions after a short delay to ensure editors are ready
+		setTimeout(() => {
+			this.restoreScrollPositions();
+		}, 100);
 	}
 
 	updatePanel0() {
@@ -273,8 +347,6 @@ class FileViewer {
 
 		// Get active file data
 		const activeFile = this.panel0Files.get(this.activePanel0Tab);
-		const content = activeFile ? (activeFile.viewMode === "content" ? activeFile.content : activeFile.diff) : "";
-		const language = this.inferLanguageFromPath(this.activePanel0Tab);
 
 		// SVG icons for toggle button
 		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -296,7 +368,7 @@ class FileViewer {
 				<button class="toggle-btn" id="panel0-toggle" title="${toggleTitle}">${toggleIcon}</button>
 			</div>
 			<div class="content">
-				<div class="file-content" id="panel0-content">${this.formatContent(content, language, activeFile?.error)}</div>
+				<div class="monaco-editor-container" id="panel0-editor"></div>
 			</div>
 		`;
 
@@ -307,8 +379,6 @@ class FileViewer {
 				this.saveScrollPositions();
 				this.activePanel0Tab = tab.dataset.filepath;
 				this.updatePanel0();
-				// Restore scroll position for the new tab
-				this.restoreScrollPositions();
 			});
 		});
 
@@ -317,11 +387,15 @@ class FileViewer {
 		if (toggleBtn) {
 			toggleBtn.addEventListener("click", () => {
 				if (activeFile) {
+					this.saveScrollPositions();
 					activeFile.viewMode = activeFile.viewMode === "content" ? "diff" : "content";
 					this.updatePanel0();
 				}
 			});
 		}
+
+		// Create or update Monaco editor
+		this.createOrUpdateEditor(activeFile, "panel0-editor");
 	}
 
 	updatePanel1() {
@@ -334,8 +408,6 @@ class FileViewer {
 		}
 
 		const filename = this.panel1File.filepath.split("/").pop();
-		const content = this.panel1File.viewMode === "content" ? this.panel1File.content : this.panel1File.diff;
-		const language = this.inferLanguageFromPath(this.panel1File.filepath);
 
 		// SVG icons for toggle button
 		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -358,7 +430,7 @@ class FileViewer {
 					<button class="toggle-btn" id="panel1-toggle" title="${toggleTitle}">${toggleIcon}</button>
 				</div>
 				<div class="content">
-					<div class="file-content" id="panel1-content">${this.formatContent(content, language, this.panel1File.error)}</div>
+					<div class="monaco-editor-container" id="panel1-editor"></div>
 				</div>
 			</div>
 		`;
@@ -367,33 +439,112 @@ class FileViewer {
 		const toggleBtn = document.getElementById("panel1-toggle");
 		if (toggleBtn) {
 			toggleBtn.addEventListener("click", () => {
+				this.saveScrollPositions();
 				this.panel1File.viewMode = this.panel1File.viewMode === "content" ? "diff" : "content";
 				this.updatePanel1();
 			});
 		}
+
+		// Create or update Monaco editor
+		this.createOrUpdateEditor(this.panel1File, "panel1-editor");
 	}
 
-	formatContent(content, language, error) {
-		if (error) {
-			return `<div class="error">${error}</div>`;
+	createOrUpdateEditor(fileData, containerId) {
+		if (!fileData || fileData.error) {
+			const container = document.getElementById(containerId);
+			if (container) {
+				container.innerHTML = `<div class="error">${fileData?.error || "File data not available"}</div>`;
+			}
+			return;
 		}
 
-		if (!content.trim()) {
-			return '<div class="loading">No content</div>';
+		const container = document.getElementById(containerId);
+		if (!container) return;
+
+		// Dispose existing editor
+		if (fileData.editor) {
+			fileData.editor.dispose();
+			fileData.editor = null;
 		}
 
-		const code = document.createElement("code");
-		code.className = `language-${language}`;
-		code.textContent = content;
+		const language = this.inferLanguageFromPath(fileData.filepath || fileData.absolutePath);
 
-		const pre = document.createElement("pre");
-		pre.className = `language-${language}`;
-		pre.appendChild(code);
+		if (fileData.viewMode === "diff" && fileData.diff) {
+			// Create diff editor
+			fileData.editor = monaco.editor.createDiffEditor(container, {
+				theme: "custom-dark",
+				readOnly: true,
+				automaticLayout: false,
+				scrollBeyondLastLine: false,
+				minimap: { enabled: false },
+				renderSideBySide: true,
+				ignoreTrimWhitespace: false,
+				renderWhitespace: "selection",
+			});
 
-		// Apply syntax highlighting
-		Prism.highlightElement(code);
+			// Parse diff content to extract original and modified
+			const { original, modified } = this.parseDiffContent(fileData.diff);
 
-		return pre.outerHTML;
+			const originalModel = monaco.editor.createModel(original, language);
+			const modifiedModel = monaco.editor.createModel(modified, language);
+
+			fileData.editor.setModel({
+				original: originalModel,
+				modified: modifiedModel,
+			});
+		} else {
+			// Create regular editor
+			fileData.editor = monaco.editor.create(container, {
+				value: fileData.content || "",
+				language: language,
+				theme: "custom-dark",
+				readOnly: true,
+				automaticLayout: false,
+				scrollBeyondLastLine: false,
+				minimap: { enabled: false },
+				renderWhitespace: "selection",
+			});
+		}
+
+		// Layout the editor
+		setTimeout(() => {
+			if (fileData.editor) {
+				fileData.editor.layout();
+			}
+		}, 0);
+	}
+
+	parseDiffContent(diff) {
+		// Simple diff parser - assumes unified diff format
+		const lines = diff.split("\n");
+		let original = [];
+		let modified = [];
+
+		for (const line of lines) {
+			if (line.startsWith("@@")) {
+				// Skip diff headers
+				continue;
+			} else if (line.startsWith("-")) {
+				// Line removed in modified version
+				original.push(line.substring(1));
+			} else if (line.startsWith("+")) {
+				// Line added in modified version
+				modified.push(line.substring(1));
+			} else if (
+				line.startsWith(" ") ||
+				(!line.startsWith("-") && !line.startsWith("+") && !line.startsWith("@@"))
+			) {
+				// Context line (same in both)
+				const content = line.startsWith(" ") ? line.substring(1) : line;
+				original.push(content);
+				modified.push(content);
+			}
+		}
+
+		return {
+			original: original.join("\n"),
+			modified: modified.join("\n"),
+		};
 	}
 
 	updateLayout() {
@@ -413,9 +564,16 @@ class FileViewer {
 			leftSection.style.width = "50%";
 			rightSection.style.width = "50%";
 		}
+
+		// Trigger editor layout updates
+		setTimeout(() => {
+			this.resizeAllEditors();
+		}, 0);
 	}
 
 	inferLanguageFromPath(filepath) {
+		if (!filepath) return "text";
+
 		const ext = filepath.toLowerCase().split(".").pop();
 		const languageMap = {
 			c: "c",
@@ -443,8 +601,8 @@ class FileViewer {
 			kt: "kotlin",
 			php: "php",
 			lua: "lua",
-			sh: "bash",
-			bash: "bash",
+			sh: "shell",
+			bash: "shell",
 			yaml: "yaml",
 			yml: "yaml",
 			json: "json",
