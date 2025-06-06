@@ -1,1 +1,2 @@
 - IF taking screenshots via puppeteer, ALWAYS use a Task to get the info you need, to not clog up your context.
+- When opening a puppeteer browser, always use maximized window without viewport constraints

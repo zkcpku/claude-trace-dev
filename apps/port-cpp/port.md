@@ -31,7 +31,10 @@ cat dev-server.log
 
 ```javascript
 // Navigate to the viewer (find the port number in dev-server.log output)
-mcp__puppeteer__puppeteer_navigate("http://localhost:PORT");
+// For full-screen usage, use maximized window without viewport constraints:
+mcp__puppeteer__puppeteer_navigate("http://localhost:PORT", {
+	launchOptions: { headless: false, args: ["--start-maximized"], defaultViewport: null },
+});
 
 // Open files in panel 0 (left, tabbed) - all paths must be absolute
 mcp__puppeteer__puppeteer_evaluate(`
