@@ -73,6 +73,11 @@ class FileViewer {
 				fileData.content = content;
 				fileData.diff = diff;
 				fileData.error = error;
+
+				// If this file is currently active in panel 0, update its editor content
+				if (this.activePanel0Tab === absolutePath && fileData.editor) {
+					this.updateEditorContent(fileData);
+				}
 			}
 
 			// Update panel 1 file
@@ -80,9 +85,22 @@ class FileViewer {
 				this.panel1File.content = content;
 				this.panel1File.diff = diff;
 				this.panel1File.error = error;
+
+				// If this file has an editor, update its content
+				if (this.panel1File.editor) {
+					this.updateEditorContent(this.panel1File);
+				}
 			}
 
-			this.updateUI();
+			// Only update UI if the updated file is not currently displayed (no editor to update)
+			const isPanel0Active = this.panel0Files.has(absolutePath) && this.activePanel0Tab === absolutePath;
+			const isPanel1Active = this.panel1File && this.panel1File.filepath === absolutePath;
+			const hasActiveEditor =
+				(isPanel0Active && this.panel0Files.get(absolutePath).editor) || (isPanel1Active && this.panel1File.editor);
+
+			if (!hasActiveEditor) {
+				this.updateUI();
+			}
 		} else if (data.type === "fileRemoved") {
 			const { absolutePath } = data;
 
@@ -567,6 +585,38 @@ class FileViewer {
 				}
 			}
 		}, 0);
+	}
+
+	updateEditorContent(fileData) {
+		if (!fileData.editor) return;
+
+		// Save current view state to preserve cursor position and scroll
+		const currentViewState = fileData.editor.saveViewState();
+
+		const isDiffMode = (fileData.viewMode === "inline-diff" || fileData.viewMode === "side-diff") && fileData.diff;
+
+		if (isDiffMode) {
+			// Update diff editor content
+			const { original, modified } = this.parseDiffContent(fileData.diff);
+			const models = fileData.editor.getModel();
+			if (models && models.original && models.modified) {
+				models.original.setValue(original);
+				models.modified.setValue(modified);
+			}
+		} else {
+			// Update regular editor content
+			const model = fileData.editor.getModel();
+			if (model) {
+				model.setValue(fileData.content || "");
+			}
+		}
+
+		// Restore view state to maintain cursor position and scroll
+		if (currentViewState) {
+			setTimeout(() => {
+				fileData.editor.restoreViewState(currentViewState);
+			}, 0);
+		}
 	}
 
 	parseDiffContent(diff) {
