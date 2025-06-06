@@ -268,43 +268,71 @@ class App {
 	// highlight(filepath, start, end) -> highlight section in file (end inclusive)
 	highlight(filepath, start, end, prevBranch = null, currBranch = null) {
 		const fileIdentity = new FileIdentity(filepath, prevBranch, currBranch);
-		const fileKey = fileIdentity.getKey();
+		const exactFileKey = fileIdentity.getKey();
 
-		// Find the panel containing this file
+		// First try exact match
 		for (const panel of this.panels) {
-			if (panel.tabs.includes(fileKey)) {
-				// Switch to this tab
-				panel.switchToTab(fileKey);
-
-				// Get the file view and highlight
-				const fileView = panel.fileViews.get(fileKey);
-				if (fileView) {
-					setTimeout(() => {
-						if (arguments.length === 1) {
-							// Just filepath - clear highlights
-							panel.highlight();
-						} else if (arguments.length === 2 || (arguments.length === 5 && end === undefined)) {
-							// filepath + line - highlight single line
-							panel.highlight(start);
-						} else {
-							// filepath + start + end - highlight range
-							panel.highlight(start, end);
-						}
-					}, 300); // Give time for panel to display the file
-				}
-
-				const action =
-					arguments.length === 1
-						? "cleared highlights"
-						: arguments.length === 2 || end === undefined
-							? `highlighted line ${start}`
-							: `highlighted lines ${start}-${end}`;
-				console.log(`🎯 ${action} in ${fileKey}`);
+			if (panel.tabs.includes(exactFileKey)) {
+				this.performHighlight(panel, exactFileKey, filepath, start, end);
 				return;
 			}
 		}
 
-		console.warn(`Cannot highlight - file not open: ${fileKey}`);
+		// If no exact match, find best match by filepath among all open files
+		let bestMatch = null;
+		let bestPanel = null;
+
+		for (const panel of this.panels) {
+			for (const tabKey of panel.tabs) {
+				// Extract filepath from the tab key (format: filepath@branch->branch)
+				const tabFilepath = tabKey.split("@")[0];
+				if (tabFilepath === filepath) {
+					bestMatch = tabKey;
+					bestPanel = panel;
+					break;
+				}
+			}
+			if (bestMatch) break;
+		}
+
+		if (bestMatch && bestPanel) {
+			console.log(`🎯 Found best match: ${bestMatch} for ${filepath}`);
+			this.performHighlight(bestPanel, bestMatch, filepath, start, end);
+			return;
+		}
+
+		console.warn(`Cannot highlight - file not open: ${filepath} (exact: ${exactFileKey})`);
+	}
+
+	// Helper method to perform the actual highlighting
+	performHighlight(panel, fileKey, filepath, start, end) {
+		// Switch to this tab
+		panel.switchToTab(fileKey);
+
+		// Get the file view and highlight
+		const fileView = panel.fileViews.get(fileKey);
+		if (fileView) {
+			setTimeout(() => {
+				if (arguments.length === 4) {
+					// Just filepath - clear highlights
+					panel.highlight();
+				} else if (arguments.length === 5 || end === undefined) {
+					// filepath + line - highlight single line
+					panel.highlight(start);
+				} else {
+					// filepath + start + end - highlight range
+					panel.highlight(start, end);
+				}
+			}, 300); // Give time for panel to display the file
+		}
+
+		const action =
+			arguments.length === 4
+				? "cleared highlights"
+				: arguments.length === 5 || end === undefined
+					? `highlighted line ${start}`
+					: `highlighted lines ${start}-${end}`;
+		console.log(`🎯 ${action} in ${fileKey}`);
 	}
 
 	/**
