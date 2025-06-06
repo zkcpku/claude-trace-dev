@@ -1,8 +1,11 @@
+import logger from "./logger.js";
+import FileView from "./FileView.js";
+
 /**
  * TabbedPanel - Self-contained panel component that manages tabs, active file, and view modes
  * Replaces the old Panel class with full tab management capabilities
  */
-class TabbedPanel {
+export default class TabbedPanel {
 	constructor(containerId, webSocketManager) {
 		this.containerId = containerId;
 		this.container = document.getElementById(containerId);
@@ -12,7 +15,7 @@ class TabbedPanel {
 			throw new Error(`Container with id '${containerId}' not found`);
 		}
 
-		console.log(`📋 TabbedPanel created for container: ${containerId}`);
+		logger.log(`📋 TabbedPanel created for container: ${containerId}`);
 
 		// Panel state
 		this.tabs = []; // Array of file keys
@@ -87,7 +90,7 @@ class TabbedPanel {
 			ignoreTrimWhitespace: false,
 		});
 
-		console.log(`✅ TabbedPanel ${this.containerId} editors created`);
+		logger.log(`✅ TabbedPanel ${this.containerId} editors created`);
 	}
 
 	/**
@@ -121,7 +124,7 @@ class TabbedPanel {
 		this.updateUI();
 		this.displayActiveFile();
 
-		console.log(`📂 Added file to panel ${this.containerId}: ${fileKey}`);
+		logger.log(`📂 Added file to panel ${this.containerId}: ${fileKey}`);
 	}
 
 	/**
@@ -151,7 +154,7 @@ class TabbedPanel {
 			this.displayActiveFile();
 		}
 
-		console.log(`🗑️ Removed file from panel ${this.containerId}: ${fileKey}`);
+		logger.log(`🗑️ Removed file from panel ${this.containerId}: ${fileKey}`);
 
 		// Notify listeners about tab changes
 		this.notifyListeners({
@@ -545,7 +548,7 @@ class TabbedPanel {
 				this.currentFileModel.fullDiffViewState = viewState;
 			}
 		} catch (error) {
-			console.error("Failed to save view state:", error);
+			logger.error("Failed to save view state:", error);
 		}
 	}
 
@@ -628,7 +631,7 @@ class TabbedPanel {
 	 */
 	async openInCursor(filepath) {
 		try {
-			console.log(`🎯 Opening in Cursor: ${filepath}`);
+			logger.log(`🎯 Opening in Cursor: ${filepath}`);
 
 			const response = await fetch("/api/open-in-cursor", {
 				method: "POST",
@@ -639,12 +642,12 @@ class TabbedPanel {
 			});
 
 			if (response.ok) {
-				console.log(`✅ Successfully opened ${filepath} in Cursor`);
+				logger.log(`✅ Successfully opened ${filepath} in Cursor`);
 			} else {
-				console.error(`❌ Failed to open ${filepath} in Cursor:`, response.statusText);
+				logger.error(`❌ Failed to open ${filepath} in Cursor:`, response.statusText);
 			}
 		} catch (error) {
-			console.error(`❌ Error opening ${filepath} in Cursor:`, error);
+			logger.error(`❌ Error opening ${filepath} in Cursor:`, error);
 		}
 	}
 
@@ -703,7 +706,7 @@ class TabbedPanel {
 			try {
 				callback(event);
 			} catch (error) {
-				console.error("Error in TabbedPanel listener:", error);
+				logger.error("Error in TabbedPanel listener:", error);
 			}
 		}
 	}
@@ -712,7 +715,7 @@ class TabbedPanel {
 	 * Dispose panel and cleanup
 	 */
 	dispose() {
-		console.log(`🗑️ Disposing TabbedPanel: ${this.containerId}`);
+		logger.log(`🗑️ Disposing TabbedPanel: ${this.containerId}`);
 
 		// Save current view state
 		this.saveCurrentViewState();
@@ -742,6 +745,6 @@ class TabbedPanel {
 		this.fileViews.clear();
 		this.updateListeners.clear();
 
-		console.log(`✅ TabbedPanel ${this.containerId} disposed`);
+		logger.log(`✅ TabbedPanel ${this.containerId} disposed`);
 	}
 }

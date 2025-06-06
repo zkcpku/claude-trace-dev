@@ -1,5 +1,7 @@
+import logger from "./logger.js";
+
 // File model with Monaco editors for content, diff, and full diff modes
-class FileModel {
+export default class FileModel {
 	constructor(fileIdentity, content = "", diff = "", originalContent = "", modifiedContent = "") {
 		this.identity = fileIdentity;
 		this.filepath = fileIdentity.filepath;
@@ -47,7 +49,7 @@ class FileModel {
 			monaco.Uri.parse(`file://${baseUri}#fullModified`),
 		);
 
-		console.log(`✅ Created Monaco models for: ${baseUri}`);
+		logger.log(`✅ Created Monaco models for: ${baseUri}`);
 	}
 
 	// Update file content and refresh all Monaco models

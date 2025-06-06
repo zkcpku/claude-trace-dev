@@ -1,10 +1,15 @@
+import logger from "./logger.js";
+import FileIdentity from "./FileIdentity.js";
+import TabbedPanel from "./TabbedPanel.js";
+import WebSocketManager from "./WebSocketManager.js";
+
 /**
  * App class coordinates the entire file viewer application
  * Manages an array of TabbedPanels and overall UI state
  */
 class App {
 	constructor() {
-		console.log("🚀 Starting File Viewer App");
+		logger.log("🚀 Starting File Viewer App");
 
 		// Step 1: Create WebSocket manager immediately
 		this.webSocketManager = new WebSocketManager();
@@ -41,7 +46,7 @@ class App {
 		this.updateLayout();
 		this.setupGlobalAPI();
 
-		console.log("✅ File Viewer App fully initialized");
+		logger.log("✅ File Viewer App fully initialized");
 	}
 
 	/**
@@ -60,7 +65,7 @@ class App {
 			rightSection.innerHTML = '<div class="monaco-editor-container" id="panel1-editor"></div>';
 		}
 
-		console.log("📦 Permanent editor containers created");
+		logger.log("📦 Permanent editor containers created");
 	}
 
 	/**
@@ -68,7 +73,7 @@ class App {
 	 */
 	async waitForMonaco() {
 		return new Promise((resolve) => {
-			console.log("🔧 Initializing Monaco Editor...");
+			logger.log("🔧 Initializing Monaco Editor...");
 
 			// Configure require.js for Monaco
 			require.config({
@@ -79,7 +84,7 @@ class App {
 
 			// Load Monaco Editor
 			require(["vs/editor/editor.main"], () => {
-				console.log("✅ Monaco Editor loaded");
+				logger.log("✅ Monaco Editor loaded");
 
 				try {
 					// Set Monaco theme to match our dark UI
@@ -98,10 +103,10 @@ class App {
 					});
 
 					monaco.editor.setTheme("custom-dark");
-					console.log("✅ Monaco theme configured");
+					logger.log("✅ Monaco theme configured");
 					resolve();
 				} catch (error) {
-					console.error("Failed to configure Monaco theme:", error);
+					logger.error("Failed to configure Monaco theme:", error);
 					resolve(); // Still resolve to continue initialization
 				}
 			});
@@ -120,7 +125,7 @@ class App {
 		// Connect
 		this.webSocketManager.connect();
 
-		console.log("🔌 WebSocket manager initialized");
+		logger.log("🔌 WebSocket manager initialized");
 	}
 
 	/**
@@ -132,7 +137,7 @@ class App {
 		const rightSection = document.querySelector(".right-section");
 
 		if (!resizer || !leftSection || !rightSection) {
-			console.warn("Resizer elements not found");
+			logger.warn("Resizer elements not found");
 			return;
 		}
 
@@ -169,7 +174,7 @@ class App {
 			document.removeEventListener("mouseup", handleMouseUp);
 		};
 
-		console.log("📐 Resizer initialized");
+		logger.log("📐 Resizer initialized");
 	}
 
 	/**
@@ -194,18 +199,18 @@ class App {
 			},
 		};
 
-		console.log("🌐 Global fileViewer API created");
+		logger.log("🌐 Global fileViewer API created");
 	}
 
 	/**
 	 * Open a file in specified panel
 	 */
 	open(filepath, panelIndex, prevBranch = null, currBranch = null) {
-		console.log(`📂 Opening: ${filepath} in panel ${panelIndex}`, { prevBranch, currBranch });
+		logger.log(`📂 Opening: ${filepath} in panel ${panelIndex}`, { prevBranch, currBranch });
 
 		// Validate panel index
 		if (panelIndex < 0 || panelIndex >= this.panels.length) {
-			console.error(`Invalid panel index: ${panelIndex}`);
+			logger.error(`Invalid panel index: ${panelIndex}`);
 			return;
 		}
 
@@ -218,7 +223,7 @@ class App {
 		// Update layout to show panels
 		this.updateLayout();
 
-		console.log(`✅ File opened: ${fileIdentity.getKey()}`);
+		logger.log(`✅ File opened: ${fileIdentity.getKey()}`);
 	}
 
 	/**
@@ -228,7 +233,7 @@ class App {
 		const fileIdentity = new FileIdentity(filepath, prevBranch, currBranch);
 		const fileKey = fileIdentity.getKey();
 
-		console.log(`🗑️ Closing: ${fileKey}`);
+		logger.log(`🗑️ Closing: ${fileKey}`);
 
 		// Remove from all panels
 		this.panels.forEach((panel) => {
@@ -238,14 +243,14 @@ class App {
 		// Update layout
 		this.updateLayout();
 
-		console.log(`✅ File closed: ${fileKey}`);
+		logger.log(`✅ File closed: ${fileKey}`);
 	}
 
 	/**
 	 * Close all files
 	 */
 	closeAll() {
-		console.log("🗑️ Closing all files");
+		logger.log("🗑️ Closing all files");
 
 		// Clear all panels
 		this.panels.forEach((panel) => {
@@ -259,7 +264,7 @@ class App {
 		// Update layout
 		this.updateLayout();
 
-		console.log("✅ All files closed");
+		logger.log("✅ All files closed");
 	}
 
 	// Enhanced highlighting API for files (only works in content mode)
@@ -296,12 +301,12 @@ class App {
 		}
 
 		if (bestMatch && bestPanel) {
-			console.log(`🎯 Found best match: ${bestMatch} for ${filepath}`);
+			logger.log(`🎯 Found best match: ${bestMatch} for ${filepath}`);
 			this.performHighlight(bestPanel, bestMatch, filepath, start, end);
 			return;
 		}
 
-		console.warn(`Cannot highlight - file not open: ${filepath} (exact: ${exactFileKey})`);
+		logger.warn(`Cannot highlight - file not open: ${filepath} (exact: ${exactFileKey})`);
 	}
 
 	// Helper method to perform the actual highlighting
@@ -332,14 +337,14 @@ class App {
 				: end === undefined
 					? `highlighted line ${start}`
 					: `highlighted lines ${start}-${end}`;
-		console.log(`🎯 ${action} in ${fileKey}`);
+		logger.log(`🎯 ${action} in ${fileKey}`);
 	}
 
 	/**
 	 * Refresh all files
 	 */
 	refresh() {
-		console.log("🔄 Refreshing all files");
+		logger.log("🔄 Refreshing all files");
 		this.webSocketManager.refresh();
 	}
 
@@ -422,7 +427,7 @@ class App {
 	 * Dispose app and cleanup
 	 */
 	dispose() {
-		console.log("🗑️ Disposing App");
+		logger.log("🗑️ Disposing App");
 
 		// Dispose all panels
 		this.panels.forEach((panel) => {
@@ -435,7 +440,7 @@ class App {
 		// Clear global API
 		delete window.fileViewer;
 
-		console.log("✅ App disposed");
+		logger.log("✅ App disposed");
 	}
 }
 

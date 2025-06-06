@@ -81,3 +81,34 @@ fileViewer.highlight("/path/to/file", 10, 20); // Highlight lines 10-20 (inclusi
 **Workflow Documentation** ([`port.md`](port.md)): Complete porting workflow documentation for Claude, including descriptions on how to open and control file viewer and build target language code base
 
 **Build Integration** ([`build.sh`](build.sh)): CMake integration for testing target language compilation (failures expected due to circular dependencies)
+
+## Debug Mode
+
+The file viewer frontend uses a configurable logging system. **By default, all logging is disabled** for clean console output and optimal performance.
+
+### Enabling Debug Logging
+
+**Quick URL method:**
+
+```
+http://localhost:PORT/?debug=true
+```
+
+**Runtime console commands:**
+
+```javascript
+// Enable all logging
+fileViewerLogger.enableAll();
+
+// Enable specific levels
+fileViewerLogger.enable("error");
+fileViewerLogger.enable("log");
+
+// Disable logging
+fileViewerLogger.disableAll();
+
+// Check current settings
+fileViewerLogger.getConfig();
+```
+
+Debug logging shows file operations, WebSocket events, panel updates, and error details. Settings persist across browser sessions via localStorage.

@@ -1,5 +1,5 @@
 // Unique file identity based on filepath and branch context for tracking files
-class FileIdentity {
+export default class FileIdentity {
 	constructor(filepath, prevBranch = null, currBranch = null) {
 		this.filepath = filepath;
 		this.prevBranch = prevBranch;

@@ -1,8 +1,10 @@
+import logger from "./logger.js";
+
 /**
  * Manages single WebSocket connection with multiple file subscriptions
  * Routes file updates to appropriate subscribers based on FileIdentity
  */
-class WebSocketManager {
+export default class WebSocketManager {
 	constructor() {
 		this.ws = null;
 		this.connected = false;
@@ -22,13 +24,13 @@ class WebSocketManager {
 		const port = window.location.port ? `:${window.location.port}` : "";
 		const wsUrl = `${protocol}//${window.location.hostname}${port}`;
 
-		console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
+		logger.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
 
 		try {
 			this.ws = new WebSocket(wsUrl);
 			this.setupEventHandlers();
 		} catch (error) {
-			console.error("Failed to create WebSocket:", error);
+			logger.error("Failed to create WebSocket:", error);
 			this.scheduleReconnect();
 		}
 	}
@@ -38,7 +40,7 @@ class WebSocketManager {
 	 */
 	setupEventHandlers() {
 		this.ws.onopen = () => {
-			console.log("✅ WebSocket connected successfully");
+			logger.log("✅ WebSocket connected successfully");
 			this.connected = true;
 			this.reconnectDelay = 1000; // Reset reconnect delay
 			this.clearReconnectInterval();
@@ -49,20 +51,20 @@ class WebSocketManager {
 		};
 
 		this.ws.onclose = (event) => {
-			console.log("❌ WebSocket disconnected:", event.code, event.reason);
+			logger.log("❌ WebSocket disconnected:", event.code, event.reason);
 			this.connected = false;
 			this.notifyConnectionListeners(false);
 
 			// Auto-reconnect unless it was a clean close
 			if (event.code !== 1000) {
-				console.log("🔄 WebSocket closed unexpectedly, will attempt to reconnect");
+				logger.log("🔄 WebSocket closed unexpectedly, will attempt to reconnect");
 				this.scheduleReconnect();
 			}
 		};
 
 		this.ws.onerror = (error) => {
-			console.error("❌ WebSocket error:", error);
-			console.log("WebSocket readyState:", this.ws.readyState);
+			logger.error("❌ WebSocket error:", error);
+			logger.log("WebSocket readyState:", this.ws.readyState);
 		};
 
 		this.ws.onmessage = (event) => {
@@ -70,7 +72,7 @@ class WebSocketManager {
 				const data = JSON.parse(event.data);
 				this.handleMessage(data);
 			} catch (error) {
-				console.error("Failed to parse WebSocket message:", error);
+				logger.error("Failed to parse WebSocket message:", error);
 			}
 		};
 	}
@@ -138,7 +140,7 @@ class WebSocketManager {
 			}
 		}
 
-		console.log(`📡 Subscribed to: ${fileKey}`);
+		logger.log(`📡 Subscribed to: ${fileKey}`);
 	}
 
 	/**
@@ -159,7 +161,7 @@ class WebSocketManager {
 			}
 		}
 
-		console.log(`📡 Unsubscribed from: ${fileKey}`);
+		logger.log(`📡 Unsubscribed from: ${fileKey}`);
 	}
 
 	/**
@@ -170,7 +172,7 @@ class WebSocketManager {
 
 		const request = fileIdentity.toWatchRequest();
 		this.ws.send(JSON.stringify(request));
-		console.log(`👀 Watching:`, request);
+		logger.log(`👀 Watching:`, request);
 	}
 
 	/**
@@ -181,14 +183,14 @@ class WebSocketManager {
 
 		const request = fileIdentity.toUnwatchRequest();
 		this.ws.send(JSON.stringify(request));
-		console.log(`👁️ Unwatching:`, request);
+		logger.log(`👁️ Unwatching:`, request);
 	}
 
 	/**
 	 * Re-subscribe to all watched files after reconnection
 	 */
 	resubscribeAll() {
-		console.log(`🔄 Re-subscribing to ${this.watchedFiles.size} files`);
+		logger.log(`🔄 Re-subscribing to ${this.watchedFiles.size} files`);
 
 		for (const fileIdentity of this.watchedFiles.values()) {
 			this.sendWatchRequest(fileIdentity);
@@ -201,10 +203,10 @@ class WebSocketManager {
 	scheduleReconnect() {
 		this.clearReconnectInterval();
 
-		console.log(`🔄 Scheduling reconnect in ${this.reconnectDelay}ms`);
+		logger.log(`🔄 Scheduling reconnect in ${this.reconnectDelay}ms`);
 
 		this.reconnectInterval = setTimeout(() => {
-			console.log("🔄 Attempting to reconnect...");
+			logger.log("🔄 Attempting to reconnect...");
 			this.connect();
 
 			// Exponential backoff
@@ -246,7 +248,7 @@ class WebSocketManager {
 			try {
 				callback(connected);
 			} catch (error) {
-				console.error("Error in connection listener:", error);
+				logger.error("Error in connection listener:", error);
 			}
 		}
 	}
@@ -255,7 +257,7 @@ class WebSocketManager {
 	 * Refresh all watched files
 	 */
 	refresh() {
-		console.log("🔄 Refreshing all files");
+		logger.log("🔄 Refreshing all files");
 
 		// Re-send watch requests for all files to force server refresh
 		for (const fileIdentity of this.watchedFiles.values()) {
@@ -270,7 +272,7 @@ class WebSocketManager {
 		const fileKey = fileIdentity.getKey();
 
 		if (this.watchedFiles.has(fileKey)) {
-			console.log(`🔄 Refreshing file: ${fileKey}`);
+			logger.log(`🔄 Refreshing file: ${fileKey}`);
 			this.sendWatchRequest(fileIdentity);
 		}
 	}

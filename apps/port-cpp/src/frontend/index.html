@@ -28,11 +28,12 @@
 	<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 	
 	<!-- Load new architecture components in dependency order -->
-	<script src="/FileIdentity.js"></script>
-	<script src="/FileModel.js"></script>
-	<script src="/WebSocketManager.js"></script>
-	<script src="/FileView.js"></script>
-	<script src="/TabbedPanel.js"></script>
-	<script src="/app.js"></script>
+	<script type="module" src="/logger.js"></script>
+	<script type="module" src="/FileIdentity.js"></script>
+	<script type="module" src="/FileModel.js"></script>
+	<script type="module" src="/WebSocketManager.js"></script>
+	<script type="module" src="/FileView.js"></script>
+	<script type="module" src="/TabbedPanel.js"></script>
+	<script type="module" src="/app.js"></script>
 </body>
 </html>

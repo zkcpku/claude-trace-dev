@@ -1,5 +1,8 @@
+import logger from "./logger.js";
+import FileModel from "./FileModel.js";
+
 // Manages a single file+branch combination with WebSocket updates and panel display
-class FileView {
+export default class FileView {
 	constructor(
 		fileIdentity,
 		webSocketManager,
@@ -21,7 +24,7 @@ class FileView {
 		this.currentMode = "content";
 		this.updateListeners = new Set();
 		this.subscribe();
-		console.log(`📁 FileView created for: ${this.fileIdentity.getKey()}`);
+		logger.log(`📁 FileView created for: ${this.fileIdentity.getKey()}`);
 	}
 
 	// Subscribe to WebSocket updates for this file
@@ -31,7 +34,7 @@ class FileView {
 
 	// Handle file updates from WebSocket
 	handleUpdate(data) {
-		console.log(`📥 Update received for: ${this.fileIdentity.getKey()}`, data);
+		logger.log(`📥 Update received for: ${this.fileIdentity.getKey()}`, data);
 
 		if (data.type === "fileUpdate") {
 			const { content, diff, originalContent, modifiedContent, error } = data;
@@ -65,7 +68,7 @@ class FileView {
 		else if (mode === "diff") panel.showDiff(this.fileModel);
 		else if (mode === "fullDiff") panel.showFullDiff(this.fileModel);
 
-		console.log(`📺 FileView ${this.fileIdentity.getKey()} displayed in panel ${panel.containerId} (${mode} mode)`);
+		logger.log(`📺 FileView ${this.fileIdentity.getKey()} displayed in panel ${panel.containerId} (${mode} mode)`);
 	}
 
 	// Refresh current display (called after file updates)
@@ -76,7 +79,7 @@ class FileView {
 	// Switch view mode
 	switchMode(newMode) {
 		if (!this.currentPanel || this.currentMode === newMode) return;
-		console.log(`🔄 Switching from ${this.currentMode} to ${newMode} mode`);
+		logger.log(`🔄 Switching from ${this.currentMode} to ${newMode} mode`);
 		this.currentMode = newMode;
 		this.displayIn(this.currentPanel, newMode);
 		this.notifyListeners({ type: "modeChanged", fileView: this, newMode });
@@ -86,7 +89,7 @@ class FileView {
 	toggleMode() {
 		const actualPanelMode = this.currentPanel ? this.currentPanel.getCurrentMode() : this.currentMode;
 		const newMode = actualPanelMode === "content" ? "diff" : actualPanelMode === "diff" ? "fullDiff" : "content";
-		console.log(`🔄 Switching from ${actualPanelMode} to ${newMode} mode`);
+		logger.log(`🔄 Switching from ${actualPanelMode} to ${newMode} mode`);
 		this.switchMode(newMode);
 	}
 
@@ -112,7 +115,7 @@ class FileView {
 
 	// Request refresh from server
 	refresh() {
-		console.log(`🔄 Requesting refresh for: ${this.fileIdentity.getKey()}`);
+		logger.log(`🔄 Requesting refresh for: ${this.fileIdentity.getKey()}`);
 		this.webSocketManager.refreshFile(this.fileIdentity);
 	}
 
@@ -132,7 +135,7 @@ class FileView {
 			try {
 				callback(event);
 			} catch (error) {
-				console.error("Error in FileView listener:", error);
+				logger.error("Error in FileView listener:", error);
 			}
 		}
 	}
@@ -184,12 +187,12 @@ class FileView {
 	hide() {
 		if (this.currentPanel) this.currentPanel.saveCurrentViewState();
 		this.currentPanel = null;
-		console.log(`👁️ FileView ${this.fileIdentity.getKey()} hidden`);
+		logger.log(`👁️ FileView ${this.fileIdentity.getKey()} hidden`);
 	}
 
 	// Dispose this file view and cleanup
 	dispose() {
-		console.log(`🗑️ Disposing FileView: ${this.fileIdentity.getKey()}`);
+		logger.log(`🗑️ Disposing FileView: ${this.fileIdentity.getKey()}`);
 		this.hide();
 		this.webSocketManager.unsubscribe(this.fileIdentity);
 		this.fileModel.dispose();
