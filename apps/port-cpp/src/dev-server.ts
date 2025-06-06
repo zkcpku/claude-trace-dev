@@ -70,6 +70,10 @@ class DevServer {
 						const { absolutePath } = message;
 						console.log(`Unwatching file: ${absolutePath}`);
 						this.unwatchFile(ws, absolutePath);
+					} else if (message.type === "refresh") {
+						// Refresh all watched files for this client: { type: "refresh" }
+						console.log("Refreshing all files for client");
+						this.refreshAllFilesForClient(ws);
 					} else {
 						console.log("Unknown message type:", message.type);
 					}
@@ -229,6 +233,17 @@ class DevServer {
 		// Send current state of all watched files to newly connected client
 		for (const absolutePath of this.watchedFiles.keys()) {
 			this.broadcastFileUpdateToClient(ws, absolutePath);
+		}
+	}
+
+	private refreshAllFilesForClient(ws: any) {
+		// Refresh all files that this specific client is watching
+		const clientFiles = this.clientFiles.get(ws);
+		if (clientFiles) {
+			for (const absolutePath of clientFiles) {
+				// Re-send the file data with fresh git diff calculation
+				this.broadcastFileUpdateToClient(ws, absolutePath);
+			}
 		}
 	}
 

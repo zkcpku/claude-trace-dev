@@ -753,6 +753,16 @@ class FileViewer {
 		};
 		return languageMap[ext] || "text";
 	}
+
+	refresh() {
+		// Send refresh message to server to recalculate all file states
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.ws.send(JSON.stringify({ type: "refresh" }));
+			console.log("Sent refresh request to server");
+		} else {
+			console.warn("WebSocket not connected, cannot refresh");
+		}
+	}
 }
 
 // Initialize the viewer
@@ -773,5 +783,10 @@ window.fileViewer = {
 	// Close all files in both panels
 	closeAll() {
 		viewer.closeAll();
+	},
+
+	// Refresh all watched files to get latest git state
+	refresh() {
+		viewer.refresh();
 	},
 };
