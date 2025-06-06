@@ -7,11 +7,11 @@ import { ChangeSet, CppTypeMapping } from "./types.js";
 function generateSuggestedPaths(typeName: string, type: "class" | "interface" | "enum", spineCppDir: string): string[] {
 	const headerPath = path.join(spineCppDir, "spine-cpp", "include", "spine", `${typeName}.h`);
 
-	if (type === "enum") {
+	if (type === "enum" || type === "interface") {
 		// Header-only types
 		return [headerPath];
 	} else {
-		// Class and interface both need header + source (interfaces need .cpp for RTTI_IMPL)
+		// Class with header + source
 		const sourcePath = path.join(spineCppDir, "spine-cpp", "src", "spine", `${typeName}.cpp`);
 		return [headerPath, sourcePath];
 	}
@@ -21,23 +21,22 @@ export function mapJavaTypesToCpp(changeSet: ChangeSet, cppTypeMapping: CppTypeM
 	const updatedFiles = changeSet.files.map((file) => {
 		const updatedTypes = file.javaTypes.map((javaType) => {
 			// Check if C++ type exists using mapping
-			const mappedHeaderPath = cppTypeMapping[javaType.name];
+			const existingHeaderPath = cppTypeMapping[javaType.name];
 
-			if (mappedHeaderPath) {
-				// Header file exists (mapping only contains existing files) - update existing files
-				const targetFiles = [mappedHeaderPath];
+			if (existingHeaderPath) {
+				// Type exists - update existing files
+				const targetFiles = [existingHeaderPath];
 
-				// Add corresponding source file if it's a class or interface (interfaces need .cpp for RTTI_IMPL)
-				if (javaType.type === "class" || javaType.type === "interface") {
-					const headerDir = path.dirname(mappedHeaderPath);
+				// Add corresponding source file if it's a class
+				if (javaType.type === "class") {
+					const headerDir = path.dirname(existingHeaderPath);
 					const sourceDir = headerDir.replace("/include/spine", "/src/spine");
 					const sourcePath = path.join(sourceDir, `${javaType.name}.cpp`);
 
-					// Touch .cpp file if it doesn't exist (since .h exists, filesExist stays true)
-					if (!fs.existsSync(sourcePath)) {
-						fs.writeFileSync(sourcePath, "");
+					// Check if source file actually exists
+					if (fs.existsSync(sourcePath)) {
+						targetFiles.push(sourcePath);
 					}
-					targetFiles.push(sourcePath);
 				}
 
 				return {
