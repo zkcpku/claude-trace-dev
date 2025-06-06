@@ -106,7 +106,12 @@ jq '.metadata' porting-plan.json
 
 ### 1. Start Dev Server and Spin Up Puppeteer
 
-Start the development server and open the file viewer using puppeteer for collaborative viewing.
+First kill all running dev servers, then start the development server and open the file viewer using puppeteer for collaborative viewing.
+
+```bash
+# Kill any existing dev servers
+pkill -f "dev-server.ts" || true
+```
 
 ### 2. Find the Next Type to Port
 
