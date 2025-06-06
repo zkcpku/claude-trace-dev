@@ -642,7 +642,7 @@ class FileViewer {
 			tsx: "typescript",
 			swift: "swift",
 			dart: "dart",
-			hx: "haxe",
+			hx: "javascript", // Haxe syntax is similar to JavaScript/ActionScript
 			java: "java",
 			js: "javascript",
 			jsx: "javascript",
