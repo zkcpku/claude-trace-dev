@@ -186,8 +186,8 @@ class App {
 			closeAll: () => {
 				this.closeAll();
 			},
-			highlight: (filepath, lineNumber, prevBranch, currBranch) => {
-				this.highlight(filepath, lineNumber, prevBranch, currBranch);
+			highlight: (filepath, start, end, prevBranch, currBranch) => {
+				this.highlight(filepath, start, end, prevBranch, currBranch);
 			},
 			refresh: () => {
 				this.refresh();
@@ -262,33 +262,49 @@ class App {
 		console.log("✅ All files closed");
 	}
 
-	/**
-	 * Highlight a line in a file
-	 */
-	highlight(filepath, lineNumber, prevBranch = null, currBranch = null) {
+	// Enhanced highlighting API for files (only works in content mode)
+	// highlight(filepath) -> remove highlights from file
+	// highlight(filepath, line) -> highlight single line in file
+	// highlight(filepath, start, end) -> highlight section in file (end inclusive)
+	highlight(filepath, start, end, prevBranch = null, currBranch = null) {
 		const fileIdentity = new FileIdentity(filepath, prevBranch, currBranch);
 		const fileKey = fileIdentity.getKey();
 
 		// Find the panel containing this file
 		for (const panel of this.panels) {
 			if (panel.tabs.includes(fileKey)) {
-				// Switch to this tab and highlight
+				// Switch to this tab
 				panel.switchToTab(fileKey);
 
-				// Get the file view and highlight the line
+				// Get the file view and highlight
 				const fileView = panel.fileViews.get(fileKey);
 				if (fileView) {
 					setTimeout(() => {
-						panel.highlightLine(lineNumber);
+						if (arguments.length === 1) {
+							// Just filepath - clear highlights
+							panel.highlight();
+						} else if (arguments.length === 2 || (arguments.length === 5 && end === undefined)) {
+							// filepath + line - highlight single line
+							panel.highlight(start);
+						} else {
+							// filepath + start + end - highlight range
+							panel.highlight(start, end);
+						}
 					}, 300); // Give time for panel to display the file
 				}
 
-				console.log(`🎯 Highlighted line ${lineNumber} in ${fileKey}`);
+				const action =
+					arguments.length === 1
+						? "cleared highlights"
+						: arguments.length === 2 || end === undefined
+							? `highlighted line ${start}`
+							: `highlighted lines ${start}-${end}`;
+				console.log(`🎯 ${action} in ${fileKey}`);
 				return;
 			}
 		}
 
-		console.warn(`Cannot highlight line - file not open: ${fileKey}`);
+		console.warn(`Cannot highlight - file not open: ${fileKey}`);
 	}
 
 	/**

@@ -90,11 +90,24 @@ class FileView {
 		this.switchMode(newMode);
 	}
 
-	// Highlight a specific line in the current display
-	highlightLine(lineNumber) {
+	// Enhanced highlighting API - only works in content mode
+	// highlight() -> remove highlight
+	// highlight(line) -> highlight single line
+	// highlight(start, end) -> highlight section (end inclusive)
+	highlight(start, end) {
 		if (!this.currentPanel) return;
-		this.currentPanel.highlightLine(lineNumber);
-		this.notifyListeners({ type: "lineHighlighted", fileView: this, lineNumber });
+		this.currentPanel.highlight(start, end);
+		this.notifyListeners({
+			type: "highlighted",
+			fileView: this,
+			start,
+			end: arguments.length === 0 ? undefined : arguments.length === 1 ? start : end,
+		});
+	}
+
+	// Legacy method for backward compatibility
+	highlightLine(lineNumber) {
+		this.highlight(lineNumber);
 	}
 
 	// Request refresh from server

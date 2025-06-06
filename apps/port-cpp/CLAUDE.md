@@ -3,3 +3,5 @@
 - To start the dev server: `nohup npx tsx src/dev-server.ts > dev-server.log 2>&1 & sleep 2; cat dev-server.log` (check log for port number)
 - Always kill old dev-servers before starting a new dev server
 - Try to evaluate the dom via puppeteer instead of taking screenshots all the time.
+- You don't have to restart the server if you only make frontend changes. For frontend changes, reload the page and open the previously opened files again.
+- You can open multiple files in a single script passed to puppeteer_evaluate. Generally avoid multiple round trips.

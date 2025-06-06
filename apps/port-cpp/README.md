@@ -19,7 +19,7 @@ Port Java changes to target languages (e.g., C++) while giving Claude and users 
 npx tsx src/port-cpp.ts 4.2 4.3-beta /Users/badlogic/workspaces/spine-runtimes porting-plan.json
 
 # Tell Claude:
-# "Read port.md and execute the workflow starting from Load Porting Plan metadata"
+Read port.md and execute the workflow starting from Load Porting Plan metadata
 ```
 
 ## Plan Generation
@@ -59,6 +59,11 @@ fileViewer.open("/absolute/path/to/file.h", 1); // Right panel
 fileViewer.close("/path/to/file");
 fileViewer.closeAll();
 fileViewer.refresh();
+
+// Enhanced highlighting API (content mode only)
+fileViewer.highlight("/path/to/file"); // Clear highlights
+fileViewer.highlight("/path/to/file", 25); // Highlight line 25
+fileViewer.highlight("/path/to/file", 10, 20); // Highlight lines 10-20 (inclusive)
 ```
 
 ## Implementation Details

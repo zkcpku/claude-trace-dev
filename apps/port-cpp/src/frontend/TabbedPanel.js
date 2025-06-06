@@ -373,6 +373,7 @@ class TabbedPanel {
 			showError: (error) => this.showError(error),
 			getCurrentMode: () => fileView.getCurrentMode(),
 			saveCurrentViewState: () => this.saveCurrentViewState(),
+			highlight: (start, end) => this.highlight(start, end),
 			highlightLine: (lineNumber) => this.highlightLine(lineNumber),
 			layout: () => this.layout(),
 		};
@@ -548,62 +549,60 @@ class TabbedPanel {
 		}
 	}
 
-	/**
-	 * Highlight a line in the current editor
-	 */
-	highlightLine(lineNumber) {
-		let currentEditor;
-		if (this.currentMode === "diff") {
-			currentEditor = this.diffEditor;
-		} else if (this.currentMode === "fullDiff") {
-			currentEditor = this.fullDiffEditor;
-		} else {
-			currentEditor = this.contentEditor;
-		}
-
-		if (!currentEditor || !this.currentFileModel) return;
+	// Enhanced highlighting API - only works in content mode
+	// highlight() -> remove highlight
+	// highlight(line) -> highlight single line
+	// highlight(start, end) -> highlight section (end inclusive)
+	highlight(start, end) {
+		// Only highlight in content mode
+		if (this.currentMode !== "content" || !this.contentEditor || !this.currentFileModel) return;
 
 		// Clear existing decorations
 		if (this.currentFileModel.highlightDecorations) {
-			if (this.currentMode === "diff" || this.currentMode === "fullDiff") {
-				const model = currentEditor.getModel();
-				if (model && model.modified) {
-					model.modified.deltaDecorations(this.currentFileModel.highlightDecorations, []);
-				}
-			} else {
-				currentEditor.deltaDecorations(this.currentFileModel.highlightDecorations, []);
-			}
+			this.currentFileModel.highlightDecorations = this.contentEditor.deltaDecorations(
+				this.currentFileModel.highlightDecorations,
+				[],
+			);
 		}
 
-		// Create highlight decoration
-		const decoration = {
-			range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-			options: {
-				isWholeLine: true,
-				className: "highlighted-line",
-				overviewRuler: {
-					color: "#ffd700",
-					position: monaco.editor.OverviewRulerLane.Full,
-				},
-				minimap: {
-					color: "#ffd700",
-					position: monaco.editor.MinimapPosition.Inline,
-				},
-			},
-		};
+		// If no arguments, just clear highlights
+		if (arguments.length === 0) return;
 
-		// Apply decoration
-		if (this.currentMode === "diff" || this.currentMode === "fullDiff") {
-			const model = currentEditor.getModel();
-			if (model && model.modified) {
-				this.currentFileModel.highlightDecorations = model.modified.deltaDecorations([], [decoration]);
-			}
-		} else {
-			this.currentFileModel.highlightDecorations = currentEditor.deltaDecorations([], [decoration]);
+		// If only one argument, highlight single line
+		if (arguments.length === 1) {
+			end = start;
 		}
 
-		// Scroll to the line
-		currentEditor.revealLineInCenter(lineNumber);
+		// Create decorations for the range
+		const decorations = [];
+		for (let line = start; line <= end; line++) {
+			decorations.push({
+				range: new monaco.Range(line, 1, line, 1),
+				options: {
+					isWholeLine: true,
+					className: "highlighted-line",
+					overviewRuler: {
+						color: "#ffd700",
+						position: monaco.editor.OverviewRulerLane.Full,
+					},
+					minimap: {
+						color: "#ffd700",
+						position: monaco.editor.MinimapPosition.Inline,
+					},
+				},
+			});
+		}
+
+		// Apply decorations
+		this.currentFileModel.highlightDecorations = this.contentEditor.deltaDecorations([], decorations);
+
+		// Scroll to the first highlighted line
+		this.contentEditor.revealLineInCenter(start);
+	}
+
+	// Legacy method for backward compatibility
+	highlightLine(lineNumber) {
+		this.highlight(lineNumber);
 	}
 
 	/**

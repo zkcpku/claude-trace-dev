@@ -17,7 +17,7 @@ You are provided with tools to collaborate on the porting with the user, as well
 
 ### File Viewer
 
-The user might want to view changes for review, question asking, or advice giving. For this, use the file viewer - a web-based interface with two panels: a tabbed left panel for multiple files and a single-file right panel. Both panels support syntax highlighting, diff views, and real-time updates.
+The user might want to view changes for review, question asking, or advice giving. For this, use the file viewer - a web-based interface with two identical tabbed panels for multiple files. Both panels support syntax highlighting, diff views, and real-time updates.
 
 **Start the dev server first (from the folder where port.md is located):**
 
@@ -38,16 +38,17 @@ mcp__puppeteer__puppeteer_navigate("http://localhost:PORT", {
 	launchOptions: { headless: false, args: ["--start-maximized"], defaultViewport: null },
 });
 
-// Open files in panel 0 (left, tabbed) - all paths must be absolute
+// Open files in panel 0 (left tabbed panel) - all paths must be absolute
 mcp__puppeteer__puppeteer_evaluate(`
   fileViewer.open("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java", 0, "4.2", "4.3-beta");
   fileViewer.open("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Bone.java", 0, "4.2", "4.3-beta");
 `);
 
-// Open file in panel 1 (right, single file)
-mcp__puppeteer__puppeteer_evaluate(
-	'fileViewer.open("/path/to/spine-runtimes/spine-cpp/spine-cpp/include/spine/Animation.h", 1, "4.2")',
-);
+// Open files in panel 1 (right tabbed panel)
+mcp__puppeteer__puppeteer_evaluate(`
+  fileViewer.open("/path/to/spine-runtimes/spine-cpp/spine-cpp/include/spine/Animation.h", 1, "4.2");
+  fileViewer.open("/path/to/spine-runtimes/spine-cpp/spine-cpp/src/spine/Animation.cpp", 1);
+`);
 
 // View documentation or any file
 mcp__puppeteer__puppeteer_evaluate('fileViewer.open("/Users/badlogic/workspaces/lemmy/apps/port-cpp/port.md", 1)');
@@ -58,18 +59,22 @@ mcp__puppeteer__puppeteer_evaluate('fileViewer.close("/path/to/Animation.java")'
 // Close all files
 mcp__puppeteer__puppeteer_evaluate("fileViewer.closeAll()");
 
-// Highlight specific line in an open file (useful for showing Java types being ported)
+// Enhanced highlighting API (content mode only)
 mcp__puppeteer__puppeteer_evaluate(`
-  fileViewer.highlightLine("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java", 565);
+  fileViewer.highlight("/path/to/Animation.java"); // Clear highlights
+  fileViewer.highlight("/path/to/Animation.java", 565); // Highlight line 565
+  fileViewer.highlight("/path/to/Animation.java", 100, 120); // Highlight lines 100-120
 `);
 ```
 
 **fileViewer API:**
 
-- **`fileViewer.open(absolutePath, panel, prevBranch?, currBranch?)`** - Open file in panel 0 (tabbed) or 1 (single)
-- **`fileViewer.close(absolutePath)`** - Close specific file (auto-hides panel 1 if that file closed)
+- **`fileViewer.open(absolutePath, panel, prevBranch?, currBranch?)`** - Open file in panel 0 (left) or 1 (right), both are tabbed
+- **`fileViewer.close(absolutePath)`** - Close specific file from whichever panel it's in
 - **`fileViewer.closeAll()`** - Close all files in both panels
-- **`fileViewer.highlightLine(absolutePath, lineNumber)`** - Highlight and scroll to specific line in an open file (works in both content and diff modes)
+- **`fileViewer.highlight(absolutePath)`** - Clear all highlights in file
+- **`fileViewer.highlight(absolutePath, line)`** - Highlight single line in file (content mode only)
+- **`fileViewer.highlight(absolutePath, start, end)`** - Highlight line range in file (content mode only)
 
 **Git Diff Logic:**
 
@@ -79,8 +84,9 @@ mcp__puppeteer__puppeteer_evaluate(`
 
 **Panel Behavior:**
 
-- **Panel 0 (Left)**: Tabbed interface, multiple files, shows "No files opened" when empty
-- **Panel 1 (Right)**: Single file view, auto-hides when no file open
+- **Panel 0 (Left)**: Tabbed interface, multiple files, shows empty state when no files open
+- **Panel 1 (Right)**: Tabbed interface, multiple files, shows empty state when no files open
+- **Both panels are identical** - each panel can hold multiple files in tabs
 - **All paths must be absolute** - no relative path resolution
 
 This allows the user to visually observe the changes you make during porting and provides a collaborative review interface. Can also be used if the user requests to view a specific file.
@@ -137,7 +143,7 @@ This finds the first `PortingOrderItem` where `portingState` is "pending". The `
 3. **Interfaces and enums** - foundational types get priority boost
 4. **Classes by dependency count** - fewer dependencies first
 
-Open the Java file of the type and the candidate target files in the viewer using puppeteer. **IMPORTANT:** The Java source for the currently ported Java type MUST be opened in the right panel (index 1), while target files must be opened in the left panel (index 0).
+Open the Java file of the type and the candidate target files in the viewer using puppeteer. **IMPORTANT:** The Java source for the currently ported Java type MUST be opened in the right panel (index 1), while target files must be opened in the left panel (index 0). Both panels are tabbed and can hold multiple files.
 
 ### 3. Confirm with User
 
@@ -151,7 +157,7 @@ Use the Read tool to examine the Java type at the specified file path and line r
 
 If the file is too large and the Read tool returns an error or truncated content, read it in chunks using multiple Read calls with different offset and limit parameters.
 
-Open the Java source file in the righ panel in the file viewer (index 1), then highlight the Java type's `startLine`. IMPORTANT: NEVER FORGET TO HIGHLIGHT `startLine`
+Open the Java source file in the right panel in the file viewer (index 1), then highlight the Java type's `startLine` to `endLine` range. IMPORTANT: NEVER FORGET TO HIGHLIGHT the complete type definition using `fileViewer.highlight(path, startLine, endLine)`
 
 ### 5. Check if Git Changes Affect This Type
 
