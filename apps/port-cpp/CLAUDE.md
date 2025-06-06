@@ -1,2 +1,3 @@
 - IF taking screenshots via puppeteer, ALWAYS use a Task to get the info you need, to not clog up your context.
 - When opening a puppeteer browser, always use maximized window without viewport constraints
+- To start the dev server: `nohup npx tsx src/dev-server.ts > dev-server.log 2>&1 & sleep 2; cat dev-server.log` (check log for port number)

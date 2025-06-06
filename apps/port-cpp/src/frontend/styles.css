@@ -155,6 +155,8 @@ body {
 
 .tab-name {
 	cursor: pointer;
+	flex: 1; /* Take up remaining space in tab */
+	pointer-events: none; /* Let clicks pass through to parent tab */
 }
 
 .tab-close {

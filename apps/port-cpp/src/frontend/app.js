@@ -397,17 +397,18 @@ class FileViewer {
 
 		// Setup tab clicks
 		panel.querySelectorAll(".tab").forEach((tab) => {
-			// Click on tab name to switch tabs
-			const tabName = tab.querySelector(".tab-name");
-			if (tabName) {
-				tabName.addEventListener("click", (e) => {
-					e.stopPropagation();
-					// Save current scroll position before switching
-					this.saveScrollPositions();
-					this.activePanel0Tab = tab.dataset.filepath;
-					this.updatePanel0();
-				});
-			}
+			// Click anywhere on tab (except close button) to switch tabs
+			tab.addEventListener("click", (e) => {
+				// Don't trigger if clicking on close button
+				if (e.target.classList.contains("tab-close")) {
+					return;
+				}
+				e.stopPropagation();
+				// Save current scroll position before switching
+				this.saveScrollPositions();
+				this.activePanel0Tab = tab.dataset.filepath;
+				this.updatePanel0();
+			});
 		});
 
 		// Setup close buttons
