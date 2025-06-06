@@ -275,38 +275,17 @@ class FileViewer {
 	}
 
 	saveScrollPositions() {
-		// Save Panel 0 scroll position
+		// Save Panel 0 view state (includes scroll position, cursor, selections, etc.)
 		if (this.activePanel0Tab) {
 			const activeFile = this.panel0Files.get(this.activePanel0Tab);
 			if (activeFile && activeFile.editor) {
-				activeFile.scrollPosition = activeFile.editor.getPosition() || { lineNumber: 1, column: 1 };
+				activeFile.viewState = activeFile.editor.saveViewState();
 			}
 		}
 
-		// Save Panel 1 scroll position
+		// Save Panel 1 view state
 		if (this.panel1File && this.panel1File.editor) {
-			this.panel1File.scrollPosition = this.panel1File.editor.getPosition() || { lineNumber: 1, column: 1 };
-		}
-	}
-
-	restoreScrollPositions() {
-		// Restore Panel 0 scroll position
-		if (this.activePanel0Tab) {
-			const activeFile = this.panel0Files.get(this.activePanel0Tab);
-			if (activeFile && activeFile.editor && activeFile.scrollPosition) {
-				requestAnimationFrame(() => {
-					activeFile.editor.setPosition(activeFile.scrollPosition);
-					activeFile.editor.revealPosition(activeFile.scrollPosition);
-				});
-			}
-		}
-
-		// Restore Panel 1 scroll position
-		if (this.panel1File && this.panel1File.editor && this.panel1File.scrollPosition) {
-			requestAnimationFrame(() => {
-				this.panel1File.editor.setPosition(this.panel1File.scrollPosition);
-				this.panel1File.editor.revealPosition(this.panel1File.scrollPosition);
-			});
+			this.panel1File.viewState = this.panel1File.editor.saveViewState();
 		}
 	}
 
@@ -529,18 +508,18 @@ class FileViewer {
 		const container = document.getElementById(containerId);
 		if (!container) return;
 
-		// Dispose existing editor
+		const language = this.inferLanguageFromPath(fileData.filepath || fileData.absolutePath);
+		const isDiffMode = (fileData.viewMode === "inline-diff" || fileData.viewMode === "side-diff") && fileData.diff;
+		const isSideBySide = fileData.viewMode === "side-diff";
+
+		// Dispose existing editor and create new one
 		if (fileData.editor) {
 			fileData.editor.dispose();
 			fileData.editor = null;
 		}
 
-		const language = this.inferLanguageFromPath(fileData.filepath || fileData.absolutePath);
-
-		if ((fileData.viewMode === "inline-diff" || fileData.viewMode === "side-diff") && fileData.diff) {
+		if (isDiffMode) {
 			// Create diff editor (inline or side-by-side)
-			const isSideBySide = fileData.viewMode === "side-diff";
-
 			fileData.editor = monaco.editor.createDiffEditor(container, {
 				theme: "custom-dark",
 				readOnly: true,
@@ -576,10 +555,16 @@ class FileViewer {
 			});
 		}
 
-		// Layout the editor
+		// Layout the editor and restore view state
 		setTimeout(() => {
 			if (fileData.editor) {
 				fileData.editor.layout();
+				// Restore view state after layout
+				if (fileData.viewState) {
+					setTimeout(() => {
+						fileData.editor.restoreViewState(fileData.viewState);
+					}, 50);
+				}
 			}
 		}, 0);
 	}
