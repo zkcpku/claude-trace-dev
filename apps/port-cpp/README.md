@@ -16,7 +16,7 @@ Port Java changes to target languages (e.g., C++) while giving Claude and users 
 
 ```bash
 # Generate plan
-npx tsx src/port-cpp.ts 4.2 4.3-beta /path/to/spine-runtimes porting-plan.json
+npx tsx src/port-cpp.ts 4.2 4.3-beta /Users/badlogic/workspaces/spine-runtimes porting-plan.json
 
 # Tell Claude:
 # "Read port.md and execute the workflow starting from Load Porting Plan metadata"
