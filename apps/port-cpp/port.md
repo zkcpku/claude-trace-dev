@@ -169,6 +169,8 @@ In this step you are encouraged to collaborate with the user, ask them questions
 - **Never mark as "done" unless the C++ implementation is functionally complete and matches the Java type**
 - **For new types or types whose name and thus .h files have changed:** Add the header include to `spine.h`
 
+IMPORTANT: if you create a new file, open it in the left panel (index 0) of the file viewer.
+
 ### 7. Update the Porting Plan
 
 Update the `PortingOrderItem` in the porting plan with your results:
@@ -297,9 +299,25 @@ namespace spine {
     class SP_API AttachmentLoader : public SpineObject {
         RTTI_DECL
     public:
-        virtual ~AttachmentLoader() {}
+        AttachmentLoader();
+        virtual ~AttachmentLoader();
         virtual Attachment* newRegionAttachment(Skin& skin, const String& name, const String& path) = 0;
         virtual Attachment* newMeshAttachment(Skin& skin, const String& name, const String& path) = 0;
     };
+}
+```
+
+```cpp
+// Source: AttachmentLoader.cpp
+#include <spine/AttachmentLoader.h>
+
+using namespace spine;
+
+RTTI_IMPL(AttachmentLoader, SpineObject)
+
+AttachmentLoader::AttachmentLoader() {
+}
+
+AttachmentLoader::~AttachmentLoader() {
 }
 ```

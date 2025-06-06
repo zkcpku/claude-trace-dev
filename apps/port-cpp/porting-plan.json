@@ -1,0 +1,1736 @@
+{
+	"metadata": {
+		"prevBranch": "4.2",
+		"currentBranch": "4.3-beta",
+		"generated": "2025-06-06T09:42:23.834Z",
+		"spineRuntimesDir": "/Users/badlogic/workspaces/spine-runtimes",
+		"spineCppDir": "/Users/badlogic/workspaces/spine-runtimes/spine-cpp"
+	},
+	"deletedFiles": [],
+	"portingOrder": [
+		{
+			"simpleName": "Physics",
+			"fullName": "com.esotericsoftware.spine.Physics",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Physics.java",
+			"startLine": 4,
+			"endLine": 17,
+			"dependencyCount": 0,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Physics.h"],
+			"filesExist": true,
+			"portingState": "done",
+			"portingNotes": "Physics enum already correctly ported - all values and documentation match Java source perfectly"
+		},
+		{
+			"simpleName": "Pose",
+			"fullName": "com.esotericsoftware.spine.Pose",
+			"type": "interface",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Pose.java",
+			"startLine": 4,
+			"endLine": 6,
+			"dependencyCount": 0,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Pose.h"],
+			"filesExist": false,
+			"portingState": "done",
+			"portingNotes": "Successfully ported Pose interface - created new C++ template abstract class with pure virtual set() method, added to spine.h"
+		},
+		{
+			"simpleName": "BoneTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "interface",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 562,
+			"endLine": 566,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/BoneTimeline.h"],
+			"filesExist": false,
+			"portingState": "done",
+			"portingNotes": "Successfully ported BoneTimeline interface - created C++ abstract class with pure virtual getBoneIndex() method, added .h/.cpp files and include to spine.h"
+		},
+		{
+			"simpleName": "ConstraintTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "interface",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1901,
+			"endLine": 1904,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ConstraintTimeline.h"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Inherit",
+			"fullName": "com.esotericsoftware.spine.BoneData",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/BoneData.java",
+			"startLine": 103,
+			"endLine": 108,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Inherit.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "MixBlend",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 156,
+			"endLine": 179,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/MixBlend.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "MixDirection",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 185,
+			"endLine": 187,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/MixDirection.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PositionMode",
+			"fullName": "com.esotericsoftware.spine.PathConstraintData",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PathConstraintData.java",
+			"startLine": 111,
+			"endLine": 115,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PositionMode.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "RotateMode",
+			"fullName": "com.esotericsoftware.spine.PathConstraintData",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PathConstraintData.java",
+			"startLine": 129,
+			"endLine": 136,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/RotateMode.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SequenceMode",
+			"fullName": "com.esotericsoftware.spine.attachments.Sequence",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/attachments/Sequence.java",
+			"startLine": 118,
+			"endLine": 122,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Sequence.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SlotTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "interface",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 282,
+			"endLine": 286,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SlotTimeline.h"],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SpacingMode",
+			"fullName": "com.esotericsoftware.spine.PathConstraintData",
+			"type": "enum",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PathConstraintData.java",
+			"startLine": 120,
+			"endLine": 124,
+			"dependencyCount": 1,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SpacingMode.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "IkConstraintPose",
+			"fullName": "com.esotericsoftware.spine.IkConstraintPose",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/IkConstraintPose.java",
+			"startLine": 32,
+			"endLine": 96,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/IkConstraintPose.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/IkConstraintPose.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PathConstraintPose",
+			"fullName": "com.esotericsoftware.spine.PathConstraintPose",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PathConstraintPose.java",
+			"startLine": 32,
+			"endLine": 88,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PathConstraintPose.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PathConstraintPose.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintPose",
+			"fullName": "com.esotericsoftware.spine.PhysicsConstraintPose",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PhysicsConstraintPose.java",
+			"startLine": 32,
+			"endLine": 102,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintPose.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PhysicsConstraintPose.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PosedData",
+			"fullName": "com.esotericsoftware.spine.PosedData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PosedData.java",
+			"startLine": 32,
+			"endLine": 68,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PosedData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PosedData.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SliderPose",
+			"fullName": "com.esotericsoftware.spine.SliderPose",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SliderPose.java",
+			"startLine": 32,
+			"endLine": 56,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SliderPose.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SliderPose.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TransformConstraintPose",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintPose",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintPose.java",
+			"startLine": 32,
+			"endLine": 98,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/TransformConstraintPose.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/TransformConstraintPose.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Event",
+			"fullName": "com.esotericsoftware.spine.Event",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Event.java",
+			"startLine": 41,
+			"endLine": 109,
+			"dependencyCount": 1,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Event.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Event.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Update",
+			"fullName": "com.esotericsoftware.spine.Update",
+			"type": "interface",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Update.java",
+			"startLine": 32,
+			"endLine": 36,
+			"dependencyCount": 2,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Update.h"],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Posed",
+			"fullName": "com.esotericsoftware.spine.Posed",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Posed.java",
+			"startLine": 4,
+			"endLine": 42,
+			"dependencyCount": 2,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Posed.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Posed.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "AnimationStateListener",
+			"fullName": "com.esotericsoftware.spine.AnimationState",
+			"type": "interface",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/AnimationState.java",
+			"startLine": 1431,
+			"endLine": 1467,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/AnimationState.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SkinEntry",
+			"fullName": "com.esotericsoftware.spine.Skin",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Skin.java",
+			"startLine": 167,
+			"endLine": 214,
+			"dependencyCount": 2,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SkinEntry.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SkinEntry.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "BoneLocal",
+			"fullName": "com.esotericsoftware.spine.BoneLocal",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/BoneLocal.java",
+			"startLine": 34,
+			"endLine": 138,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/BoneLocal.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/BoneLocal.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PosedActive",
+			"fullName": "com.esotericsoftware.spine.PosedActive",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PosedActive.java",
+			"startLine": 4,
+			"endLine": 27,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PosedActive.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PosedActive.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SlotPose",
+			"fullName": "com.esotericsoftware.spine.SlotPose",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SlotPose.java",
+			"startLine": 44,
+			"endLine": 112,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SlotPose.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SlotPose.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "AnimationStateData",
+			"fullName": "com.esotericsoftware.spine.AnimationStateData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/AnimationStateData.java",
+			"startLine": 36,
+			"endLine": 119,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/AnimationStateData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/AnimationStateData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "CurveTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 288,
+			"endLine": 389,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/CurveTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/CurveTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "FromProperty",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 164,
+			"endLine": 174,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/FromProperty.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/FromProperty.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "FromScaleX",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 275,
+			"endLine": 279,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/FromScaleX.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/FromScaleX.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "FromScaleY",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 306,
+			"endLine": 310,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/FromScaleY.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/FromScaleY.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "FromX",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 231,
+			"endLine": 235,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/FromX.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/FromX.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "FromY",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 253,
+			"endLine": 257,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/FromY.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/FromY.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PointAttachment",
+			"fullName": "com.esotericsoftware.spine.attachments.PointAttachment",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/attachments/PointAttachment.java",
+			"startLine": 44,
+			"endLine": 109,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PointAttachment.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PointAttachment.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ToProperty",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 176,
+			"endLine": 192,
+			"dependencyCount": 3,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ToProperty.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ToProperty.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "AnimationStateAdapter",
+			"fullName": "com.esotericsoftware.spine.AnimationState",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/AnimationState.java",
+			"startLine": 1469,
+			"endLine": 1487,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/AnimationStateAdapter.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/AnimationStateAdapter.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "BoneData",
+			"fullName": "com.esotericsoftware.spine.BoneData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/BoneData.java",
+			"startLine": 35,
+			"endLine": 109,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/BoneData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/BoneData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ConstraintData",
+			"fullName": "com.esotericsoftware.spine.ConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/ConstraintData.java",
+			"startLine": 4,
+			"endLine": 14,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ConstraintData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ConstraintData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ConstraintTimeline1",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2157,
+			"endLine": 2168,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ConstraintTimeline1.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ConstraintTimeline1.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "CurveTimeline1",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 391,
+			"endLine": 518,
+			"dependencyCount": 4,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/CurveTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "FromRotate",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 194,
+			"endLine": 202,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/FromRotate.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/FromRotate.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "FromShearY",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 337,
+			"endLine": 341,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/FromShearY.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/FromShearY.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Sequence",
+			"fullName": "com.esotericsoftware.spine.attachments.Sequence",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/attachments/Sequence.java",
+			"startLine": 38,
+			"endLine": 123,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Sequence.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Sequence.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ToScaleX",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 281,
+			"endLine": 304,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ToScaleX.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ToScaleX.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ToScaleY",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 312,
+			"endLine": 335,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ToScaleY.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ToScaleY.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ToX",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 237,
+			"endLine": 251,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ToX.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ToX.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ToY",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 259,
+			"endLine": 273,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ToY.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ToY.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TrackEntry",
+			"fullName": "com.esotericsoftware.spine.AnimationState",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/AnimationState.java",
+			"startLine": 898,
+			"endLine": 1323,
+			"dependencyCount": 4,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/AnimationState.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintDampingTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2381,
+			"endLine": 2398,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintGravityTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2438,
+			"endLine": 2455,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintInertiaTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2343,
+			"endLine": 2360,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintMassTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2400,
+			"endLine": 2417,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintMixTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2457,
+			"endLine": 2474,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintStrengthTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2362,
+			"endLine": 2379,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintWindTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2419,
+			"endLine": 2436,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SlotData",
+			"fullName": "com.esotericsoftware.spine.SlotData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SlotData.java",
+			"startLine": 34,
+			"endLine": 89,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SlotData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SlotData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Timeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 202,
+			"endLine": 280,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Timeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Timeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ToRotate",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 204,
+			"endLine": 229,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ToRotate.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ToRotate.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ToShearY",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 343,
+			"endLine": 370,
+			"dependencyCount": 5,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ToShearY.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ToShearY.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Constraint",
+			"fullName": "com.esotericsoftware.spine.Constraint",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Constraint.java",
+			"startLine": 4,
+			"endLine": 21,
+			"dependencyCount": 6,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Constraint.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Constraint.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Bone",
+			"fullName": "com.esotericsoftware.spine.Bone",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Bone.java",
+			"startLine": 41,
+			"endLine": 68,
+			"dependencyCount": 6,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Bone.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Bone.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "RotateTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 591,
+			"endLine": 600,
+			"dependencyCount": 6,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/RotateTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/RotateTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ScaleXTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 783,
+			"endLine": 792,
+			"dependencyCount": 6,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ScaleTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ScaleYTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 794,
+			"endLine": 803,
+			"dependencyCount": 6,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ScaleTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ShearXTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 865,
+			"endLine": 874,
+			"dependencyCount": 6,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ShearTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ShearYTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 876,
+			"endLine": 885,
+			"dependencyCount": 6,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ShearTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SkeletonData",
+			"fullName": "com.esotericsoftware.spine.SkeletonData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SkeletonData.java",
+			"startLine": 39,
+			"endLine": 277,
+			"dependencyCount": 6,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SkeletonData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SkeletonData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TranslateXTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 662,
+			"endLine": 671,
+			"dependencyCount": 6,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/TranslateTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TranslateYTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 673,
+			"endLine": 682,
+			"dependencyCount": 6,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/TranslateTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "EventTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1786,
+			"endLine": 1843,
+			"dependencyCount": 7,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/EventTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/EventTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "IkConstraintData",
+			"fullName": "com.esotericsoftware.spine.IkConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/IkConstraintData.java",
+			"startLine": 37,
+			"endLine": 74,
+			"dependencyCount": 7,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/IkConstraintData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/IkConstraintData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintData",
+			"fullName": "com.esotericsoftware.spine.PhysicsConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PhysicsConstraintData.java",
+			"startLine": 35,
+			"endLine": 168,
+			"dependencyCount": 7,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PhysicsConstraintData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ScaleTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 684,
+			"endLine": 781,
+			"dependencyCount": 7,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ScaleTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ScaleTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "ShearTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 805,
+			"endLine": 863,
+			"dependencyCount": 7,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ShearTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/ShearTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SkeletonBounds",
+			"fullName": "com.esotericsoftware.spine.SkeletonBounds",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SkeletonBounds.java",
+			"startLine": 42,
+			"endLine": 253,
+			"dependencyCount": 7,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SkeletonBounds.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SkeletonBounds.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TranslateTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 602,
+			"endLine": 660,
+			"dependencyCount": 7,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/TranslateTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/TranslateTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "VertexAttachment",
+			"fullName": "com.esotericsoftware.spine.attachments.VertexAttachment",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/attachments/VertexAttachment.java",
+			"startLine": 45,
+			"endLine": 199,
+			"dependencyCount": 8,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/VertexAttachment.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/VertexAttachment.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "AtlasAttachmentLoader",
+			"fullName": "com.esotericsoftware.spine.attachments.AtlasAttachmentLoader",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/attachments/AtlasAttachmentLoader.java",
+			"startLine": 44,
+			"endLine": 102,
+			"dependencyCount": 9,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/AtlasAttachmentLoader.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/AtlasAttachmentLoader.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "DrawOrderTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1845,
+			"endLine": 1899,
+			"dependencyCount": 9,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/DrawOrderTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/DrawOrderTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "MeshAttachment",
+			"fullName": "com.esotericsoftware.spine.attachments.MeshAttachment",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/attachments/MeshAttachment.java",
+			"startLine": 46,
+			"endLine": 303,
+			"dependencyCount": 9,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/MeshAttachment.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/MeshAttachment.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "RegionAttachment",
+			"fullName": "com.esotericsoftware.spine.attachments.RegionAttachment",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/attachments/RegionAttachment.java",
+			"startLine": 45,
+			"endLine": 308,
+			"dependencyCount": 9,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/RegionAttachment.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/RegionAttachment.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Skin",
+			"fullName": "com.esotericsoftware.spine.Skin",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Skin.java",
+			"startLine": 44,
+			"endLine": 215,
+			"dependencyCount": 9,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Skin.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Skin.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Slot",
+			"fullName": "com.esotericsoftware.spine.Slot",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Slot.java",
+			"startLine": 37,
+			"endLine": 84,
+			"dependencyCount": 9,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Slot.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Slot.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "BonePose",
+			"fullName": "com.esotericsoftware.spine.BonePose",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/BonePose.java",
+			"startLine": 14,
+			"endLine": 403,
+			"dependencyCount": 10,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/BonePose.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/BonePose.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SliderData",
+			"fullName": "com.esotericsoftware.spine.SliderData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SliderData.java",
+			"startLine": 39,
+			"endLine": 110,
+			"dependencyCount": 10,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SliderData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SliderData.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "DeformTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1454,
+			"endLine": 1691,
+			"dependencyCount": 10,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/DeformTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/DeformTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintResetTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2476,
+			"endLine": 2535,
+			"dependencyCount": 10,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "RGB2Timeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1281,
+			"endLine": 1400,
+			"dependencyCount": 10,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ColorTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "RGBA2Timeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1163,
+			"endLine": 1279,
+			"dependencyCount": 10,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ColorTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "RGBATimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 958,
+			"endLine": 1034,
+			"dependencyCount": 10,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ColorTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "RGBTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1036,
+			"endLine": 1121,
+			"dependencyCount": 10,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ColorTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PathConstraintData",
+			"fullName": "com.esotericsoftware.spine.PathConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PathConstraintData.java",
+			"startLine": 37,
+			"endLine": 137,
+			"dependencyCount": 11,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PathConstraintData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PathConstraintData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SlotCurveTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 936,
+			"endLine": 956,
+			"dependencyCount": 11,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SlotCurveTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SlotCurveTimeline.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "BoneTimeline1",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 568,
+			"endLine": 589,
+			"dependencyCount": 13,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/BoneTimeline1.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/BoneTimeline1.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "BoneTimeline2",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 520,
+			"endLine": 560,
+			"dependencyCount": 13,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/BoneTimeline2.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/BoneTimeline2.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PathConstraintPositionTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2170,
+			"endLine": 2185,
+			"dependencyCount": 13,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PathConstraintPositionTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PathConstraintPositionTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PathConstraintSpacingTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2187,
+			"endLine": 2202,
+			"dependencyCount": 13,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PathConstraintSpacingTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PathConstraintSpacingTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraintTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2307,
+			"endLine": 2341,
+			"dependencyCount": 13,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraintTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PhysicsConstraintTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SliderMixTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2554,
+			"endLine": 2569,
+			"dependencyCount": 13,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SliderMixTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SliderMixTimeline.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SliderTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2537,
+			"endLine": 2552,
+			"dependencyCount": 13,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SliderTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SliderTimeline.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "AlphaTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1123,
+			"endLine": 1161,
+			"dependencyCount": 14,
+			"targetFiles": ["/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/ColorTimeline.h"],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "IkConstraint",
+			"fullName": "com.esotericsoftware.spine.IkConstraint",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/IkConstraint.java",
+			"startLine": 42,
+			"endLine": 315,
+			"dependencyCount": 14,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/IkConstraint.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/IkConstraint.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "IkConstraintTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1909,
+			"endLine": 2020,
+			"dependencyCount": 14,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/IkConstraintTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/IkConstraintTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "InheritTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 887,
+			"endLine": 934,
+			"dependencyCount": 14,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/InheritTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/InheritTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PathConstraintMixTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2206,
+			"endLine": 2305,
+			"dependencyCount": 14,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PathConstraintMixTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PathConstraintMixTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PhysicsConstraint",
+			"fullName": "com.esotericsoftware.spine.PhysicsConstraint",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PhysicsConstraint.java",
+			"startLine": 37,
+			"endLine": 298,
+			"dependencyCount": 14,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PhysicsConstraint.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PhysicsConstraint.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TransformConstraint",
+			"fullName": "com.esotericsoftware.spine.TransformConstraint",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraint.java",
+			"startLine": 43,
+			"endLine": 141,
+			"dependencyCount": 14,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/TransformConstraint.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/TransformConstraint.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TransformConstraintTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 2025,
+			"endLine": 2155,
+			"dependencyCount": 14,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/TransformConstraintTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/TransformConstraintTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "AttachmentTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1402,
+			"endLine": 1452,
+			"dependencyCount": 15,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/AttachmentTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/AttachmentTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SkeletonRenderer",
+			"fullName": "com.esotericsoftware.spine.SkeletonRenderer",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SkeletonRenderer.java",
+			"startLine": 48,
+			"endLine": 359,
+			"dependencyCount": 15,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SkeletonRenderer.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SkeletonRenderer.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SkeletonRendererDebug",
+			"fullName": "com.esotericsoftware.spine.SkeletonRendererDebug",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SkeletonRendererDebug.java",
+			"startLine": 48,
+			"endLine": 304,
+			"dependencyCount": 16,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SkeletonRendererDebug.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SkeletonRendererDebug.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SequenceTimeline",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 1693,
+			"endLine": 1784,
+			"dependencyCount": 17,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SequenceTimeline.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SequenceTimeline.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "TransformConstraintData",
+			"fullName": "com.esotericsoftware.spine.TransformConstraintData",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TransformConstraintData.java",
+			"startLine": 39,
+			"endLine": 371,
+			"dependencyCount": 21,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/TransformConstraintData.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/TransformConstraintData.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Skeleton",
+			"fullName": "com.esotericsoftware.spine.Skeleton",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Skeleton.java",
+			"startLine": 50,
+			"endLine": 680,
+			"dependencyCount": 22,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Skeleton.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Skeleton.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Slider",
+			"fullName": "com.esotericsoftware.spine.Slider",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Slider.java",
+			"startLine": 42,
+			"endLine": 124,
+			"dependencyCount": 23,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Slider.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Slider.cpp"
+			],
+			"filesExist": false,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "PathConstraint",
+			"fullName": "com.esotericsoftware.spine.PathConstraint",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/PathConstraint.java",
+			"startLine": 50,
+			"endLine": 525,
+			"dependencyCount": 24,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/PathConstraint.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/PathConstraint.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "AnimationState",
+			"fullName": "com.esotericsoftware.spine.AnimationState",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/AnimationState.java",
+			"startLine": 53,
+			"endLine": 1488,
+			"dependencyCount": 26,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/AnimationState.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/AnimationState.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "Animation",
+			"fullName": "com.esotericsoftware.spine.Animation",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java",
+			"startLine": 51,
+			"endLine": 2570,
+			"dependencyCount": 52,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/Animation.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/Animation.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SkeletonJson",
+			"fullName": "com.esotericsoftware.spine.SkeletonJson",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SkeletonJson.java",
+			"startLine": 125,
+			"endLine": 1351,
+			"dependencyCount": 95,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SkeletonJson.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SkeletonJson.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		},
+		{
+			"simpleName": "SkeletonBinary",
+			"fullName": "com.esotericsoftware.spine.SkeletonBinary",
+			"type": "class",
+			"javaSourcePath": "/Users/badlogic/workspaces/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/SkeletonBinary.java",
+			"startLine": 122,
+			"endLine": 1341,
+			"dependencyCount": 96,
+			"targetFiles": [
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/include/spine/SkeletonBinary.h",
+				"/Users/badlogic/workspaces/spine-runtimes/spine-cpp/spine-cpp/src/spine/SkeletonBinary.cpp"
+			],
+			"filesExist": true,
+			"portingState": "pending"
+		}
+	]
+}

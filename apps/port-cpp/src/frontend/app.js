@@ -183,7 +183,7 @@ class FileViewer {
 				content: "",
 				diff: "",
 				error: null,
-				viewMode: "content", // content, inline-diff, side-diff
+				viewMode: "content", // content, diff
 				scrollPosition: { lineNumber: 1, column: 1 },
 				editor: null,
 			});
@@ -195,7 +195,7 @@ class FileViewer {
 				content: "",
 				diff: "",
 				error: null,
-				viewMode: "content", // content, inline-diff, side-diff
+				viewMode: "content", // content, diff
 				scrollPosition: { lineNumber: 1, column: 1 },
 				editor: null,
 			};
@@ -349,18 +349,13 @@ class FileViewer {
 		// Get active file data
 		const activeFile = this.panel0Files.get(this.activePanel0Tab);
 
-		// SVG icons for toggle button - 3 view modes
+		// SVG icons for toggle button - 2 view modes
 		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 			<path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
 			<path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
 		</svg>`;
 
-		const inlineDiffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-			<path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
-			<path d="M3 5.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.5-.5zM3 8a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1H4A.5.5 0 0 1 3 8zm0 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.5-.5z"/>
-		</svg>`;
-
-		const sideDiffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 			<path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
 			<path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
 			<path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
@@ -369,14 +364,11 @@ class FileViewer {
 		// Determine current icon and next action based on current view mode
 		let toggleIcon, toggleTitle;
 		if (!activeFile) {
-			toggleIcon = inlineDiffIcon;
-			toggleTitle = "Inline Diff";
+			toggleIcon = diffIcon;
+			toggleTitle = "Diff";
 		} else if (activeFile.viewMode === "content") {
-			toggleIcon = inlineDiffIcon;
-			toggleTitle = "Inline Diff";
-		} else if (activeFile.viewMode === "inline-diff") {
-			toggleIcon = sideDiffIcon;
-			toggleTitle = "Side-by-Side Diff";
+			toggleIcon = diffIcon;
+			toggleTitle = "Diff";
 		} else {
 			toggleIcon = contentIcon;
 			toggleTitle = "Content";
@@ -423,11 +415,9 @@ class FileViewer {
 			toggleBtn.addEventListener("click", () => {
 				if (activeFile) {
 					this.saveScrollPositions();
-					// Cycle through: content -> inline-diff -> side-diff -> content
+					// Toggle between: content <-> diff
 					if (activeFile.viewMode === "content") {
-						activeFile.viewMode = "inline-diff";
-					} else if (activeFile.viewMode === "inline-diff") {
-						activeFile.viewMode = "side-diff";
+						activeFile.viewMode = "diff";
 					} else {
 						activeFile.viewMode = "content";
 					}
@@ -451,18 +441,13 @@ class FileViewer {
 
 		const filename = this.panel1File.filepath.split("/").pop();
 
-		// SVG icons for toggle button - 3 view modes
+		// SVG icons for toggle button - 2 view modes
 		const contentIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 			<path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM4 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4z"/>
 			<path d="M4.5 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
 		</svg>`;
 
-		const inlineDiffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-			<path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
-			<path d="M3 5.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.5-.5zM3 8a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1H4A.5.5 0 0 1 3 8zm0 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.5-.5z"/>
-		</svg>`;
-
-		const sideDiffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+		const diffIcon = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 			<path d="M0 3a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
 			<path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-.5v11h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h.5V3H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 1h2.5z"/>
 			<path d="M11 3a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2V3zm2-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-1z"/>
@@ -471,11 +456,8 @@ class FileViewer {
 		// Determine current icon and next action based on current view mode
 		let toggleIcon, toggleTitle;
 		if (this.panel1File.viewMode === "content") {
-			toggleIcon = inlineDiffIcon;
-			toggleTitle = "Inline Diff";
-		} else if (this.panel1File.viewMode === "inline-diff") {
-			toggleIcon = sideDiffIcon;
-			toggleTitle = "Side-by-Side Diff";
+			toggleIcon = diffIcon;
+			toggleTitle = "Diff";
 		} else {
 			toggleIcon = contentIcon;
 			toggleTitle = "Content";
@@ -498,11 +480,9 @@ class FileViewer {
 		if (toggleBtn) {
 			toggleBtn.addEventListener("click", () => {
 				this.saveScrollPositions();
-				// Cycle through: content -> inline-diff -> side-diff -> content
+				// Toggle between: content <-> diff
 				if (this.panel1File.viewMode === "content") {
-					this.panel1File.viewMode = "inline-diff";
-				} else if (this.panel1File.viewMode === "inline-diff") {
-					this.panel1File.viewMode = "side-diff";
+					this.panel1File.viewMode = "diff";
 				} else {
 					this.panel1File.viewMode = "content";
 				}
@@ -527,8 +507,8 @@ class FileViewer {
 		if (!container) return;
 
 		const language = this.inferLanguageFromPath(fileData.filepath || fileData.absolutePath);
-		const isDiffMode = (fileData.viewMode === "inline-diff" || fileData.viewMode === "side-diff") && fileData.diff;
-		const isSideBySide = fileData.viewMode === "side-diff";
+		const isDiffMode = fileData.viewMode === "diff" && fileData.diff;
+		const isSideBySide = true; // Always use side-by-side diff mode
 
 		// Dispose existing editor and create new one
 		if (fileData.editor) {
@@ -593,7 +573,7 @@ class FileViewer {
 		// Save current view state to preserve cursor position and scroll
 		const currentViewState = fileData.editor.saveViewState();
 
-		const isDiffMode = (fileData.viewMode === "inline-diff" || fileData.viewMode === "side-diff") && fileData.diff;
+		const isDiffMode = fileData.viewMode === "diff" && fileData.diff;
 
 		if (isDiffMode) {
 			// Update diff editor content
