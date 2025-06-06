@@ -161,6 +161,7 @@ class FileViewer {
 		if (panel === 0) {
 			// Add to panel 0
 			this.panel0Files.set(filepath, {
+				filepath: filepath,
 				content: "",
 				diff: "",
 				error: null,
@@ -521,6 +522,7 @@ class FileViewer {
 		if ((fileData.viewMode === "inline-diff" || fileData.viewMode === "side-diff") && fileData.diff) {
 			// Create diff editor (inline or side-by-side)
 			const isSideBySide = fileData.viewMode === "side-diff";
+
 			fileData.editor = monaco.editor.createDiffEditor(container, {
 				theme: "custom-dark",
 				readOnly: true,
