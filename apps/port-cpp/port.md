@@ -110,11 +110,12 @@ Batch operations: Open Java file in right panel + C++ files in left panel (if th
 
 **Process:**
 
-1. **If C++ files don't exist:** Create both .h/.cpp files using spine-cpp conventions, open in left panel
-2. **If C++ files exist:** RETAIN all unaffected code - only modify what needs updating
-3. **Compare line-by-line:** Java vs C++ for class structure, members, methods, inheritance, documentation
-4. **Update systematically:** Add missing pieces, fix incorrect implementations, ensure 100% functional parity
-5. **Use MultiEdit** for multiple changes per file, **open new files** in left panel immediately
+1. **Read inheritance hierarchy:** Batch read all Java parent types (extends/implements) and their C++ equivalents (if they exist) to understand complete inheritance context. Skip SpineObject as it's just memory management. Note: C++ parent types may be outdated since they come later in porting order, but still provide structural insights.
+2. **If C++ files don't exist:** Create both .h/.cpp files using spine-cpp conventions, open in left panel
+3. **If C++ files exist:** RETAIN all unaffected code - only modify what needs updating
+4. **Compare line-by-line:** Java vs C++ for class structure, members, methods, inheritance, documentation
+5. **Update systematically:** Add missing pieces, fix incorrect implementations, ensure 100% functional parity
+6. **Use MultiEdit** for multiple changes per file, **open new files** in left panel immediately
 
 **Never mark "done" unless C++ matches Java completely.** Add header includes to `spine.h` for new types.
 
