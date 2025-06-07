@@ -100,36 +100,23 @@ Open Java file in right panel, C++ files in left panel using file viewer.
 afplay /System/Library/Sounds/Ping.aiff
 ```
 
-### 4. Read Java Source
+### 4. Open and Read Source Files
 
-Open Java file in file viewer, highlight type definition using `startLine`/`endLine` from PortingOrderItem, then read with Read tool using those exact line ranges.
+Batch operations: Open Java file in right panel + C++ files in left panel (if they exist) with single puppeteer call. Read complete contents of Java source + existing C++ files into context simultaneously with multiple Read tool calls.
 
 ### 5. Port to C++
 
-In this step you are encouraged to collaborate with the user, ask them questions in case something is unclear.
+**CRITICAL:** Complete mechanical translation required following spine-cpp conventions (see below) - never just add comments and call it "done".
 
-- Read the complete existing C++ files (both header and source if they exist) to understand the current implementation. Use the Read tool and read in chunks if files are large.
-- **CRITICAL: Always do a complete mechanical translation** - never just add documentation comments and call it "done". The Java source must be ported faithfully and exhaustively.
-- **Compare EVERY aspect** of the Java class with the C++ version:
-   - Class structure and inheritance (must match Java exactly)
-   - All member variables (with proper C++ naming: `_underscore` prefix for private)
-   - All constants (static final → static const)
-   - All method signatures
-   - All method implementations (translate Java logic to C++ following spine-cpp patterns and container classes like Vector instead of Java's Array.)
-   - Documentation comments
-- If there are missing dependencies, infer their methods and fields from the corresponding Java type(s) and perform a mechanical translation, translating from Java to likely C++ signatures using the spine-cpp conventions detailed below.
-- **If C++ files don't exist:** Create them from scratch using spine-cpp conventions, then open them in the file viewers left panel (index 0)
-- **If C++ files exist:**
-   - Open the files in the file viewer's left panel (index 0)
-   - Retain unaffected code in it
-   - Compare line-by-line with Java implementation
-   - Add any missing members, methods, or logic
-   - Update any incorrect implementations
-   - Ensure C++ version has 100% functional parity with Java
-- **Never mark as "done" unless the C++ implementation is functionally complete and matches the Java type**
-- **For new types or types whose name and thus .h files have changed:** Add the header include to `spine.h`
+**Process:**
 
-IMPORTANT: DO NOT FORGET TO OPEN NEWLY CREATED FILES IN THE LEFT PANEL (index 0)
+1. **If C++ files don't exist:** Create both .h/.cpp files using spine-cpp conventions, open in left panel
+2. **If C++ files exist:** RETAIN all unaffected code - only modify what needs updating
+3. **Compare line-by-line:** Java vs C++ for class structure, members, methods, inheritance, documentation
+4. **Update systematically:** Add missing pieces, fix incorrect implementations, ensure 100% functional parity
+5. **Use MultiEdit** for multiple changes per file, **open new files** in left panel immediately
+
+**Never mark "done" unless C++ matches Java completely.** Add header includes to `spine.h` for new types.
 
 ### 6. Test Compilation (Optional)
 
@@ -179,8 +166,10 @@ Note: A single Java file may contain multiple types, so you cannot rely on file 
 **Class Structure:**
 
 - **Concrete classes**: Inherit from appropriate base class (e.g., `Timeline`, `SpineObject`)
+- **Multiple inheritance**: Classes can inherit from interface + base class: `class BonePose : public BoneLocal, public Update`
 - **Interface classes**: Pure abstract classes, no inheritance, no RTTI
-- Use `RTTI_DECL` in header and `RTTI_IMPL(ClassName, ParentClass)` in source for concrete classes
+- **Template interfaces**: Use `class SlotPose : public Pose<SlotPose>` pattern
+- Use `RTTI_DECL` in header and `RTTI_IMPL(ClassName, ParentClass)` or `RTTI_IMPL_NOPARENT(ClassName)` in source
 - Private fields have `_underscore` prefix
 - Public methods use exact Java names (camelCase)
 
@@ -196,6 +185,20 @@ Note: A single Java file may contain multiple types, so you cannot rely on file 
 - Java `Array` → `spine::Vector<T>` (not `std::vector`)
 - Java `String` → `spine::String` (not `std::string`)
 - Use spine's custom containers for consistency and memory management
+- Vector operations: `_deform.clear()`, `_deform.addAll(other._deform)`, cache `size()` in loops
+
+**Constructor Patterns:**
+
+- Initialize all fields in declaration order: `BonePose() : BoneLocal(), _bone(nullptr), _a(0), _b(0) {}`
+- Color initialization: `_color(1, 1, 1, 1)`, `_darkColor(0, 0, 0, 0)`
+- Use reference parameters for output: `void worldToLocal(float worldX, float worldY, float& outLocalX, float& outLocalY)`
+
+**Nullable Reference Pattern:**
+
+- Java nullable references → C++ object field + boolean flag
+- Example: Java `Color darkColor` (can be null) → C++ `Color _darkColor; bool _hasDarkColor;`
+- Always instantiate the object field, use boolean to track null state
+- Provide `hasDarkColor()` getter and `getDarkColor()` that returns reference to always-valid object
 
 **Memory Management:**
 
