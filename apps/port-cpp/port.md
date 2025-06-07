@@ -2,168 +2,109 @@
 
 ## Overview
 
-We are working collaboratively on the Spine Runtime, a skeletal animation library for loading, manipulating and rendering Spine skeletons, porting Java code changes to C++. The Spine project maintains parallel implementations in multiple languages, and we need to keep the C++ version synchronized with Java updates.
+Collaborative porting of Spine Runtime skeletal animation library from Java to C++. Work tracked in `porting-plan.json` (types in src/types.ts relative to this port.md file).
 
-Our work is tracked in `porting-plan.json` which contains git branches, deleted files, the spine runtimes directory, and a priority-ordered porting sequence. The types in the porting-plan.json file (PortingPlan, PortingOrderItem, DeletedJavaFile) are described in src/types.ts (relative to this file).
+**Paths (relative to spine-runtimes):**
 
-**Working Directory:** Paths are relative to the spine-runtimes directory:
-
-- **Java sources:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/`
-- **C++ sources:** `spine-cpp/spine-cpp/src/spine/` and `spine-cpp/spine-cpp/include/spine/`
-
-You are provided with tools to collaborate on the porting with the user, as well as a step by step workflow you execute together with the user.
+- Java: `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/`
+- C++: `spine-cpp/spine-cpp/{src,include}/spine/`
 
 ## Tools
 
 ### File Viewer
 
-The user might want to view changes for review, question asking, or advice giving. For this, use the file viewer - a web-based interface with two identical tabbed panels for multiple files. Both panels support syntax highlighting, diff views, and real-time updates.
+Web interface with two tabbed panels for collaborative porting review - Java source in right panel, C++ targets in left panel.
 
-**Start the dev server first (from the folder where port.md is located):**
+**Start server:**
 
 ```bash
-# Always kill old dev servers before starting new ones
-pkill -f "npx tsx src/dev-server.ts" || true
-nohup npx tsx src/dev-server.ts > dev-server.log 2>&1 &
-sleep 2
-cat dev-server.log
+pkill -f "npx tsx src/dev-server.ts" || true; nohup npx tsx src/dev-server.ts > dev-server.log 2>&1 & sleep 2; cat dev-server.log
 ```
 
-**Then use puppeteer to navigate and control the viewer:**
+**Open in Browser (use port from dev-server.log):**
 
 ```javascript
-// Navigate to the viewer (find the port number in dev-server.log output)
-// For full-screen usage, use maximized window without viewport constraints:
 mcp__puppeteer__puppeteer_navigate("http://localhost:PORT", {
 	launchOptions: { headless: false, args: ["--start-maximized"], defaultViewport: null },
 });
+```
 
-// Open files in panel 0 (left tabbed panel) - all paths must be absolute
+**Examples (chain multiple API calls to reduce round trips):**
+
+```javascript
+// Open multiple files at once
 mcp__puppeteer__puppeteer_evaluate(`
-  fileViewer.open("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Animation.java", 0, "4.2", "4.3-beta");
-  fileViewer.open("/path/to/spine-runtimes/spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/Bone.java", 0, "4.2", "4.3-beta");
+  fileViewer.open("/abs/path/Animation.java", 1, "4.2", "4.3-beta"); // Java in right panel (diff basis: 4.2 vs 4.3-beta)
+  fileViewer.open("/abs/path/Animation.h", 0);                       // C++ header in left panel
+  fileViewer.open("/abs/path/Animation.cpp", 0);                     // C++ source in left panel
 `);
 
-// Open files in panel 1 (right tabbed panel)
+// Highlight and manipulate files
 mcp__puppeteer__puppeteer_evaluate(`
-  fileViewer.open("/path/to/spine-runtimes/spine-cpp/spine-cpp/include/spine/Animation.h", 1, "4.2");
-  fileViewer.open("/path/to/spine-runtimes/spine-cpp/spine-cpp/src/spine/Animation.cpp", 1);
-`);
-
-// View documentation or any file
-mcp__puppeteer__puppeteer_evaluate('fileViewer.open("/Users/badlogic/workspaces/lemmy/apps/port-cpp/port.md", 1)');
-
-// Close specific files
-mcp__puppeteer__puppeteer_evaluate('fileViewer.close("/path/to/Animation.java")');
-
-// Close all files
-mcp__puppeteer__puppeteer_evaluate("fileViewer.closeAll()");
-
-// Enhanced highlighting API (content mode only)
-mcp__puppeteer__puppeteer_evaluate(`
-  fileViewer.highlight("/path/to/Animation.java"); // Clear highlights
-  fileViewer.highlight("/path/to/Animation.java", 565); // Highlight line 565
-  fileViewer.highlight("/path/to/Animation.java", 100, 120); // Highlight lines 100-120
+  fileViewer.highlight("/abs/path/Animation.java", 100);     // single line
+  fileViewer.highlight("/abs/path/Animation.java", 100, 120); // range
+  fileViewer.highlight("/abs/path/Animation.java");          // clear
+  fileViewer.close("/abs/path/Animation.java");              // close specific file
+  fileViewer.closeAll();                                     // close all files
 `);
 ```
 
-**fileViewer API:**
+**Usage:** Java files in panel 1 (right), all other file types in panel 0 (left). All paths must be absolute.
+**Diff basis:** Files can toggle between content and diff view. Branch parameters set diff comparison - both branches = diff between them, one branch = current vs that branch, none = current vs HEAD
 
-- **`fileViewer.open(absolutePath, panel, prevBranch?, currBranch?)`** - Open file in panel 0 (left) or 1 (right), both are tabbed
-- **`fileViewer.close(absolutePath)`** - Close specific file from whichever panel it's in
-- **`fileViewer.closeAll()`** - Close all files in both panels
-- **`fileViewer.highlight(absolutePath)`** - Clear all highlights in file
-- **`fileViewer.highlight(absolutePath, line)`** - Highlight single line in file (content mode only)
-- **`fileViewer.highlight(absolutePath, start, end)`** - Highlight line range in file (content mode only)
+### Quick Compile Test
 
-**Git Diff Logic:**
-
-- **Both branches provided** → diff between `prevBranch..currBranch`
-- **Only prevBranch provided** → current state vs. that branch
-- **No branches** → current state vs. HEAD (if git repo), no diff otherwise
-
-**Panel Behavior:**
-
-- **Panel 0 (Left)**: Tabbed interface, multiple files, shows empty state when no files open
-- **Panel 1 (Right)**: Tabbed interface, multiple files, shows empty state when no files open
-- **Both panels are identical** - each panel can hold multiple files in tabs
-- **All paths must be absolute** - no relative path resolution
-
-This allows the user to visually observe the changes you make during porting and provides a collaborative review interface. Can also be used if the user requests to view a specific file.
-
-### Build Tool
-
-**ONLY when explicitly requested by the user,** verify compilation using the CMake build system:
+Test single file compilation to catch basic errors:
 
 ```bash
-./build.sh  # Located in the same folder as this port.md file
+# For .cpp files (replace paths with actual spine-runtimes paths)
+clang++ -std=c++11 -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.cpp -o /tmp/test.o && echo "OK" || echo "FAILED"
+
+# For .h files
+clang++ -std=c++11 -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.h -o /tmp/test.o && echo "OK" || echo "FAILED"
 ```
 
-**Important Notes:**
-
-- **Build failures are often expected** due to circular dependencies between types
-- A failed build after porting one type does NOT mean the porting was incorrect
-- Multiple related types may need to be ported before the code compiles cleanly
+**Note:** Compilation failures due to missing dependencies are expected during porting.
 
 ## Step-by-Step Workflow
 
-### 0. Load Porting Plan metadata
+### 0. Load Metadata
 
-If `porting-plan.json` doesn't exist in the current working directory, ask the user for the file's location. Fetch the porting plan metadata and extract the spine runtimes directory from `metadata.spineRuntimesDir` for constructing absolute paths to source files, as well as the previous and current branch names diffs for the Java files have been generated from.
+Load metadata into context for later reference:
 
 ```bash
-# Fetch porting plan metadata
 jq '.metadata' porting-plan.json
 ```
 
-**IMPORTANT:** Never read `porting-plan.json` entirely using the Read tool, as it's too large. Always use `jq` commands to read specific parts and update it.
+**Output:** spineRuntimesDir (for absolute paths), prevBranch/currentBranch (for diffs). If file missing, ask user for location.
 
-### 1. Start Dev Server and Spin Up Puppeteer
+### 1. Start File Viewer
 
-First kill all running dev servers, then start the development server and open the file viewer using puppeteer for collaborative viewing.
+Start dev server and open file viewer with puppeteer (see Tools section for commands).
 
-```bash
-# Kill any existing dev servers
-pkill -f "dev-server.ts" || true
-```
+### 2. Find Next Type
 
-### 2. Find the Next Type to Port
-
-Use jq to extract the next item to port from "porting-plan.json":
+Get the next pending type from porting plan:
 
 ```bash
-# Find the next pending type in priority order
 jq -r '.portingOrder[] | select(.portingState == "pending") | . | @json' porting-plan.json | head -1 | jq .
 ```
 
-This finds the first `PortingOrderItem` where `portingState` is "pending". The `portingOrder` array is sorted by priority:
-
-1. **Zero dependencies first** - interfaces and enums with no dependencies
-2. **New files (added)** - get slight priority boost for fresh implementation
-3. **Interfaces and enums** - foundational types get priority boost
-4. **Classes by dependency count** - fewer dependencies first
-
-Open the Java file of the type and the candidate target files in the viewer using puppeteer. **IMPORTANT:** The Java source for the currently ported Java type MUST be opened in the right panel (index 1), while target files must be opened in the left panel (index 0). Both panels are tabbed and can hold multiple files.
+Open Java file in right panel, C++ files in left panel using file viewer.
 
 ### 3. Confirm with User
 
-**STOP HERE** and ask the user if this is the type they want to work on. Show them the complete `PortingOrderItem` JSON.
+🛑 **STOP HERE - WAIT FOR USER CONFIRMATION** 🛑 Play ping sound, show `PortingOrderItem` JSON, ask user confirmation to proceed.
 
-**IMPORTANT:** Before asking for confirmation, play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
+```bash
+afplay /System/Library/Sounds/Ping.aiff
+```
 
-### 4. Open, Highlight and Read the Java Source Code
+### 4. Read Java Source
 
-**FIRST:** Open the Java source file in the right panel of the file viewer (index 1) and immediately highlight the type definition using `fileViewer.highlight(path, startLine, endLine)` to highlight the complete type definition from `startLine` to `endLine`. This should be done automatically without waiting for user confirmation.
+Open Java file in file viewer, highlight type definition using `startLine`/`endLine` from PortingOrderItem, then read with Read tool using those exact line ranges.
 
-**THEN:** Use the Read tool to examine the Java type at the specified file path and line range. **IMPORTANT:** Always use the exact `startLine` and `endLine` from the `PortingOrderItem` to read the complete type definition - use `offset=startLine` and `limit=(endLine-startLine+1)` to capture the entire type.
-
-If the file is too large and the Read tool returns an error or truncated content, read it in chunks using multiple Read calls with different offset and limit parameters.
-
-### 5. Check if Git Changes Affect This Type
-
-Use git diff between `prevBranch` and `currentBranch` (from porting plan metadata) to see if changes actually touch this type's lines. If the git diff shows no changes for this type, you MUST ask the user what to do next.
-
-### 6. Port to C++
+### 5. Port to C++
 
 In this step you are encouraged to collaborate with the user, ask them questions in case something is unclear.
 
@@ -190,30 +131,11 @@ In this step you are encouraged to collaborate with the user, ask them questions
 
 IMPORTANT: DO NOT FORGET TO OPEN NEWLY CREATED FILES IN THE LEFT PANEL (index 0)
 
-### 7. Test Compilation (Optional but Recommended)
+### 6. Test Compilation (Optional)
 
-After porting a type, test if it compiles in isolation to catch basic errors like missing includes:
+Use Quick Compile Test commands from Tools section to catch basic errors. Missing dependency failures are expected.
 
-```bash
-# For .cpp files
-clang++ -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.cpp -o /tmp/test.o && echo "Compiled successfully" || echo "Compilation failed"
-rm -f /tmp/test.o
-
-# For header-only files
-clang++ -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.h -o /tmp/test.o 2>/dev/null && echo "Header compiles" || echo "Header has issues"
-rm -f /tmp/test.o
-```
-
-**Common compilation issues:**
-
-- Missing `#include <spine/dll.h>` for `SP_API`
-- Missing `#include <spine/RTTI.h>` for RTTI classes
-- Wrong inheritance (interfaces shouldn't inherit from SpineObject)
-- Missing forward declarations
-
-**Note:** Some compilation errors are expected due to missing dependencies that haven't been ported yet.
-
-### 8. Update the Porting Plan
+### 7. Update the Porting Plan
 
 Update the `PortingOrderItem` in the porting plan with your results:
 
@@ -228,7 +150,7 @@ jq --arg name "$TYPE_NAME" --arg state "done" --arg notes "Successfully ported A
 
 Output the resulting JSON to the user.
 
-### 9. STOP and Ask for Confirmation
+### 8. STOP and Ask for Confirmation
 
 1. Play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
 2. STOP HERE: After completing any type, you MUST STOP immediately, and ask and wait for the user to confirm moving on to the next type.
