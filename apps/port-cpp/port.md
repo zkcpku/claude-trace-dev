@@ -144,236 +144,80 @@ Output the resulting JSON to the user.
 
 ## Spine-C++ Conventions
 
-### Mapping File Names
+**File Mapping:** Java `TypeName.java` → C++ `TypeName.h` + `TypeName.cpp` (single Java file may contain multiple types)
 
-Each Java type typically maps to two C++ files: a header (.h) and source (.cpp) file.
+**Type Translations:**
 
-- **Java:** `spine-libgdx/spine-libgdx/src/com/esotericsoftware/spine/TypeName.java`
-- **C++ Header:** `spine-cpp/spine-cpp/include/spine/TypeName.h`
-- **C++ Source:** `spine-cpp/spine-cpp/src/spine/TypeName.cpp`
-
-Note: A single Java file may contain multiple types, so you cannot rely on file names alone for mapping.
-
-### Type Translations
-
-- **Java class** → C++ class inheriting from appropriate base class + RTTI (include `spine/RTTI.h`)
-- **Java interface** → C++ pure abstract class, no inheritance, no RTTI (include `spine/dll.h` for SP_API)
-- **Java enum** → C++ enum in namespace spine (header-only, no .cpp)
-
-### Code Patterns
+- Java class → C++ class + RTTI (`spine/RTTI.h`)
+- Java interface → C++ pure abstract class, no RTTI (`spine/dll.h`)
+- Java enum → C++ enum in spine namespace (header-only)
 
 **Class Structure:**
 
-- **Concrete classes**: Inherit from appropriate base class (e.g., `Timeline`, `SpineObject`)
-- **Multiple inheritance**: Classes can inherit from interface + base class: `class BonePose : public BoneLocal, public Update`
-- **Interface classes**: Pure abstract classes, no inheritance, no RTTI
-- **Template interfaces**: Use `class SlotPose : public Pose<SlotPose>` pattern
-- Use `RTTI_DECL` in header and `RTTI_IMPL(ClassName, ParentClass)` or `RTTI_IMPL_NOPARENT(ClassName)` in source
-- Private fields have `_underscore` prefix
-- Public methods use exact Java names (camelCase)
+- Concrete classes: Inherit from base + RTTI (`RTTI_DECL` in header, `RTTI_IMPL(Class, Parent)` or `RTTI_IMPL_NOPARENT(Class)` in source)
+- Multiple inheritance: `class BonePose : public BoneLocal, public Update`
+- Template interfaces: `class SlotPose : public Pose<SlotPose>`
+- Interface classes: Pure abstract, no inheritance, no RTTI
+- Private fields: `_underscore` prefix, public methods: exact Java names
 
-**RTTI Inheritance Hierarchy:**
+**RTTI Hierarchy:** Timeline (root, `RTTI_IMPL_NOPARENT`) → subclasses (`RTTI_IMPL(Class, Timeline)`). SpineObject = memory only, no RTTI. Interfaces = no RTTI.
 
-- `Timeline` is the root RTTI class for timelines (uses `RTTI_IMPL_NOPARENT`)
-- Timeline subclasses inherit from `Timeline` and use `RTTI_IMPL(ClassName, Timeline)`
-- `SpineObject` is for memory management only, does NOT have RTTI
-- Interface classes do NOT inherit from anything and do NOT use RTTI
+**Containers:** Java Array → `spine::Vector<T>`, String → `spine::String`. Operations: `clear()`, `addAll()`, cache `size()` in loops.
 
-**Container Types:**
+**Constructors:** Initialize in declaration order: `Class() : Parent(), _field(value) {}`. Colors: `_color(1,1,1,1)`, `_darkColor(0,0,0,0)`. Output params: `void method(float& outX, float& outY)`.
 
-- Java `Array` → `spine::Vector<T>` (not `std::vector`)
-- Java `String` → `spine::String` (not `std::string`)
-- Use spine's custom containers for consistency and memory management
-- Vector operations: `_deform.clear()`, `_deform.addAll(other._deform)`, cache `size()` in loops
+**Nullable References:** Java null → C++ object + boolean. `Color darkColor` → `Color _darkColor; bool _hasDarkColor;` + `hasDarkColor()` getter.
 
-**Constructor Patterns:**
+**Memory:** Use `SpineExtension::calloc<T>()` or `new (__FILE__, __LINE__)` for tracking. SpineObject provides custom operators.
 
-- Initialize all fields in declaration order: `BonePose() : BoneLocal(), _bone(nullptr), _a(0), _b(0) {}`
-- Color initialization: `_color(1, 1, 1, 1)`, `_darkColor(0, 0, 0, 0)`
-- Use reference parameters for output: `void worldToLocal(float worldX, float worldY, float& outLocalX, float& outLocalY)`
+**Organization:** Forward declarations, `spine` namespace, `using namespace spine;` in sources, follow existing patterns.
 
-**Nullable Reference Pattern:**
+**Documentation:** Java `/** */` → C++ `///`. Maintain parity. Javadoc translations: `{@link Class}` → `Class`, `{@link Class#method}` → `Class::method`, `{@code example}` → `example`, remove HTML tags.
 
-- Java nullable references → C++ object field + boolean flag
-- Example: Java `Color darkColor` (can be null) → C++ `Color _darkColor; bool _hasDarkColor;`
-- Always instantiate the object field, use boolean to track null state
-- Provide `hasDarkColor()` getter and `getDarkColor()` that returns reference to always-valid object
-
-**Memory Management:**
-
-- Allocate using `SpineExtension::calloc<T>()` or `new (__FILE__, __LINE__)`
-- All allocations track file/line for debugging
-- Objects inherit SpineObject's custom new/delete operators
-
-**Code Organization:**
-
-- Prefer forward declarations of classes in header files
-- All code is in the `spine` namespace
-- Source files use `using namespace spine;`
-- Follow existing patterns in the file you're editing
-
-**Documentation:**
-
-- Use Doxygen-compatible triple-slash comments (`///`) for documentation
-- Convert Java `/** */` comments to C++ `///` style
-- Document only what's documented in the Java source (maintain parity)
-
-**Javadoc to Doxygen Translation Guide:**
-
-- `/** comment */` → `/// comment`
-- `@param name description` → `@param name description` (same)
-- `@return description` → `@return description` (same)
-- `@throws Exception description` → `@throws Exception description` (same)
-- `{@link Class}` → `Class` (remove link markup)
-- `{@link Class#method}` → `Class::method`
-- `{@link #method}` → `method()` (same class method)
-- `Class#method(args)` → `Class::method()`
-- `Skeleton#getBones()` → `Skeleton::getBones()`
-- `{@code example}` → `example` (remove code markup)
-- HTML tags (`<p>`, `<code>`, etc.) → Remove or convert to Doxygen equivalents
-
-**Header Example:**
+**Examples:**
 
 ```cpp
-#include <spine/SpineObject.h>
-#include <spine/RTTI.h>
-#include <spine/Vector.h>
-
+// Header: includes, SP_API, RTTI_DECL, _underscore fields
 class SP_API ClassName : public ParentClass {
     RTTI_DECL
-private:
-    spine::Vector<SomeType*> _items;
-    spine::String _name;
-    float _value;
-public:
-    ClassName(float value);
-    void someMethod();
+private: spine::Vector<Type*> _items; float _value;
+public: ClassName(float value); void method();
 };
-```
 
-**Source Example:**
-
-```cpp
+// Source: using namespace, RTTI_IMPL, constructor chain
 #include <spine/ClassName.h>
 using namespace spine;
-
 RTTI_IMPL(ClassName, ParentClass)
+ClassName::ClassName(float value) : ParentClass(), _value(value) {}
 
-ClassName::ClassName(float value) : ParentClass(), _value(value) {
-    // Constructor body
-}
-```
-
-**Enum Example:**
-
-```cpp
+// Enum: namespace spine, PrefixName pattern
 namespace spine {
-    enum MixBlend {
-        MixBlend_Setup,
-        MixBlend_First,
-        MixBlend_Replace,
-        MixBlend_Add
-    };
+    enum MixBlend { MixBlend_Setup, MixBlend_First };
 }
 ```
 
-**Interface → Pure Abstract Class Example:**
+**Advanced Patterns:**
 
 ```cpp
-// Header: BoneTimeline.h
-#include <spine/dll.h>
+// Interface: dll.h, SP_API, no RTTI, pure virtual methods, empty constructor/destructor
+class SP_API BoneTimeline {
+public: BoneTimeline(); virtual ~BoneTimeline(); virtual int getBoneIndex() = 0; };
 
-namespace spine {
-    /// An interface for timelines which change the property of a bone.
-    class SP_API BoneTimeline {
-    public:
-        BoneTimeline();
-        virtual ~BoneTimeline();
-
-        /// The index of the bone in Skeleton::getBones() that will be changed when this timeline is applied.
-        virtual int getBoneIndex() = 0;
-    };
-}
-```
-
-```cpp
-// Source: BoneTimeline.cpp
-#include <spine/BoneTimeline.h>
-
-using namespace spine;
-
-BoneTimeline::BoneTimeline() {
-}
-
-BoneTimeline::~BoneTimeline() {
-}
-```
-
-**Concrete Class Implementing Interface:**
-
-```cpp
-// Concrete timeline class inherits from Timeline AND implements interface
+// Multiple inheritance: Timeline + interface
 class SP_API RotateTimeline : public Timeline, public BoneTimeline {
     RTTI_DECL
-public:
-    RotateTimeline(int frameCount, int bezierCount, int boneIndex);
-    virtual int getBoneIndex() override;
-    // Timeline methods...
+public: virtual int getBoneIndex() override;
 };
-```
 
-**Generic Interface → Template Class Example:**
+// Template interface: no RTTI, header-only implementation
+template<class P> class SP_API Pose : public SpineObject {
+public: Pose(); virtual ~Pose(); virtual void set(P& pose) = 0; };
 
-```cpp
-// Header: Pose.h (Java: interface Pose<P>)
-#include <spine/SpineObject.h>
-
-namespace spine {
-    template<class P>
-    class SP_API Pose : public SpineObject {
-        // NO RTTI_DECL - template classes don't need RTTI
-    public:
-        Pose();
-        virtual ~Pose();
-        virtual void set(P& pose) = 0;
-    };
-
-    template<class P>
-    Pose<P>::Pose() {
-    }
-
-    template<class P>
-    Pose<P>::~Pose() {
-    }
-}
-```
-
-**Template Interface + Concrete Implementation:**
-
-```cpp
-// Concrete class implementing template interface
+// Template implementation: inherits from template, gets RTTI
 class SP_API IkConstraintPose : public Pose<IkConstraint> {
-    RTTI_DECL  // Concrete classes DO get RTTI
-public:
-    IkConstraintPose();
-    virtual ~IkConstraintPose();
-    virtual void set(IkConstraint& pose) override;
+    RTTI_DECL
+public: virtual void set(IkConstraint& pose) override;
 };
 ```
 
-```cpp
-// Source: IkConstraintPose.cpp
-#include <spine/IkConstraintPose.h>
-using namespace spine;
-
-RTTI_IMPL(IkConstraintPose, SpineObject)  // RTTI for concrete class
-
-// Implementation...
-```
-
-**Template + RTTI Rules:**
-
-- **Java generic interface** → C++ template class (header-only, no RTTI, no .cpp file)
-- **Java class implementing generic interface** → C++ class inheriting from template (with RTTI + .cpp file)
-- **Template classes are compile-time constructs** - they don't need runtime type information
-- **Concrete implementations get RTTI** - for runtime polymorphism and type checking
+**Template Rules:** Java generic interface → C++ template (header-only, no RTTI). Java implementing class → C++ inheriting from template (with RTTI + .cpp).
