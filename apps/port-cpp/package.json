@@ -9,16 +9,17 @@
 		"dev-server": "npx tsx src/dev-server.ts /Users/badlogic/workspaces/spine-runtimes"
 	},
 	"dependencies": {
+		"chalk": "^5.3.0",
+		"chokidar": "^3.5.3",
+		"express": "^4.18.2",
+		"puppeteer": "^24.10.0",
 		"tsx": "^4.19.4",
 		"typescript": "^5.8.3",
-		"chalk": "^5.3.0",
-		"express": "^4.18.2",
-		"ws": "^8.14.2",
-		"chokidar": "^3.5.3"
+		"ws": "^8.14.2"
 	},
 	"devDependencies": {
-		"@types/node": "^20.0.0",
 		"@types/express": "^4.17.21",
+		"@types/node": "^20.0.0",
 		"@types/ws": "^8.5.10"
 	},
 	"engines": {
