@@ -11,7 +11,6 @@ export default class FileModel {
 		this.modifiedContent = modifiedContent;
 		this.error = null;
 		this.contentViewState = null;
-		this.diffViewState = null;
 		this.fullDiffViewState = null;
 		this.highlightDecorations = [];
 		this.createModels();

@@ -149,7 +149,8 @@ Output the resulting JSON to the user.
 **Type Translations:**
 
 - Java class → C++ class + RTTI (`spine/RTTI.h`)
-- Java interface → C++ pure abstract class, no RTTI (`spine/dll.h`)
+- Java interface → C++ pure abstract class, no RTTI (`spine/dll.h`) + .cpp file with empty constructor/destructor
+- Java generic interface → C++ template class + SpineObject inheritance, no RTTI (`spine/SpineObject.h`) + header-only implementation
 - Java enum → C++ enum in spine namespace (header-only)
 
 **Class Structure:**
@@ -157,7 +158,8 @@ Output the resulting JSON to the user.
 - Concrete classes: Inherit from base + RTTI (`RTTI_DECL` in header, `RTTI_IMPL(Class, Parent)` or `RTTI_IMPL_NOPARENT(Class)` in source)
 - Multiple inheritance: `class BonePose : public BoneLocal, public Update`
 - Template interfaces: `class SlotPose : public Pose<SlotPose>`
-- Interface classes: Pure abstract, no inheritance, no RTTI
+- Interface classes: Pure abstract, no inheritance, no RTTI, separate .cpp file
+- Generic interface classes: Template, inherit from SpineObject, no RTTI, header-only
 - Private fields: `_underscore` prefix, public methods: exact Java names
 
 **RTTI Hierarchy:** Timeline (root, `RTTI_IMPL_NOPARENT`) → subclasses (`RTTI_IMPL(Class, Timeline)`). SpineObject = memory only, no RTTI. Interfaces = no RTTI.
@@ -199,7 +201,7 @@ namespace spine {
 **Advanced Patterns:**
 
 ```cpp
-// Interface: dll.h, SP_API, no RTTI, pure virtual methods, empty constructor/destructor
+// Non-generic interface: dll.h, SP_API, no RTTI, pure virtual methods, separate .cpp file
 class SP_API BoneTimeline {
 public: BoneTimeline(); virtual ~BoneTimeline(); virtual int getBoneIndex() = 0; };
 
@@ -209,15 +211,15 @@ class SP_API RotateTimeline : public Timeline, public BoneTimeline {
 public: virtual int getBoneIndex() override;
 };
 
-// Template interface: no RTTI, header-only implementation
+// Generic interface: template, SpineObject inheritance, no RTTI, header-only implementation
 template<class P> class SP_API Pose : public SpineObject {
 public: Pose(); virtual ~Pose(); virtual void set(P& pose) = 0; };
 
-// Template implementation: inherits from template, gets RTTI
+// Generic interface implementation: inherits from template, gets RTTI + .cpp file
 class SP_API IkConstraintPose : public Pose<IkConstraint> {
     RTTI_DECL
 public: virtual void set(IkConstraint& pose) override;
 };
 ```
 
-**Template Rules:** Java generic interface → C++ template (header-only, no RTTI). Java implementing class → C++ inheriting from template (with RTTI + .cpp).
+**Interface Rules:** Java interface → C++ pure abstract class (separate .cpp file). Java generic interface → C++ template + SpineObject inheritance (header-only). Java implementing class → C++ with RTTI + .cpp file.

@@ -65,7 +65,6 @@ export default class FileView {
 		}
 
 		if (mode === "content") panel.showContent(this.fileModel);
-		else if (mode === "diff") panel.showDiff(this.fileModel);
 		else if (mode === "fullDiff") panel.showFullDiff(this.fileModel);
 
 		logger.log(`📺 FileView ${this.fileIdentity.getKey()} displayed in panel ${panel.containerId} (${mode} mode)`);
@@ -85,10 +84,10 @@ export default class FileView {
 		this.notifyListeners({ type: "modeChanged", fileView: this, newMode });
 	}
 
-	// Toggle between content, diff, and fullDiff modes
+	// Toggle between content and fullDiff modes
 	toggleMode() {
 		const actualPanelMode = this.currentPanel ? this.currentPanel.getCurrentMode() : this.currentMode;
-		const newMode = actualPanelMode === "content" ? "diff" : actualPanelMode === "diff" ? "fullDiff" : "content";
+		const newMode = actualPanelMode === "content" ? "fullDiff" : "content";
 		logger.log(`🔄 Switching from ${actualPanelMode} to ${newMode} mode`);
 		this.switchMode(newMode);
 	}

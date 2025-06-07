@@ -41,7 +41,6 @@ export default class TabbedPanel {
 			<div class="file-info" style="display: none;"></div>
 			<div class="content">
 				<div class="content-editor-container" style="width: 100%; height: 100%; display: none;"></div>
-				<div class="diff-editor-container" style="width: 100%; height: 100%; display: none;"></div>
 				<div class="full-diff-editor-container" style="width: 100%; height: 100%; display: none;"></div>
 				<div class="message-container" style="width: 100%; height: 100%; display: none; align-items: center; justify-content: center;"></div>
 			</div>
@@ -51,7 +50,6 @@ export default class TabbedPanel {
 		this.fileInfo = this.container.querySelector(".file-info");
 		this.content = this.container.querySelector(".content");
 		this.contentContainer = this.container.querySelector(".content-editor-container");
-		this.diffContainer = this.container.querySelector(".diff-editor-container");
 		this.fullDiffContainer = this.container.querySelector(".full-diff-editor-container");
 		this.messageContainer = this.container.querySelector(".message-container");
 	}
@@ -74,13 +72,6 @@ export default class TabbedPanel {
 			...commonOptions,
 			value: "",
 			language: "text",
-		});
-
-		// Create context diff editor (only changed lines + context)
-		this.diffEditor = monaco.editor.createDiffEditor(this.diffContainer, {
-			...commonOptions,
-			renderSideBySide: true,
-			ignoreTrimWhitespace: false,
 		});
 
 		// Create full diff editor (complete files side-by-side)
@@ -276,8 +267,6 @@ export default class TabbedPanel {
 		</svg>`;
 
 		if (currentMode === "content") {
-			return { toggleIcon: diffIcon, toggleTitle: "Diff (Context)" };
-		} else if (currentMode === "diff") {
 			return { toggleIcon: diffIcon, toggleTitle: "Full Diff" };
 		} else {
 			return { toggleIcon: contentIcon, toggleTitle: "Content" };
@@ -371,7 +360,6 @@ export default class TabbedPanel {
 		// Create a Panel-like interface for FileView
 		const panelInterface = {
 			showContent: (fileModel) => this.showContent(fileModel),
-			showDiff: (fileModel) => this.showDiff(fileModel),
 			showFullDiff: (fileModel) => this.showFullDiff(fileModel),
 			showError: (error) => this.showError(error),
 			getCurrentMode: () => fileView.getCurrentMode(),
@@ -403,42 +391,6 @@ export default class TabbedPanel {
 
 		this.currentFileModel = fileModel;
 		this.currentMode = "content";
-	}
-
-	/**
-	 * Show file in diff mode
-	 */
-	showDiff(fileModel) {
-		if (!fileModel || !fileModel.hasDiff()) {
-			this.showNoDiff();
-			return;
-		}
-
-		this.hideAllContainers();
-		this.diffContainer.style.display = "block";
-
-		if (fileModel && fileModel.originalModel && fileModel.modifiedModel) {
-			this.diffEditor.setModel({
-				original: fileModel.originalModel,
-				modified: fileModel.modifiedModel,
-			});
-
-			const restoreViewState = () => {
-				if (fileModel.diffViewState) {
-					this.diffEditor.restoreViewState(fileModel.diffViewState);
-				}
-			};
-
-			const disposable = this.diffEditor.onDidUpdateDiff(() => {
-				restoreViewState();
-				disposable.dispose();
-			});
-
-			setTimeout(restoreViewState, 200);
-		}
-
-		this.currentFileModel = fileModel;
-		this.currentMode = "diff";
 	}
 
 	/**
@@ -525,7 +477,6 @@ export default class TabbedPanel {
 	 */
 	hideAllContainers() {
 		this.contentContainer.style.display = "none";
-		this.diffContainer.style.display = "none";
 		this.fullDiffContainer.style.display = "none";
 		this.messageContainer.style.display = "none";
 	}
@@ -540,9 +491,6 @@ export default class TabbedPanel {
 			if (this.currentMode === "content" && this.contentEditor) {
 				const viewState = this.contentEditor.saveViewState();
 				this.currentFileModel.contentViewState = viewState;
-			} else if (this.currentMode === "diff" && this.diffEditor) {
-				const viewState = this.diffEditor.saveViewState();
-				this.currentFileModel.diffViewState = viewState;
 			} else if (this.currentMode === "fullDiff" && this.fullDiffEditor) {
 				const viewState = this.fullDiffEditor.saveViewState();
 				this.currentFileModel.fullDiffViewState = viewState;
@@ -658,9 +606,6 @@ export default class TabbedPanel {
 		if (this.contentEditor) {
 			this.contentEditor.layout();
 		}
-		if (this.diffEditor) {
-			this.diffEditor.layout();
-		}
 		if (this.fullDiffEditor) {
 			this.fullDiffEditor.layout();
 		}
@@ -728,9 +673,6 @@ export default class TabbedPanel {
 		// Dispose editors
 		if (this.contentEditor) {
 			this.contentEditor.dispose();
-		}
-		if (this.diffEditor) {
-			this.diffEditor.dispose();
 		}
 		if (this.fullDiffEditor) {
 			this.fullDiffEditor.dispose();

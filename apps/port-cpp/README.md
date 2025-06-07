@@ -72,7 +72,7 @@ fileViewer.highlight("/path/to/file", 10, 20); // Highlight lines 10-20 (inclusi
 
 **Dev Server** ([`src/dev-server.ts`](src/dev-server.ts)): WebSocket server with real-time file watching, git diff calculation, and multi-client support
 
-**Frontend** ([`src/frontend/`](src/frontend/)): VS Code-like interface with Monaco Editor, dual-panel layout, syntax highlighting, and 3-mode diff visualization (content/inline/side-by-side)
+**Frontend** ([`src/frontend/`](src/frontend/)): VS Code-like interface with Monaco Editor, dual-panel layout, syntax highlighting, and 2-mode diff visualization (content/side-by-side)
 
 **Porting Plan** (`porting-plan.json`): Priority-ordered porting tasks (see [`src/types.ts`](src/types.ts) for schemas), generated via [`src/port-cpp.ts`](src/port-cpp.ts)
 
