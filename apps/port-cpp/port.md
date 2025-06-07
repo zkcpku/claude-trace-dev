@@ -94,11 +94,9 @@ Open Java file in right panel, C++ files in left panel using file viewer.
 
 ### 3. Confirm with User
 
-🛑 **STOP HERE - WAIT FOR USER CONFIRMATION** 🛑 Play ping sound, show `PortingOrderItem` JSON, ask user confirmation to proceed.
-
-```bash
-afplay /System/Library/Sounds/Ping.aiff
-```
+1. Play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
+2. STOP HERE: Show the complete `PortingOrderItem` JSON and ask if this is the type to work on.
+3. ONLY AFTER CONFIRMATION, proceed to step 4.
 
 ### 4. Open and Read Source Files
 
