@@ -73,10 +73,10 @@ ${colors.yellow}EXAMPLES:${colors.reset}
 
   # Generate HTML report
   claude-trace --generate-html logs/traffic.jsonl report.html
-  
+
   # Generate HTML report and open in browser (default)
   claude-trace --generate-html logs/traffic.jsonl
-  
+
   # Generate HTML report without opening browser
   claude-trace --generate-html logs/traffic.jsonl --no-open
 
@@ -196,39 +196,39 @@ async function runClaudeWithInterception(
 async function extractToken(): Promise<void> {
 	const claudePath = getClaudeAbsolutePath();
 
-	// Create a temporary file to store the token
-	const tempTokenFile = path.join(process.cwd(), `.token-${Date.now()}.tmp`);
+	// Create .claude-trace directory if it doesn't exist
+	const claudeTraceDir = path.join(process.cwd(), ".claude-trace");
+	if (!fs.existsSync(claudeTraceDir)) {
+		fs.mkdirSync(claudeTraceDir, { recursive: true });
+	}
 
-	// Read the token extractor template and configure it
-	const templatePath = path.join(__dirname, "token-extractor.js");
-	if (!fs.existsSync(templatePath)) {
-		log(`❌ Token extractor template not found at: ${templatePath}`, "red");
+	// Token file location
+	const tokenFile = path.join(claudeTraceDir, "token.txt");
+
+	// Use the token extractor directly without copying
+	const tokenExtractorPath = path.join(__dirname, "token-extractor.js");
+	if (!fs.existsSync(tokenExtractorPath)) {
+		log(`❌ Token extractor not found at: ${tokenExtractorPath}`, "red");
 		process.exit(1);
 	}
 
-	const templateCode = fs.readFileSync(templatePath, "utf-8");
-	const extractorCode = templateCode.replace("TOKEN_FILE_PLACEHOLDER", tempTokenFile);
-
-	// Write the configured extractor
-	const tokenExtractorPath = path.join(process.cwd(), `token-extractor-${Date.now()}.js`);
-	fs.writeFileSync(tokenExtractorPath, extractorCode);
-
 	const cleanup = () => {
 		try {
-			if (fs.existsSync(tokenExtractorPath)) fs.unlinkSync(tokenExtractorPath);
-			if (fs.existsSync(tempTokenFile)) fs.unlinkSync(tempTokenFile);
+			if (fs.existsSync(tokenFile)) fs.unlinkSync(tokenFile);
 		} catch (e) {
 			// Ignore cleanup errors
 		}
 	};
 
 	// Launch node with token interceptor and absolute path to claude
+	const { ANTHROPIC_API_KEY, ...envWithoutApiKey } = process.env;
 	const child: ChildProcess = spawn("node", ["--require", tokenExtractorPath, claudePath, "-p", "hello"], {
 		env: {
-			...process.env,
+			...envWithoutApiKey,
 			NODE_TLS_REJECT_UNAUTHORIZED: "0",
+			CLAUDE_TRACE_TOKEN_FILE: tokenFile,
 		},
-		stdio: ["pipe", "pipe", "pipe"], // Suppress all output from Claude
+		stdio: "inherit", // Suppress all output from Claude
 		cwd: process.cwd(),
 	});
 
@@ -252,8 +252,8 @@ async function extractToken(): Promise<void> {
 		clearTimeout(timeout);
 
 		try {
-			if (fs.existsSync(tempTokenFile)) {
-				const token = fs.readFileSync(tempTokenFile, "utf-8").trim();
+			if (fs.existsSync(tokenFile)) {
+				const token = fs.readFileSync(tokenFile, "utf-8").trim();
 				cleanup();
 				if (token) {
 					// Only output the token, nothing else
@@ -273,8 +273,8 @@ async function extractToken(): Promise<void> {
 	// Check for token file periodically
 	const checkToken = setInterval(() => {
 		try {
-			if (fs.existsSync(tempTokenFile)) {
-				const token = fs.readFileSync(tempTokenFile, "utf-8").trim();
+			if (fs.existsSync(tokenFile)) {
+				const token = fs.readFileSync(tokenFile, "utf-8").trim();
 				if (token) {
 					clearTimeout(timeout);
 					clearInterval(checkToken);
