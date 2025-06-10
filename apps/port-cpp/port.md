@@ -58,13 +58,13 @@ Test single file compilation to catch basic errors:
 
 ```bash
 # For .cpp files (replace paths with actual spine-runtimes paths)
-clang++ -std=c++11 -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.cpp -o /tmp/test.o && echo "OK" || echo "FAILED"
+clang++ -std=c++11 -Wno-inconsistent-missing-override -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.cpp -o /tmp/test.o && echo "OK" || echo "FAILED"
 
 # For .h files
-clang++ -std=c++11 -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.h -o /tmp/test.o && echo "OK" || echo "FAILED"
+clang++ -std=c++11 -Wno-inconsistent-missing-override -c -I/path/to/spine-runtimes/spine-cpp/spine-cpp/include /path/to/ClassName.h -o /tmp/test.o && echo "OK" || echo "FAILED"
 ```
 
-**Note:** Compilation failures due to missing dependencies are expected during porting.
+**Note:** Compilation failures due to missing dependencies are expected during porting. The `-Wno-inconsistent-missing-override` flag disables warnings about RTTI declarations missing `override` keywords, which is a codebase-wide pattern.
 
 ## Step-by-Step Workflow
 
@@ -82,15 +82,15 @@ jq '.metadata' porting-plan.json
 
 Start dev server and open file viewer with puppeteer (see Tools section for commands).
 
-### 2. Find Next Type
+### 2. Find Next Type and Open Files
 
-Get the next pending type from porting plan:
+1. Get the next pending type from porting plan:
 
 ```bash
 jq -r '.portingOrder[] | select(.portingState == "pending") | . | @json' porting-plan.json | head -1 | jq .
 ```
 
-Open Java file in right panel, C++ files in left panel using file viewer.
+2. **Batch operation:** Open Java file in right panel + C++ files in left panel (if they exist) with single puppeteer call.
 
 ### 3. Confirm with User
 
@@ -98,9 +98,9 @@ Open Java file in right panel, C++ files in left panel using file viewer.
 2. STOP HERE: Show the complete `PortingOrderItem` JSON and ask if this is the type to work on.
 3. ONLY AFTER CONFIRMATION, proceed to step 4.
 
-### 4. Open and Read Source Files
+### 4. Read Source Files
 
-Batch operations: Open Java file in right panel + C++ files in left panel (if they exist) with single puppeteer call. Read complete contents of Java source + existing C++ files into context simultaneously with multiple Read tool calls.
+Read complete contents of Java source + existing C++ files into context simultaneously with multiple Read tool calls.
 
 ### 5. Port to C++
 
@@ -119,7 +119,7 @@ Batch operations: Open Java file in right panel + C++ files in left panel (if th
 
 ### 6. Test Compilation (Optional)
 
-Use Quick Compile Test commands from Tools section to catch basic errors. Missing dependency failures are expected.
+Use Quick Compile Test commands from Tools section to catch basic errors. Missing dependency failures are expected. Always use the `-Wno-inconsistent-missing-override` flag to suppress RTTI override warnings.
 
 ### 7. Update the Porting Plan
 
@@ -166,11 +166,15 @@ Output the resulting JSON to the user.
 
 **Containers:** Java Array → `spine::Vector<T>`, String → `spine::String`. Operations: `clear()`, `addAll()`, cache `size()` in loops.
 
-**Constructors:** Initialize in declaration order: `Class() : Parent(), _field(value) {}`. Colors: `_color(1,1,1,1)`, `_darkColor(0,0,0,0)`. Output params: `void method(float& outX, float& outY)`.
+**Constructors:** Initialize in declaration order: `Class() : Parent(), _field(value) {}`. Colors: `_color(1,1,1,1)`, `_darkColor(0,0,0,0)`. Output params: `void method(float& outX, float& outY)`. **DO NOT port copy constructors from Java.**
 
 **Nullable References:** Java null → C++ object + boolean. `Color darkColor` → `Color _darkColor; bool _hasDarkColor;` + `hasDarkColor()` getter.
 
 **Memory:** Use `SpineExtension::calloc<T>()` or `new (__FILE__, __LINE__)` for tracking. SpineObject provides custom operators.
+
+**Ownership:** Follow Java ownership patterns. Template classes like `PosedData<T>` that take pointers in constructors own those objects and must delete them in destructors. When Java creates objects with `new` in constructors (e.g., `super(name, new BoneLocal())`), C++ should match this with `new (__FILE__, __LINE__) Type()` and ensure proper cleanup.
+
+**Math Functions:** NEVER use `<cmath>` or `std::` math functions. Always use `spine/MathUtil.h` functions: `MathUtil::sqrt()`, `MathUtil::sin()`, `MathUtil::cos()`, `MathUtil::atan2()`, etc.
 
 **Organization:** Forward declarations, `spine` namespace, `using namespace spine;` in sources, follow existing patterns.
 
