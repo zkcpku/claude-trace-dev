@@ -1,0 +1,19 @@
+# Demo workflow script for Diffy MCP CLI
+# Usage: cat examples/demo-workflow.txt | node diffy-cli.mjs
+
+# Open demo files in both panels
+open demo.js 0
+open demo.py 1
+
+# Highlight interesting sections
+highlight demo.js 12 15
+highlight demo.py 6 10
+
+# Open documentation
+open README.md 0
+
+# Refresh everything
+refresh
+
+# Exit when done
+exit

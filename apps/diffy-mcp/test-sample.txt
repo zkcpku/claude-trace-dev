@@ -1,0 +1,20 @@
+This is a test file for Diffy MCP
+=====================================
+
+Line 1: Hello World
+Line 2: This is the second line
+Line 3: Testing line highlighting
+Line 4: Another line of text
+Line 5: Git diff testing
+Line 6: Monaco editor integration
+Line 7: WebSocket communication
+Line 8: File watching capabilities
+Line 9: Browser auto-opening
+Line 10: Cross-platform support
+
+This file can be used to test:
+- File opening in left/right panels
+- Line highlighting functionality
+- Git diff capabilities (if in a git repo)
+- Editor integration
+- Real-time updates

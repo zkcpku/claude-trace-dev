@@ -1,0 +1,6 @@
+open demo.js 0
+open demo.py 1
+highlight demo.js 12 15
+open README.md 0 main
+refresh
+exit

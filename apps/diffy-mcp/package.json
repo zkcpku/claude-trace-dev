@@ -1,0 +1,29 @@
+{
+	"name": "diffy-mcp",
+	"version": "1.0.0",
+	"description": "File diff viewer MCP server for collaborative development",
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"build": "npm run build --workspace=packages/server --workspace=packages/frontend",
+		"dev": "npm run dev --workspace=packages/server --workspace=packages/frontend",
+		"test": "npm run test --workspace=packages/server --workspace=packages/frontend",
+		"test:manual": "node scripts/test-manual.js",
+		"test:auto": "node scripts/test-auto.js",
+		"clean": "npm run clean --workspace=packages/server --workspace=packages/frontend"
+	},
+	"keywords": [
+		"mcp",
+		"diff",
+		"file-viewer",
+		"git",
+		"collaboration"
+	],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"typescript": "^5.0.0",
+		"@types/node": "^20.0.0"
+	}
+}

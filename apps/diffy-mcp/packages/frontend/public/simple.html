@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffy - File Diff Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background: #2d2d30;
+            padding: 10px 20px;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .status {
+            font-size: 14px;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            background: #1e1e1e;
+        }
+        
+        .empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .empty-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #ffffff;
+        }
+        
+        .empty-message {
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            line-height: 1.5;
+        }
+        
+        .empty-instructions {
+            background: #2d2d30;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+            max-width: 700px;
+            text-align: left;
+        }
+        
+        .empty-instructions strong {
+            color: #4fc3f7;
+        }
+        
+        code {
+            background: #3e3e42;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: inherit;
+            color: #ffcc95;
+        }
+        
+        .panel {
+            flex: 1;
+            border: 1px solid #3e3e42;
+            margin: 10px;
+            border-radius: 8px;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-header {
+            background: #2d2d30;
+            padding: 10px 15px;
+            border-bottom: 1px solid #3e3e42;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #858585;
+        }
+        
+        .editor-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .connected {
+            color: #4caf50;
+        }
+        
+        .connecting {
+            color: #ff9800;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <div class="status">
+                Status: <span id="connection-status" class="connecting">Connecting...</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div id="empty-state" class="empty-state">
+                <div class="empty-icon">📁</div>
+                <div class="empty-title">Welcome to Diffy</div>
+                <div class="empty-message">
+                    No files are currently open. Use the MCP tools to open files for viewing and comparison.
+                </div>
+                <div class="empty-instructions">
+                    <strong>Available MCP Tools:</strong><br>
+                    • <code>open</code> - Open a file in left (0) or right (1) panel<br>
+                    • <code>highlight</code> - Highlight specific lines in a file<br>
+                    • <code>close</code> - Close a file from all panels<br>
+                    • <code>refresh</code> - Refresh all files and diffs
+                </div>
+            </div>
+            
+            <div id="panels-container" class="hidden" style="display: flex; width: 100%;">
+                <div class="panel">
+                    <div class="panel-header">
+                        <strong>Left Panel</strong>
+                        <span id="left-file-info"></span>
+                    </div>
+                    <div class="panel-content">
+                        <div id="left-editor" class="editor-container"></div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <div class="panel-header">
+                        <strong>Right Panel</strong>
+                        <span id="right-file-info"></span>
+                    </div>
+                    <div class="panel-content">
+                        <div id="right-editor" class="editor-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    
+    <script>
+        class DiffyApp {
+            constructor() {
+                this.ws = null;
+                this.connected = false;
+                this.editors = new Map();
+                this.files = new Map();
+                this.panels = [[], []];
+                this.activeTabs = [null, null];
+                
+                this.statusEl = document.getElementById('connection-status');
+                this.emptyStateEl = document.getElementById('empty-state');
+                this.panelsEl = document.getElementById('panels-container');
+                
+                this.initMonaco();
+            }
+            
+            async initMonaco() {
+                console.log('🔧 Initializing Monaco Editor...');
+                
+                require.config({ 
+                    paths: { 
+                        vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' 
+                    } 
+                });
+                
+                require(['vs/editor/editor.main'], () => {
+                    console.log('✅ Monaco Editor loaded');
+                    
+                    // Define dark theme
+                    monaco.editor.defineTheme('diffy-dark', {
+                        base: 'vs-dark',
+                        inherit: true,
+                        rules: [],
+                        colors: {
+                            'editor.background': '#1e1e1e',
+                            'editor.foreground': '#d4d4d4',
+                            'editorLineNumber.foreground': '#858585',
+                            'editorLineNumber.activeForeground': '#c6c6c6',
+                            'editor.selectionBackground': '#264f78',
+                            'editor.selectionHighlightBackground': '#add6ff26',
+                            'editorIndentGuide.background': '#404040',
+                            'editorIndentGuide.activeBackground': '#707070',
+                            'editor.lineHighlightBackground': '#2a2d2e'
+                        }
+                    });
+                    
+                    monaco.editor.setTheme('diffy-dark');
+                    console.log('✅ Monaco theme configured');
+                    
+                    this.connectWebSocket();
+                });
+            }
+            
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const port = window.location.port ? `:${window.location.port}` : '';
+                const url = `${protocol}//${window.location.hostname}${port}`;
+                
+                console.log(`🔌 Connecting to WebSocket: ${url}`);
+                
+                try {
+                    this.ws = new WebSocket(url);
+                    this.setupWebSocketHandlers();
+                } catch (error) {
+                    console.error('Failed to create WebSocket:', error);
+                    this.updateStatus('error');
+                }
+            }
+            
+            setupWebSocketHandlers() {
+                this.ws.onopen = () => {
+                    console.log('✅ WebSocket connected');
+                    this.connected = true;
+                    this.updateStatus('connected');
+                };
+                
+                this.ws.onclose = (event) => {
+                    console.log('❌ WebSocket disconnected:', event.code, event.reason);
+                    this.connected = false;
+                    this.updateStatus('disconnected');
+                    
+                    if (event.code !== 1000) {
+                        setTimeout(() => this.connectWebSocket(), 2000);
+                    }
+                };
+                
+                this.ws.onerror = (error) => {
+                    console.error('❌ WebSocket error:', error);
+                    this.updateStatus('error');
+                };
+                
+                this.ws.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        this.handleWebSocketMessage(message);
+                    } catch (error) {
+                        console.error('Failed to parse WebSocket message:', error);
+                    }
+                };
+            }
+            
+            handleWebSocketMessage(message) {
+                console.log('📥 WebSocket message:', message);
+                
+                switch (message.type) {
+                    case 'openFile':
+                        this.openFile(message.absolutePath, message.panel, message.branch);
+                        // Also request file watching
+                        this.requestFileWatch(message.absolutePath, message.branch);
+                        break;
+                    case 'fileUpdate':
+                        this.updateFile(message);
+                        break;
+                    case 'highlightFile':
+                        this.highlightFile(message.absolutePath, message.startLine, message.endLine);
+                        break;
+                    case 'closeFile':
+                        this.closeFile(message.absolutePath);
+                        break;
+                    case 'refresh':
+                        this.refresh();
+                        break;
+                    default:
+                        console.warn('Unknown message type:', message.type);
+                }
+            }
+            
+            requestFileWatch(absolutePath, branch) {
+                if (this.ws && this.connected) {
+                    const watchMessage = {
+                        type: 'watch',
+                        absolutePath: absolutePath,
+                        branch: branch
+                    };
+                    this.ws.send(JSON.stringify(watchMessage));
+                    console.log('👁️ Requested file watch:', absolutePath);
+                }
+            }
+            
+            openFile(absolutePath, panel, branch) {
+                const fileKey = branch ? `${absolutePath}@${branch}` : absolutePath;
+                
+                if (!this.panels[panel].includes(fileKey)) {
+                    this.panels[panel].push(fileKey);
+                }
+                
+                this.activeTabs[panel] = fileKey;
+                this.updateUI();
+                
+                console.log(`📂 Opened file: ${fileKey} in panel ${panel}`);
+            }
+            
+            updateFile(fileData) {
+                const { absolutePath, branch, content, error } = fileData;
+                const fileKey = branch ? `${absolutePath}@${branch}` : absolutePath;
+                
+                this.files.set(fileKey, {
+                    absolutePath,
+                    branch,
+                    content: content || '',
+                    error,
+                    filename: absolutePath.split('/').pop()
+                });
+                
+                this.updateEditorContent(fileKey);
+                console.log(`📝 Updated file: ${fileKey}`);
+            }
+            
+            updateEditorContent(fileKey) {
+                const file = this.files.get(fileKey);
+                if (!file) return;
+                
+                // Find which panel this file is active in
+                for (let panel = 0; panel < 2; panel++) {
+                    if (this.activeTabs[panel] === fileKey) {
+                        const editorId = `${panel === 0 ? 'left' : 'right'}-editor`;
+                        const container = document.getElementById(editorId);
+                        
+                        if (!container) continue;
+                        
+                        // Dispose existing editor
+                        const existingEditor = this.editors.get(editorId);
+                        if (existingEditor) {
+                            existingEditor.dispose();
+                        }
+                        
+                        // Create new editor
+                        const editor = monaco.editor.create(container, {
+                            value: file.content,
+                            language: this.inferLanguage(file.filename),
+                            theme: 'diffy-dark',
+                            readOnly: true,
+                            automaticLayout: true,
+                            scrollBeyondLastLine: false,
+                            minimap: { enabled: false },
+                            fontSize: 13,
+                            lineNumbers: 'on'
+                        });
+                        
+                        this.editors.set(editorId, editor);
+                        
+                        // Update file info
+                        const infoEl = document.getElementById(`${panel === 0 ? 'left' : 'right'}-file-info`);
+                        if (infoEl) {
+                            const branchText = file.branch ? ` (vs ${file.branch})` : ' (vs HEAD)';
+                            infoEl.textContent = ` - ${file.filename}${branchText}`;
+                        }
+                    }
+                }
+            }
+            
+            highlightFile(absolutePath, startLine, endLine) {
+                const fileKey = this.findFileKey(absolutePath);
+                if (!fileKey) return;
+                
+                for (let panel = 0; panel < 2; panel++) {
+                    if (this.activeTabs[panel] === fileKey) {
+                        const editorId = `${panel === 0 ? 'left' : 'right'}-editor`;
+                        const editor = this.editors.get(editorId);
+                        
+                        if (editor) {
+                            const range = new monaco.Range(startLine, 1, endLine || startLine, 1);
+                            const decorations = [{
+                                range: range,
+                                options: {
+                                    isWholeLine: true,
+                                    className: 'highlighted-line',
+                                    overviewRuler: {
+                                        color: '#ffd700',
+                                        position: 4
+                                    }
+                                }
+                            }];
+                            
+                            editor.deltaDecorations([], decorations);
+                            editor.revealLineInCenter(startLine);
+                        }
+                    }
+                }
+                
+                console.log(`🎯 Highlighted ${absolutePath}: ${startLine}-${endLine || startLine}`);
+            }
+            
+            closeFile(absolutePath) {
+                // Remove from panels and dispose editors
+                for (let panel = 0; panel < 2; panel++) {
+                    this.panels[panel] = this.panels[panel].filter(key => !key.startsWith(absolutePath));
+                    
+                    if (this.activeTabs[panel] && this.activeTabs[panel].startsWith(absolutePath)) {
+                        this.activeTabs[panel] = this.panels[panel][0] || null;
+                    }
+                }
+                
+                // Remove from files
+                const keysToRemove = [];
+                for (const key of this.files.keys()) {
+                    if (key.startsWith(absolutePath)) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => this.files.delete(key));
+                
+                this.updateUI();
+                console.log(`🗑️ Closed file: ${absolutePath}`);
+            }
+            
+            findFileKey(absolutePath) {
+                for (const key of this.files.keys()) {
+                    if (key.startsWith(absolutePath)) {
+                        return key;
+                    }
+                }
+                return null;
+            }
+            
+            updateUI() {
+                const hasFiles = this.panels[0].length > 0 || this.panels[1].length > 0;
+                
+                if (hasFiles) {
+                    this.emptyStateEl.classList.add('hidden');
+                    this.panelsEl.classList.remove('hidden');
+                    
+                    // Update active files in both panels
+                    for (let panel = 0; panel < 2; panel++) {
+                        const activeKey = this.activeTabs[panel];
+                        if (activeKey) {
+                            this.updateEditorContent(activeKey);
+                        }
+                    }
+                } else {
+                    this.emptyStateEl.classList.remove('hidden');
+                    this.panelsEl.classList.add('hidden');
+                }
+            }
+            
+            updateStatus(status) {
+                const statusText = {
+                    'connecting': 'Connecting...',
+                    'connected': 'Connected',
+                    'disconnected': 'Disconnected',
+                    'error': 'Error'
+                }[status] || 'Unknown';
+                
+                const statusClass = {
+                    'connected': 'connected',
+                    'connecting': 'connecting'
+                }[status] || '';
+                
+                this.statusEl.textContent = statusText;
+                this.statusEl.className = statusClass;
+            }
+            
+            inferLanguage(filename) {
+                const ext = filename.toLowerCase().split('.').pop();
+                const langMap = {
+                    js: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript',
+                    java: 'java', c: 'c', h: 'c', cpp: 'cpp', cxx: 'cpp', cc: 'cpp',
+                    hpp: 'cpp', hxx: 'cpp', cs: 'csharp', py: 'python', rb: 'ruby',
+                    go: 'go', rs: 'rust', php: 'php', swift: 'swift', kt: 'kotlin',
+                    scala: 'scala', json: 'json', yaml: 'yaml', yml: 'yaml',
+                    xml: 'xml', html: 'html', css: 'css', md: 'markdown'
+                };
+                return langMap[ext] || 'text';
+            }
+        }
+        
+        // Initialize app when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.diffyApp = new DiffyApp();
+            console.log('🚀 Diffy app initialized');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+	"name": "@diffy-mcp/frontend",
+	"version": "1.0.0",
+	"description": "Diffy MCP frontend - file diff viewer interface",
+	"type": "module",
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"test": "node --test tests/**/*.test.js",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"lit": "^3.0.0",
+		"monaco-editor": "^0.44.0"
+	},
+	"devDependencies": {
+		"tsup": "^8.0.0",
+		"typescript": "^5.0.0",
+		"@types/node": "^20.0.0"
+	},
+	"keywords": [
+		"frontend",
+		"file-viewer",
+		"diff",
+		"monaco",
+		"lit"
+	]
+}
