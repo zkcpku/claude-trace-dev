@@ -75,7 +75,11 @@ if (result.type === "success" && result.stopReason === "tool_call") {
 	const toolResults = await context.executeTools(result.message.toolCalls);
 
 	// Optionally intercept/modify results here
-	console.log("Tool executed:", toolResults[0].result);
+	if (toolResults[0].success) {
+		console.log("Tool executed:", toolResults[0].result);
+	} else {
+		console.log("Tool failed:", toolResults[0].error.message);
+	}
 
 	// Send results back using helper function
 	const finalResult = await claude.ask(toAskInput(toolResults), { context });
@@ -143,6 +147,11 @@ await claude.ask("Solve this complex problem", {
 const o1 = lemmy.openai({
 	apiKey: "sk-...",
 	model: "o1-mini",
+});
+
+// Use reasoningEffort in ask options
+await o1.ask("Complex problem", {
+	context,
 	reasoningEffort: "high", // low, medium, high
 });
 ```
@@ -158,7 +167,11 @@ while (currentResult.type === "success" && currentResult.stopReason === "tool_ca
 
 	// Intercept and log each tool execution
 	toolResults.forEach((result) => {
-		console.log(`Tool ${result.toolCallId}: ${result.success ? "Success" : "Failed"}`);
+		if (result.success) {
+			console.log(`Tool ${result.toolCallId}: Success`);
+		} else {
+			console.log(`Tool ${result.toolCallId}: Failed - ${result.error.message}`);
+		}
 	});
 
 	currentResult = await claude.ask(toAskInput(toolResults), { context });
