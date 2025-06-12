@@ -21,6 +21,7 @@ import type {
 	StopReason,
 	ToolDefinition,
 	AskOptions,
+	StreamingCallbacks,
 } from "../types.js";
 import type { GoogleConfig, GoogleAskOptions } from "../configs.js";
 import { zodToGoogle } from "../tools/zod-converter.js";
@@ -48,7 +49,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 		return "google";
 	}
 
-	private buildGoogleParams(options: AskOptions<GoogleAskOptions>): GenerateContentParameters {
+	private buildGoogleParams(options: AskOptions<GoogleAskOptions> & StreamingCallbacks): GenerateContentParameters {
 		const modelData = findModelData(this.config.model);
 		const maxOutputTokens =
 			options.maxOutputTokens || this.config.defaults?.maxOutputTokens || modelData?.maxOutputTokens || 4096;
@@ -102,7 +103,10 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 		};
 	}
 
-	async ask(input: string | AskInput, options?: AskOptions<GoogleAskOptions>): Promise<AskResult> {
+	async ask(
+		input: string | AskInput,
+		options?: AskOptions<GoogleAskOptions> & StreamingCallbacks,
+	): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
 			// Convert input to AskInput format
@@ -262,7 +266,7 @@ export class GoogleClient implements ChatClient<GoogleAskOptions> {
 
 	private async processStream(
 		stream: AsyncGenerator<GenerateContentResponse, any, any>,
-		options?: AskOptions<GoogleAskOptions>,
+		options?: AskOptions<GoogleAskOptions> & StreamingCallbacks,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";

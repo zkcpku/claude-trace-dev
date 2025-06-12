@@ -13,6 +13,14 @@ export type AskOptions<TChatClientAskOptions extends BaseAskOptions = BaseAskOpt
 } & TChatClientAskOptions;
 
 /**
+ * Streaming callbacks for ask method
+ */
+export type StreamingCallbacks = {
+	onChunk?: (chunk: string) => void;
+	onThinkingChunk?: (chunk: string) => void;
+};
+
+/**
  * Common interface implemented by all LLM provider clients
  */
 export interface ChatClient<TChatClientAskOptions extends BaseAskOptions = BaseAskOptions> {
@@ -25,10 +33,10 @@ export interface ChatClient<TChatClientAskOptions extends BaseAskOptions = BaseA
 	 * - Adds an ASSISTANT message with the response to context (if successful)
 	 *
 	 * @param input - The input (string for text-only, AskInput for complex content)
-	 * @param options - Optional configuration including context and streaming callback
+	 * @param options - Optional configuration including context and streaming callbacks
 	 * @returns Promise resolving to the result (success, tool call, or error)
 	 */
-	ask(input: string | AskInput, options?: AskOptions<TChatClientAskOptions>): Promise<AskResult>;
+	ask(input: string | AskInput, options?: AskOptions<TChatClientAskOptions> & StreamingCallbacks): Promise<AskResult>;
 
 	/**
 	 * Get the model name/identifier used by this client

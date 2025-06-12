@@ -12,18 +12,6 @@ export const ProviderSchema = z.enum(["anthropic", "openai", "google"]);
 
 export const BaseAskOptionsSchema = z.object({
 	maxOutputTokens: z.coerce.number().min(1).optional().describe("Maximum number of output tokens to generate"),
-	onChunk: z
-		.function()
-		.args(z.string())
-		.returns(z.void())
-		.optional()
-		.describe("Streaming callback for content chunks"),
-	onThinkingChunk: z
-		.function()
-		.args(z.string())
-		.returns(z.void())
-		.optional()
-		.describe("Streaming callback for thinking chunks (if supported by provider)"),
 });
 
 export const AnthropicAskOptionsSchema = BaseAskOptionsSchema.extend({

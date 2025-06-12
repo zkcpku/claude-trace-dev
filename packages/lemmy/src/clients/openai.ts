@@ -11,6 +11,7 @@ import type {
 	ToolCall,
 	StopReason,
 	AskOptions,
+	StreamingCallbacks,
 } from "../types.js";
 import type { OpenAIConfig, OpenAIAskOptions } from "../configs.js";
 import { zodToOpenAI } from "../tools/zod-converter.js";
@@ -40,7 +41,7 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 	}
 
 	private buildOpenAIParams(
-		options: AskOptions<OpenAIAskOptions>,
+		options: AskOptions<OpenAIAskOptions> & StreamingCallbacks,
 		messages: OpenAI.Chat.ChatCompletionMessageParam[],
 	): OpenAI.Chat.ChatCompletionCreateParams {
 		const params: OpenAI.Chat.ChatCompletionCreateParams = {
@@ -86,7 +87,10 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 		return params;
 	}
 
-	async ask(input: string | AskInput, options?: AskOptions<OpenAIAskOptions>): Promise<AskResult> {
+	async ask(
+		input: string | AskInput,
+		options?: AskOptions<OpenAIAskOptions> & StreamingCallbacks,
+	): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
 			// Convert input to AskInput format
@@ -216,7 +220,7 @@ export class OpenAIClient implements ChatClient<OpenAIAskOptions> {
 
 	private async processStream(
 		stream: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
-		options?: AskOptions<OpenAIAskOptions>,
+		options?: AskOptions<OpenAIAskOptions> & StreamingCallbacks,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";

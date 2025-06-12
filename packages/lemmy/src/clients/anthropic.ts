@@ -11,6 +11,7 @@ import type {
 	ToolCall,
 	StopReason,
 	AskOptions,
+	StreamingCallbacks,
 } from "../types.js";
 import type { AnthropicConfig, AnthropicAskOptions } from "../configs.js";
 import { zodToAnthropic } from "../tools/zod-converter.js";
@@ -42,7 +43,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 	}
 
 	private buildAnthropicParams(
-		options: AskOptions<AnthropicAskOptions>,
+		options: AskOptions<AnthropicAskOptions> & StreamingCallbacks,
 		messages: Anthropic.MessageParam[],
 	): Anthropic.MessageCreateParamsStreaming {
 		const modelData = findModelData(this.config.model);
@@ -104,7 +105,10 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 		return params;
 	}
 
-	async ask(input: string | AskInput, options?: AskOptions<AnthropicAskOptions>): Promise<AskResult> {
+	async ask(
+		input: string | AskInput,
+		options?: AskOptions<AnthropicAskOptions> & StreamingCallbacks,
+	): Promise<AskResult> {
 		const startTime = performance.now();
 		try {
 			// Convert input to AskInput format
@@ -276,7 +280,7 @@ export class AnthropicClient implements ChatClient<AnthropicAskOptions> {
 
 	private async processStream(
 		stream: AsyncIterable<Anthropic.MessageStreamEvent>,
-		options?: AskOptions<AnthropicAskOptions>,
+		options?: AskOptions<AnthropicAskOptions> & StreamingCallbacks,
 		startTime?: number,
 	): Promise<AskResult> {
 		let content = "";
