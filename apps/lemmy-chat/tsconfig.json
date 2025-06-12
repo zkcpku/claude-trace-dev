@@ -9,5 +9,9 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"],
-	"references": [{ "path": "../../packages/lemmy" }, { "path": "../../packages/lemmy-tui" }]
+	"references": [
+		{ "path": "../../packages/lemmy" },
+		{ "path": "../../packages/lemmy-tui" },
+		{ "path": "../../packages/lemmy-cli-args" }
+	]
 }

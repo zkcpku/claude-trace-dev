@@ -1,0 +1,68 @@
+{
+	"name": "@mariozechner/lemmy-tools",
+	"version": "0.1.0",
+	"description": "Comprehensive tool collection for lemmy LLM client library with built-in tools and MCP server integration",
+	"type": "module",
+	"main": "./dist/src/index.js",
+	"types": "./dist/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"import": "./dist/src/index.js"
+		},
+		"./builtin": {
+			"types": "./dist/src/builtin/index.d.ts",
+			"import": "./dist/src/builtin/index.js"
+		},
+		"./mcp": {
+			"types": "./dist/src/mcp/index.d.ts",
+			"import": "./dist/src/mcp/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"dev": "tsc --watch --pretty",
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest",
+		"test:run": "vitest run",
+		"test:coverage": "vitest run --coverage"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.12.0",
+		"zod": "^3.25.28",
+		"zod-to-json-schema": "^3.22.0",
+		"json-schema-to-zod": "^2.1.0",
+		"globby": "^14.0.0",
+		"fast-glob": "^3.3.2"
+	},
+	"devDependencies": {
+		"@mariozechner/lemmy": "file:../lemmy",
+		"@types/node": "^20.0.0",
+		"typescript": "^5.8.3",
+		"vitest": "^3.1.4"
+	},
+	"peerDependencies": {
+		"@mariozechner/lemmy": "^0.1.0"
+	},
+	"keywords": [
+		"llm",
+		"ai",
+		"tools",
+		"mcp",
+		"model-context-protocol",
+		"anthropic",
+		"openai",
+		"typescript",
+		"automation"
+	],
+	"author": "Claude Code",
+	"license": "MIT",
+	"engines": {
+		"node": ">=18.0.0"
+	}
+}

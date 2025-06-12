@@ -36,6 +36,7 @@
 	"references": [
 		{ "path": "./packages/lemmy" },
 		{ "path": "./packages/lemmy-tui" },
+		{ "path": "./packages/lemmy-cli-args" },
 		{ "path": "./apps/lemmy-chat" },
 		{ "path": "./apps/red-teaming" },
 		{ "path": "./apps/claude-bridge" }

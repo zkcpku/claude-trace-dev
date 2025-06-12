@@ -7,6 +7,7 @@
 	"workspaces": [
 		"packages/lemmy",
 		"packages/lemmy-tui",
+		"packages/lemmy-cli-args",
 		"apps/*",
 		"apps/claude-trace/frontend"
 	],

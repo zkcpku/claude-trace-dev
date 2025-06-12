@@ -94,7 +94,7 @@ jq -r '.portingOrder[] | select(.portingState == "pending") | . | @json' porting
 
 ### 3. Confirm with User
 
-1. Play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
+1. STOP HERE
 2. STOP HERE: Show the complete `PortingOrderItem` JSON and ask if this is the type to work on.
 3. ONLY AFTER CONFIRMATION, proceed to step 4.
 
@@ -138,7 +138,7 @@ Output the resulting JSON to the user.
 
 ### 8. STOP and Ask for Confirmation
 
-1. Play a ping sound: `afplay /System/Library/Sounds/Ping.aiff`
+1. STOP HERE
 2. STOP HERE: After completing any type, you MUST STOP immediately, and ask and wait for the user to confirm moving on to the next type.
 3. ONLY AFTER CONFIRMATION, close all open files in the file viewer, and continue
 
@@ -168,11 +168,17 @@ Output the resulting JSON to the user.
 
 **Constructors:** Initialize in declaration order: `Class() : Parent(), _field(value) {}`. Colors: `_color(1,1,1,1)`, `_darkColor(0,0,0,0)`. Output params: `void method(float& outX, float& outY)`. **DO NOT port copy constructors from Java.**
 
+**Property IDs:** Java constructors with variadic property strings → C++ calls `setPropertyIds()` after parent constructor. Java: `super(frameCount, bezierCount, "prop1|" + index, "prop2|" + index)` → C++: `PropertyId ids[] = {(Property_Prop1 << 32) | index, (Property_Prop2 << 32) | index}; setPropertyIds(ids, 2);`. Each concrete timeline class handles its own property setup rather than passing through constructor chains.
+
 **Nullable References:** Java null → C++ object + boolean. `Color darkColor` → `Color _darkColor; bool _hasDarkColor;` + `hasDarkColor()` getter.
 
 **Memory:** Use `SpineExtension::calloc<T>()` or `new (__FILE__, __LINE__)` for tracking. SpineObject provides custom operators.
 
 **Ownership:** Follow Java ownership patterns. Template classes like `PosedData<T>` that take pointers in constructors own those objects and must delete them in destructors. When Java creates objects with `new` in constructors (e.g., `super(name, new BoneLocal())`), C++ should match this with `new (__FILE__, __LINE__) Type()` and ensure proper cleanup.
+
+**Classes Extending Posed:** Classes that extend `Posed` or `PosedActive` (like Bone, Slot, IkConstraint, etc.) use automatic RAII memory management. The Posed template owns the pose instances internally and provides a simplified constructor. Example: `class Bone : public PosedActive<BoneData, BoneLocal, BonePose> { public: Bone(BoneData& data, Bone* parent) : PosedActive(data) {} };`. The Posed template stores both poses as type A (concrete type) and handles the upcast to P when needed, matching Java's `new BonePose(), new BonePose()` pattern while avoiding memory leaks.
+
+**Friend Classes:** CRITICAL - Always retain all friend class declarations when porting. Spine classes extensively use friend access for internal operations. The friend declarations are placed on the base templates (`Posed`, `PosedData`, `ConstraintData`) to provide access to protected pose fields for timelines, constraints, and serialization classes (SkeletonBinary, SkeletonJson). Never remove friend classes during porting - they are essential for Spine's internal architecture where classes need direct field access for performance.
 
 **Math Functions:** NEVER use `<cmath>` or `std::` math functions. Always use `spine/MathUtil.h` functions: `MathUtil::sqrt()`, `MathUtil::sin()`, `MathUtil::cos()`, `MathUtil::atan2()`, etc.
 

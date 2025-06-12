@@ -6,9 +6,11 @@
 	"scripts": {
 		"analyze-deps": "npx tsx src/analyze-dependencies.ts",
 		"verify-coverage": "npx tsx src/verify-coverage.ts",
-		"dev-server": "npx tsx src/dev-server.ts /Users/badlogic/workspaces/spine-runtimes"
+		"dev-server": "npx tsx src/dev-server.ts /Users/badlogic/workspaces/spine-runtimes",
+		"type-extractor-mcp": "npx tsx src/type-extractor-mcp.ts"
 	},
 	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.0.0",
 		"chalk": "^5.3.0",
 		"chokidar": "^3.5.3",
 		"express": "^4.18.2",

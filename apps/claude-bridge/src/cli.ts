@@ -16,6 +16,13 @@ import {
 	type ModelData,
 	type Provider,
 } from "@mariozechner/lemmy";
+import {
+	getCapableModels,
+	getValidProviders,
+	validateProvider,
+	filterProviders,
+	type ModelValidationConfig,
+} from "@mariozechner/lemmy-cli-args";
 import path from "path";
 import { fileURLToPath } from "url";
 import { patchClaudeBinary } from "./patch-claude.js";
@@ -49,76 +56,35 @@ interface ParsedArgs {
 	claudeArgs: string[];
 }
 
-// Get models that support both tools and images - type-safe and exhaustive
-function getCapableModels(): Record<Provider, string[]> {
-	const capableModels: Record<Provider, string[]> = {
-		anthropic: [],
-		openai: [],
-		google: [],
-	};
+// Configuration for lemmy-cli-args
+const modelValidationConfig: ModelValidationConfig = {
+	allowUnknownModels: true,
+	requiredCapabilities: {
+		tools: true,
+		images: true,
+	},
+	modelRegistries: {
+		anthropic: AnthropicModelData,
+		openai: OpenAIModelData,
+		google: GoogleModelData,
+	},
+	modelToProvider: ModelToProvider,
+};
 
-	// Check Anthropic models
-	for (const [model, data] of Object.entries(AnthropicModelData)) {
-		if (data && data.supportsTools && data.supportsImageInput) {
-			capableModels.anthropic.push(model);
-		}
-	}
-
-	// Check OpenAI models
-	for (const [model, data] of Object.entries(OpenAIModelData)) {
-		if (data && data.supportsTools && data.supportsImageInput) {
-			capableModels.openai.push(model);
-		}
-	}
-
-	// Check Google models
-	for (const [model, data] of Object.entries(GoogleModelData)) {
-		if (data && data.supportsTools && data.supportsImageInput) {
-			capableModels.google.push(model);
-		}
-	}
-
-	return capableModels;
+// Get models that support both tools and images using lemmy-cli-args
+function getCapableModelsLocal(): Record<Provider, string[]> {
+	return getCapableModels(modelValidationConfig);
 }
 
-// Get capable models for a specific provider with exhaustive type checking
+// Get capable models for a specific provider using lemmy-cli-args
 function getCapableModelsForProvider(provider: Provider): string[] {
-	const allCapableModels = getCapableModels();
-
-	switch (provider) {
-		case "anthropic":
-			return allCapableModels.anthropic;
-		case "openai":
-			return allCapableModels.openai;
-		case "google":
-			return allCapableModels.google;
-		default:
-			// TypeScript will catch if we miss any provider cases
-			const _exhaustiveCheck: never = provider;
-			return _exhaustiveCheck;
-	}
+	const allCapableModels = getCapableModelsLocal();
+	return allCapableModels[provider] || [];
 }
 
-// Validate provider with exhaustive type checking
-function isValidProvider(provider: string): provider is Provider {
-	switch (provider) {
-		case "anthropic":
-		case "openai":
-		case "google":
-			return true;
-		default:
-			return false;
-	}
-}
-
-// Get all valid providers with exhaustive type checking
-function getValidProviders(): Provider[] {
-	return ["anthropic", "openai", "google"];
-}
-
-// Filter to only non-Anthropic providers (since we're bridging to non-Anthropic)
+// Filter to only non-Anthropic providers (since we're bridging to non-Anthropic) using lemmy-cli-args
 function getNonAnthropicProviders(): Exclude<Provider, "anthropic">[] {
-	return ["openai", "google"];
+	return filterProviders(getValidProviders(), ["anthropic"]);
 }
 
 function formatModelInfo(model: string, data: ModelData): string {
@@ -212,11 +178,12 @@ Examples:
 }
 
 function showProviderModels(provider: string): void {
-	// Validate provider first
-	if (!isValidProvider(provider)) {
+	// Validate provider first using lemmy-cli-args
+	const validProviders = getValidProviders();
+	if (!validateProvider(provider, validProviders)) {
 		console.error(`❌ Invalid provider: ${provider}`);
-		const validProviders = getNonAnthropicProviders();
-		console.error(`Available providers: ${validProviders.join(", ")}`);
+		const nonAnthropicProviders = getNonAnthropicProviders();
+		console.error(`Available providers: ${nonAnthropicProviders.join(", ")}`);
 		process.exit(1);
 	}
 
@@ -369,11 +336,12 @@ function parseArguments(argv: string[]): ParsedArgs {
 function validateProviderAndModel(provider?: string, model?: string): { provider: Provider; model: string } | null {
 	if (!provider) return null;
 
-	// Validate provider with type checking
-	if (!isValidProvider(provider)) {
+	// Validate provider using lemmy-cli-args
+	const validProviders = getValidProviders();
+	if (!validateProvider(provider, validProviders)) {
 		console.error(`❌ Invalid provider: ${provider}`);
-		const validProviders = getNonAnthropicProviders();
-		console.error(`Available providers: ${validProviders.join(", ")}`);
+		const nonAnthropicProviders = getNonAnthropicProviders();
+		console.error(`Available providers: ${nonAnthropicProviders.join(", ")}`);
 		return null;
 	}
 
