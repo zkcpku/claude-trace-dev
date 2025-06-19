@@ -1,4 +1,9 @@
 **⚠️ ALERT USER: Constraint classes (IkConstraint, PhysicsConstraint) have broken Skeleton API dependencies and need fixing after Skeleton is ported.**
+**⚠️ ALERT USER: Some class headers have template<> functions outside a class declaration, fix!**
+**⚠️ ALERT USER: In some classes, Claude might have used getAppliedPose() instead of getPose()!!**
+**⚠️ ALERT USER: In some classes, there are TODOs!!**
+**⚠️ ALERT USER: copy() constructors!!**
+**⚠️ ALERT USER: type hierarchy is fucked!!**
 
 # important-instruction-reminders
 

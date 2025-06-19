@@ -311,8 +311,10 @@ class App {
 
 	// Helper method to perform the actual highlighting
 	performHighlight(panel, fileKey, filepath, start, end) {
-		// Switch to this tab
-		panel.switchToTab(fileKey);
+		// Only switch to this tab if it's not already active
+		if (panel.activeTab !== fileKey) {
+			return; // Don't switch focus if file is not currently active
+		}
 
 		// Get the file view and highlight
 		const fileView = panel.fileViews.get(fileKey);
