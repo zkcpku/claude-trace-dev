@@ -1,14 +1,66 @@
 # claude-trace
 
+
 Record all your interactions with Claude Code as you develop your projects. See everything Claude hides: system prompts, tool outputs, and raw API data in an intuitive web interface.
 
-## Install
+
+在原基础上解决了两个问题：
+
+- 支持了claude code镜像版
+- 解决html里中文显示的问题
+
+## Installation
+
+### Development Install
+
+If you want to build from source or contribute:
 
 ```bash
-npm install -g @mariozechner/claude-trace
+
+cd claude-trace
+
+# Install dependencies for both backend and frontend
+npm install
+cd frontend && npm install && cd ..
+
+# Build the project
+npm run build
+
+# Test the CLI
+node --no-deprecation dist/cli.js --help
 ```
 
+
 ## Usage
+
+After building, I recommend setting alias for it in `~/.zshrc`, like this:
+```bash
+
+alias myclaude="node --no-deprecation abs_path/apps/claude-trace/dist/cli.js --include-all-requests --no-open --run-with "
+# 解释： --include-all-requests用来捕获请求，--no-open 关闭claude的时候不要自动打开html网站，--run-with 后面可以跟任意claude本身的参数，如myclaude -p "hello"，以及myclaude --dangerously-skip-permissions
+alias claude-trace="node --no-deprecation abs_path/apps/claude-trace/dist/cli.js"
+
+```
+
+### Basic Usage
+
+In your workspace:
+
+```bash
+myclaude
+```
+After quit with ctrl+c, it will print like this:
+```
+📄 Generated HTML report: .claude-trace/log-xxx-chat.html
+📄 Generated JSONL log: .claude-trace/log-xxx-chat.jsonl
+```
+
+which contains your chat history.
+
+Note that `log-auth.html/jsonl` is not useful. It records the log-in process.
+
+
+### Other Usage
 
 ```bash
 # Start Claude Code with logging
@@ -78,20 +130,22 @@ This feature:
 - **Debug views** - Raw calls shows all HTTP requests without filtering; JSON debug shows processed API data
 - **Conversation indexing** - AI-generated summaries and searchable index of all sessions
 
-## Requirements
-
-- Node.js 16+
-- Claude Code CLI installed
-
 ## Development
 
-### Running in dev mode
+### Setting up for development
 
 ```bash
-# Install dependencies
+# Clone and install dependencies
+git clone https://github.com/mariozechner/claude-trace.git
+cd claude-trace
+
+# Install backend dependencies
 npm install
 
-# Start dev mode
+# Install frontend dependencies
+cd frontend && npm install && cd ..
+
+# Start development mode (watches both backend and frontend)
 npm run dev
 ```
 
