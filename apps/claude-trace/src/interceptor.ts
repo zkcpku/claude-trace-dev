@@ -4,6 +4,8 @@ import { spawn } from "child_process";
 import { RawPair } from "./types";
 import { HTMLGenerator } from "./html-generator";
 
+const KEYWORD = ["api.anthropic.com", "gaccode.com", "claudecode"];
+
 export interface InterceptorConfig {
 	logDirectory?: string;
 	enableRealTimeHTML?: boolean;
@@ -33,11 +35,15 @@ export class ClaudeTrafficLogger {
 			fs.mkdirSync(this.logDir, { recursive: true });
 		}
 
-		// Generate timestamped filenames
+		// Generate timestamped filenames with process distinction
 		const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").slice(0, -5); // Remove milliseconds and Z
 
-		this.logFile = path.join(this.logDir, `log-${timestamp}.jsonl`);
-		this.htmlFile = path.join(this.logDir, `log-${timestamp}.html`);
+		// Detect if this is the main CLI process (has AUTH_TOKEN) vs auth process
+		const isMainCliProcess = process.env.AUTH_TOKEN ? true : false;
+		const processSuffix = isMainCliProcess ? "-chat" : "-auth";
+
+		this.logFile = path.join(this.logDir, `log-${timestamp}${processSuffix}.jsonl`);
+		this.htmlFile = path.join(this.logDir, `log-${timestamp}${processSuffix}.html`);
 
 		// Initialize HTML generator
 		this.htmlGenerator = new HTMLGenerator();
@@ -51,10 +57,20 @@ export class ClaudeTrafficLogger {
 		const includeAllRequests = process.env.CLAUDE_TRACE_INCLUDE_ALL_REQUESTS === "true";
 
 		if (includeAllRequests) {
-			return urlString.includes("api.anthropic.com"); // Capture all Anthropic API requests
+			// return KEYWORD.some((keyword) => urlString.includes(keyword)); // Capture all Anthropic API requests
+			return true;
 		}
 
-		return urlString.includes("api.anthropic.com") && urlString.includes("/v1/messages");
+		// Check if it's a company version endpoint (gaccode.com/claudecode)
+		const isCompanyVersion = urlString.includes("gaccode.com") || urlString.includes("claudecode");
+
+		if (isCompanyVersion) {
+			// For company version, capture all API endpoints, not just /v1/messages
+			return KEYWORD.some((keyword) => urlString.includes(keyword));
+		}
+
+		// For standard version, only capture /v1/messages
+		return KEYWORD.some((keyword) => urlString.includes(keyword)) && urlString.includes("/v1/messages");
 	}
 
 	private generateRequestId(): string {
@@ -430,6 +446,14 @@ export class ClaudeTrafficLogger {
 
 		this.pendingRequests.clear();
 		console.log(`Cleanup complete. Logged ${this.pairs.length} pairs`);
+
+		// Always show generated file paths
+		if (fs.existsSync(this.htmlFile)) {
+			console.log(`📄 Generated HTML report: ${this.htmlFile}`);
+		}
+		if (fs.existsSync(this.logFile)) {
+			console.log(`📄 Generated JSONL log: ${this.logFile}`);
+		}
 
 		// Open browser if requested
 		const shouldOpenBrowser = process.env.CLAUDE_TRACE_OPEN_BROWSER === "true";

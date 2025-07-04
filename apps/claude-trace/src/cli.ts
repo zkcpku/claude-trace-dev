@@ -24,6 +24,7 @@ function showHelp(): void {
 	console.log(`
 ${colors.blue}Claude Trace${colors.reset}
 Record all your interactions with Claude Code as you develop your projects
+${colors.green}✨ Now supports both standard Claude CLI and company proxy versions${colors.reset}
 
 ${colors.yellow}USAGE:${colors.reset}
   claude-trace [OPTIONS] [--run-with CLAUDE_ARG...]
@@ -83,6 +84,13 @@ ${colors.yellow}EXAMPLES:${colors.reset}
   # Generate conversation index
   claude-trace --index
 
+${colors.yellow}CLAUDE VERSION DETECTION:${colors.reset}
+  ${colors.green}🏢 Company version:${colors.reset} Auto-detected when claude-in-company-version/start.js exists
+  ${colors.green}🌐 Standard version:${colors.reset} Auto-detected from system PATH or local installation
+  
+  Company version supports gaccode.com domains and captures all API endpoints
+  Standard version supports api.anthropic.com and filters /v1/messages by default
+
 ${colors.yellow}OUTPUT:${colors.reset}
   Logs are saved to: ${colors.green}.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}${colors.reset}
 
@@ -95,23 +103,46 @@ For more information, visit: https://github.com/mariozechner/claude-trace
 }
 
 function getClaudeAbsolutePath(): string {
+	// First, try to detect company version in current directory
+	const currentDir = process.cwd();
+	const companyVersionPath = path.join(currentDir, "claude-in-company-version", "start.js");
+
+	if (fs.existsSync(companyVersionPath)) {
+		log(`🏢 Detected company version at: ${companyVersionPath}`, "blue");
+		return companyVersionPath;
+	}
+
+	// Try to find company version as relative path from claude-trace directory
+	const claudeTraceDir = path.dirname(__dirname);
+	const relativeCompanyPath = path.join(claudeTraceDir, "claude-in-company-version", "start.js");
+
+	if (fs.existsSync(relativeCompanyPath)) {
+		log(`🏢 Detected company version at: ${relativeCompanyPath}`, "blue");
+		return relativeCompanyPath;
+	}
+
+	// Fallback to standard Claude CLI detection
 	try {
-		return require("child_process")
+		const standardPath = require("child_process")
 			.execSync("which claude", {
 				encoding: "utf-8",
 			})
 			.trim();
+		log(`🌐 Using standard Claude CLI at: ${standardPath}`, "blue");
+		return standardPath;
 	} catch (error) {
 		const os = require("os");
 		const localClaudePath = path.join(os.homedir(), ".claude", "local", "node_modules", ".bin", "claude");
 
 		if (fs.existsSync(localClaudePath)) {
+			log(`🌐 Using local Claude CLI at: ${localClaudePath}`, "blue");
 			return localClaudePath;
 		}
 
 		log(`❌ Claude CLI not found in PATH`, "red");
 		log(`❌ Also checked for local installation at: ${localClaudePath}`, "red");
-		log(`❌ Please install Claude Code CLI first`, "red");
+		log(`❌ Also checked for company version at: ${companyVersionPath}`, "red");
+		log(`❌ Please install Claude Code CLI or place company version in claude-in-company-version/`, "red");
 		process.exit(1);
 	}
 }
@@ -152,7 +183,8 @@ async function runClaudeWithInterception(
 	const child: ChildProcess = spawn("node", spawnArgs, {
 		env: {
 			...process.env,
-			NODE_OPTIONS: "--no-deprecation",
+			// Ensure NODE_OPTIONS includes both deprecation suppression and our interceptor
+			NODE_OPTIONS: `--no-deprecation --require ${loaderPath}`,
 			CLAUDE_TRACE_INCLUDE_ALL_REQUESTS: includeAllRequests ? "true" : "false",
 			CLAUDE_TRACE_OPEN_BROWSER: openInBrowser ? "true" : "false",
 		},
