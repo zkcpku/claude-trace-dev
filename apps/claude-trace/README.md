@@ -28,6 +28,7 @@ alias claude-trace="node --no-deprecation /path/to/claude-trace/dist/cli.js"
 # Custom alias with preferred settings
 alias myclaude="node --no-deprecation /path/to/claude-trace/dist/cli.js --include-all-requests --no-open --run-with"
 ```
+#### Note that if you do not want to open html automatically after exiting claude code, you can use `--no-open`
 
 ## Quick Start
 
