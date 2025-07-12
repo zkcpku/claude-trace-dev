@@ -115,41 +115,56 @@ function convertEntry(line) {
   try {
     const entry = JSON.parse(line);
     const converted = JSON.parse(JSON.stringify(entry));
+    let originalModel = null;
     
     // 转换请求
     if (converted.request) {
-      // 转换URL
-      if (converted.request.url && converted.request.url.includes('bedrock-runtime')) {
+      // 只对模型对话请求进行转换
+      if (converted.request.url && converted.request.url.includes('bedrock-runtime') && 
+          converted.request.url.includes('/model/')) {
+        // 从URL中提取模型信息
+        const urlMatch = converted.request.url.match(/\/model\/([^\/]+)\//);
+        if (urlMatch) {
+          originalModel = urlMatch[1];
+        }
         converted.request.url = 'https://api.anthropic.com/v1/messages';
       }
+      // 非对话请求保持原URL不变
       
-      // 转换headers
-      if (converted.request.headers) {
-        delete converted.request.headers['authorization'];
-        delete converted.request.headers['x-amz-date'];
-        delete converted.request.headers['x-amz-content-sha256'];
-        delete converted.request.headers['amz-sdk-invocation-id'];
-        delete converted.request.headers['amz-sdk-request'];
-        delete converted.request.headers['x-amz-user-agent'];
-        
-        converted.request.headers['x-api-key'] = 'sk-ant-api03-dummy-key';
-        converted.request.headers['anthropic-version'] = '2023-06-01';
-      }
-      
-      // 转换request body
-      if (converted.request.body) {
-        if (converted.request.body.anthropic_version) {
-          delete converted.request.body.anthropic_version;
+      // 只对模型对话请求转换headers和body
+      if (originalModel) {
+        // 转换headers
+        if (converted.request.headers) {
+          delete converted.request.headers['authorization'];
+          delete converted.request.headers['x-amz-date'];
+          delete converted.request.headers['x-amz-content-sha256'];
+          delete converted.request.headers['amz-sdk-invocation-id'];
+          delete converted.request.headers['amz-sdk-request'];
+          delete converted.request.headers['x-amz-user-agent'];
+          
+          converted.request.headers['x-api-key'] = 'sk-ant-api03-dummy-key';
+          converted.request.headers['anthropic-version'] = '2023-06-01';
         }
         
-        if (converted.request.body.model) {
-          converted.request.body.model = convertBedrockModelToAnthropic(converted.request.body.model);
+        // 转换request body - 添加模型信息
+        if (converted.request.body) {
+          if (converted.request.body.model) {
+            originalModel = converted.request.body.model;
+          }
+          // 添加从URL提取的模型信息到request.body
+          if (originalModel) {
+            converted.request.body.model = convertBedrockModelToAnthropic(originalModel);
+          }
+          
+          if (converted.request.body.anthropic_version) {
+            delete converted.request.body.anthropic_version;
+          }
         }
       }
     }
     
-    // 转换响应
-    if (converted.response) {
+    // 只对模型对话请求转换响应
+    if (converted.response && originalModel) {
       const isStreaming = converted.response.headers && 
         converted.response.headers['content-type'] === 'application/vnd.amazon.eventstream';
       
@@ -161,8 +176,9 @@ function convertEntry(line) {
           converted.response.headers['content-type'] = 'text/event-stream';
           
           // 关键！！！为所有streaming响应添加response.body字段
-          // 从request.body中获取模型信息，或者使用默认值
-          const model = converted.request?.body?.model || 'claude-sonnet-4-20250514';
+          // 使用原始模型信息或转换后的模型信息
+          const model = originalModel ? convertBedrockModelToAnthropic(originalModel) : 
+                       (converted.request?.body?.model || 'claude-sonnet-4-20250514');
           converted.response.body = {
             model: model,
             type: 'message',
@@ -178,6 +194,9 @@ function convertEntry(line) {
         }
         if (converted.response.body.model) {
           converted.response.body.model = convertBedrockModelToAnthropic(converted.response.body.model);
+        } else if (originalModel) {
+          // 如果response中没有model但request中有，补充上
+          converted.response.body.model = convertBedrockModelToAnthropic(originalModel);
         }
         if (converted.response.body['amazon-bedrock-invocationMetrics']) {
           delete converted.response.body['amazon-bedrock-invocationMetrics'];
