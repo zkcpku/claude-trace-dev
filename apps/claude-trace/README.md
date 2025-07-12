@@ -2,110 +2,38 @@
 
 Record all your interactions with Claude Code as you develop your projects. See everything Claude hides: system prompts, tool outputs, and raw API data in an intuitive web interface.
 
-## Installation
-
-### Method 2: Clone and Build
+## Install
 
 ```bash
-git clone 
-cd claude-trace
-
-# Install dependencies (run in both root and frontend/)
-npm install && cd frontend && npm install && cd ..
-
-# Build everything
-npm run build
+npm install -g @mariozechner/claude-trace
 ```
 
-### Method 3: Create Aliases (Advanced)
-
-For frequent use, create shell aliases in your `~/.bashrc` or `~/.zshrc`:
-
-```bash
-# Basic alias
-alias claude-trace="node --no-deprecation /path/to/claude-trace/dist/cli.js"
-
-# Custom alias with preferred settings
-alias myclaude="node --no-deprecation /path/to/claude-trace/dist/cli.js --include-all-requests --no-open --run-with"
-```
-#### Note that if you do not want to open html automatically after exiting claude code, you can use `--no-open`
-
-## Quick Start
-
-```bash
-cd your_workspace
-myclaude
-```
-
-
-```bash
-myclaude -p "hello"
-```
-
-```bash 
-myclaude --dangerously-skip-permissions
-```
-
-## Others
+## Usage
 
 ```bash
 # Start Claude Code with logging
 claude-trace
 
-# With comprehensive logging (recommended for debugging)
+# Include all API requests (by default, only substantial conversations are logged)
 claude-trace --include-all-requests
 
-# Start with specific Claude commands
+# Run Claude with specific arguments
 claude-trace --run-with chat --model sonnet-3.5
-```
 
-## Suggested Usage Patterns
+# Show help
+claude-trace --help
 
-### For Development Work
-```bash
-# Start a traced session for a new project
-cd my-project
-claude-trace --include-all-requests
-
-# Review what happened after your session
-open .claude-trace/log-*.html
-```
-
-### For Debugging Issues
-```bash
-# Capture everything including system calls
-claude-trace --include-all-requests --run-with
-
-# Generate detailed reports
-claude-trace --generate-html latest.jsonl report.html --include-all-requests
-```
-
-### For Learning and Analysis
-```bash
-# Create searchable index of all sessions
-claude-trace --index
-
-# Extract authentication tokens for API analysis
+# Extract OAuth token
 claude-trace --extract-token
-```
 
-## Command Reference
-
-```bash
-# Basic usage
-claude-trace                              # Start with default filtering
-claude-trace --include-all-requests       # Log all API calls
-claude-trace --run-with [claude-args]     # Pass arguments to Claude Code
-claude-trace --no-open                    # Don't auto-open HTML reports
-
-# Report generation
+# Generate HTML report manually from previously logged .jsonl
 claude-trace --generate-html logs.jsonl report.html
+
+# Generate HTML including all requests (not just substantial conversations)
 claude-trace --generate-html logs.jsonl --include-all-requests
 
-# Analysis tools
-claude-trace --index                      # Generate conversation summaries
-claude-trace --extract-token             # Extract OAuth tokens
-claude-trace --help                       # Show all options
+# Generate conversation summaries and searchable index
+claude-trace --index
 ```
 
 Logs are saved to `.claude-trace/log-YYYY-MM-DD-HH-MM-SS.{jsonl,html}` in your current directory. The HTML file is self-contained and opens in any browser without needing a server.

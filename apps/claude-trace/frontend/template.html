@@ -9,17 +9,7 @@
     <div id="app"></div>
     
     <script>
-      // UTF-8 safe base64 decoding for Chinese characters
-      function base64ToUtf8(base64) {
-        const bytes = atob(base64);
-        const utf8Array = new Uint8Array(bytes.length);
-        for (let i = 0; i < bytes.length; i++) {
-          utf8Array[i] = bytes.charCodeAt(i);
-        }
-        return new TextDecoder('utf-8').decode(utf8Array);
-      }
-      
-      window.claudeData = JSON.parse(base64ToUtf8('__CLAUDE_LOGGER_DATA_REPLACEMENT_UNIQUE_9487__'));
+      window.claudeData = JSON.parse(atob('__CLAUDE_LOGGER_DATA_REPLACEMENT_UNIQUE_9487__'));
     </script>
     
     <script>
